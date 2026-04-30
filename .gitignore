@@ -1,0 +1,37 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.cline/
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/app/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android Studio
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+
+# NDK
+obj/
+
+# Keystore files
+# Uncomment the following line if you don't want to track keystore files
+# *.jks
+# *.keystore
+
+/API使用例/

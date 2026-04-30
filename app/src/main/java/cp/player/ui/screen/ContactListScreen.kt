@@ -1,0 +1,130 @@
+package cp.player.ui.screen
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import cp.player.R
+import cp.player.ui.component.AppScaffold
+import cp.player.model.Contact
+import cp.player.util.ImageUtils
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun ContactListScreen(
+    contacts: List<Contact>,
+    onContactClick: (Contact) -> Unit,
+    onAvatarClick: (Long) -> Unit,
+    onBackPressed: () -> Unit
+) {
+    AppScaffold(
+        title = stringResource(R.string.messages),
+        onBackPressed = onBackPressed
+    ) { _ ->
+        if (contacts.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_recent_contacts), style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(0.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(
+                    items = contacts,
+                    key = { it.userId },
+                    contentType = { "contact" }
+                ) { contact ->
+                    ContactItem(
+                        contact = contact,
+                        onClick = { onContactClick(contact) },
+                        onAvatarClick = { onAvatarClick(contact.userId) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContactItem(
+    contact: Contact,
+    onClick: () -> Unit,
+    onAvatarClick: () -> Unit
+) {
+    val timeStr = contact.lastMessageTime?.let {
+        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
+    } ?: ""
+
+    ListItem(
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    contact.nickname,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (timeStr.isNotEmpty()) {
+                    Text(
+                        timeStr,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        supportingContent = {
+            Text(
+                contact.lastMessage ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            AsyncImage(
+                model = ImageUtils.getResizedImageUrl(contact.avatarUrl, 120),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable { onAvatarClick() },
+                contentScale = ContentScale.Crop
+            )
+        },
+        trailingContent = {
+            if (contact.unreadCount > 0) {
+                Badge {
+                    Text(contact.unreadCount.toString())
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    )
+}
