@@ -15,6 +15,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+/.roo/
 
 # Android Studio
 *.apk
