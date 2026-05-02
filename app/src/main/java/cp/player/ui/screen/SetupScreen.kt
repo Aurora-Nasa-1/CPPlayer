@@ -54,6 +54,7 @@ fun SetupScreen(
                 }
                 isImporting = false
                 if (success) {
+                    cp.player.provider.ProviderManager.startServer(context)
                     Toast.makeText(context, context.getString(R.string.module_import_success), Toast.LENGTH_SHORT).show()
                     onSetupComplete()
                 } else {

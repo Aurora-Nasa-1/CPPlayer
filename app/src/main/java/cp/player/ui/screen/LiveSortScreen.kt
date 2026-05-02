@@ -80,6 +80,7 @@ fun LiveSortScreen(
             when (val state = sortState) {
                 is LiveSortState.Idle -> IdleState(
                     currentQueue = currentQueue,
+                    localSongs = localSongs,
                     onStart = { selectedSongs ->
                         val processableSongs = selectedSongs.mapNotNull { song ->
                             val uri = localSongs.find { it.first.id == song.id }?.second
@@ -129,9 +130,16 @@ fun LiveSortScreen(
 @Composable
 private fun IdleState(
     currentQueue: List<cp.player.model.Song>, 
+    localSongs: List<Pair<cp.player.model.Song, android.net.Uri>>,
     onStart: (List<cp.player.model.Song>) -> Unit
 ) {
-    var selectedSongs by remember { mutableStateOf(currentQueue.toSet()) }
+    val downloadedQueue = remember(currentQueue, localSongs) {
+        currentQueue.filter { song ->
+            localSongs.any { it.first.id == song.id } || song.id.startsWith("local_")
+        }
+    }
+
+    var selectedSongs by remember(downloadedQueue) { mutableStateOf(downloadedQueue.toSet()) }
 
     Column(
         modifier = Modifier
@@ -152,17 +160,18 @@ private fun IdleState(
             )
             TextButton(
                 onClick = {
-                    selectedSongs = if (selectedSongs.size == currentQueue.size) emptySet() else currentQueue.toSet()
-                }
+                    selectedSongs = if (selectedSongs.size == downloadedQueue.size) emptySet() else downloadedQueue.toSet()
+                },
+                enabled = downloadedQueue.isNotEmpty()
             ) {
-                Text(if (selectedSongs.size == currentQueue.size) "Deselect All" else "Select All")
+                Text(if (selectedSongs.size == downloadedQueue.size) "Deselect All" else "Select All")
             }
         }
 
         Text(
-            text = "Filter your current queue. Only selected tracks will be analyzed and seamlessly connected.",
+            text = if (downloadedQueue.isNotEmpty()) "Filter your current queue. Only downloaded or local tracks can be analyzed and seamlessly connected." else "No downloaded or local tracks found in the current queue. Please download some tracks first.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (downloadedQueue.isNotEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         )
 
@@ -171,7 +180,7 @@ private fun IdleState(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(currentQueue) { song ->
+            items(downloadedQueue) { song ->
                 val isSelected = selectedSongs.contains(song)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),

@@ -418,6 +418,7 @@ fun SettingsScreen(
                                                 val success = cp.player.provider.ModuleManager.importModule(context, tempFile)
                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                     if (success) {
+                                                        cp.player.provider.ProviderManager.startServer(context)
                                                         android.widget.Toast.makeText(context, context.getString(R.string.module_import_success), android.widget.Toast.LENGTH_SHORT).show()
                                                     } else {
                                                         android.widget.Toast.makeText(context, context.getString(R.string.module_import_failed), android.widget.Toast.LENGTH_SHORT).show()
@@ -440,7 +441,9 @@ fun SettingsScreen(
                                     title = provider.name + activeStr,
                                     subtitle = stringResource(R.string.provider_info, provider.type, provider.version),
                                     onClick = { 
+                                        cp.player.provider.ProviderManager.stopServer()
                                         cp.player.provider.ProviderManager.currentProvider = provider
+                                        cp.player.provider.ProviderManager.startServer(context)
                                         android.widget.Toast.makeText(context, context.getString(R.string.provider_switched, provider.name), android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                     shape = ExpressiveShapes.calculateShape(index, providers.size + 1)
