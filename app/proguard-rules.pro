@@ -21,6 +21,7 @@
 # Gson
 -keep class com.google.gson.** { *; }
 -keep class cp.player.model.** { *; }
+-keep class cp.player.provider.** { *; }
 
 # Media3 (ExoPlayer)
 -keep class androidx.media3.** { *; }
