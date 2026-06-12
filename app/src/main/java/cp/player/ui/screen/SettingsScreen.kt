@@ -80,6 +80,8 @@ fun SettingsScreen(
     onAllowDuckingChange: (Boolean) -> Unit,
     pauseOnNoisy: Boolean,
     onPauseOnNoisyChange: (Boolean) -> Unit,
+    autoResumeUsbAudio: Boolean,
+    onAutoResumeUsbAudioChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -301,14 +303,21 @@ fun SettingsScreen(
                                     subtitle = stringResource(R.string.allow_ducking_desc),
                                     checked = allowDucking,
                                     onCheckedChange = onAllowDuckingChange,
-                                    shape = ExpressiveShapes.calculateShape(2, 4)
+                                    shape = ExpressiveShapes.calculateShape(2, 5)
                                 )
                                 ExpressiveSwitchItem(
                                     title = stringResource(R.string.pause_on_noisy),
                                     subtitle = stringResource(R.string.pause_on_noisy_desc),
                                     checked = pauseOnNoisy,
                                     onCheckedChange = onPauseOnNoisyChange,
-                                    shape = ExpressiveShapes.calculateShape(3, 4)
+                                    shape = ExpressiveShapes.calculateShape(3, 5)
+                                )
+                                ExpressiveSwitchItem(
+                                    title = "USB Audio Auto-resume",
+                                    subtitle = "Auto-resume playback if USB audio is reconnected within 2 seconds",
+                                    checked = autoResumeUsbAudio,
+                                    onCheckedChange = onAutoResumeUsbAudioChange,
+                                    shape = ExpressiveShapes.calculateShape(4, 5)
                                 )
                             }
                         }

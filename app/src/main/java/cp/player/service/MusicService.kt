@@ -164,7 +164,40 @@ class MusicService : MediaSessionService() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
                 if (UserPreferences.getPauseOnNoisy(this@MusicService)) {
+                    val wasPlaying = activePlayer?.isPlaying == true
                     players.forEach { it?.pause() }
+                    
+                    if (wasPlaying && UserPreferences.getAutoResumeUsbAudio(this@MusicService)) {
+                        wasPlayingBeforeDeviceDisconnect = true
+                        deviceReconnectJob?.cancel()
+                        deviceReconnectJob = serviceScope.launch {
+                            delay(2000)
+                            wasPlayingBeforeDeviceDisconnect = false
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var wasPlayingBeforeFocusLoss = false
+    private var wasPlayingBeforeDeviceDisconnect = false
+    private var deviceReconnectJob: Job? = null
+
+    private val audioDeviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out android.media.AudioDeviceInfo>?) {
+            super.onAudioDevicesAdded(addedDevices)
+            if (UserPreferences.getAutoResumeUsbAudio(this@MusicService) && wasPlayingBeforeDeviceDisconnect) {
+                val isUsbOrHeadset = addedDevices?.any { 
+                    it.type == android.media.AudioDeviceInfo.TYPE_USB_DEVICE || 
+                    it.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
+                } == true
+                if (isUsbOrHeadset) {
+                    activePlayer?.play()
+                    wasPlayingBeforeDeviceDisconnect = false
+                    deviceReconnectJob?.cancel()
                 }
             }
         }
@@ -172,17 +205,25 @@ class MusicService : MediaSessionService() {
 
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                players.forEach { it?.pause() }
+                wasPlayingBeforeFocusLoss = false
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 val mode = UserPreferences.getAudioFocusMode(this@MusicService)
-                if (focusChange == AudioManager.AUDIOFOCUS_LOSS || mode == 1) { // 1 = Pause
+                if (mode == 1) { // 1 = Pause
+                    wasPlayingBeforeFocusLoss = activePlayer?.isPlaying == true || wasPlayingBeforeFocusLoss
                     players.forEach { it?.pause() }
-                } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT && mode == 0) { // Duck
+                } else if (mode == 0) { // Duck
                     players.forEach { it?.volume = 0.2f }
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 if (UserPreferences.getAllowDucking(this@MusicService)) {
                     players.forEach { it?.volume = 0.2f }
+                } else {
+                    wasPlayingBeforeFocusLoss = activePlayer?.isPlaying == true || wasPlayingBeforeFocusLoss
+                    players.forEach { it?.pause() }
                 }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
@@ -190,6 +231,10 @@ class MusicService : MediaSessionService() {
                     if (it == activePlayer && !isCrossfading) {
                         it?.volume = 1.0f
                     }
+                }
+                if (wasPlayingBeforeFocusLoss) {
+                    activePlayer?.play()
+                    wasPlayingBeforeFocusLoss = false
                 }
             }
         }
@@ -229,6 +274,9 @@ class MusicService : MediaSessionService() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            audioManager.registerAudioDeviceCallback(audioDeviceCallback, android.os.Handler(android.os.Looper.getMainLooper()))
+        }
 
         val renderersFactory = DefaultRenderersFactory(this).setEnableDecoderFallback(true)
 
@@ -706,6 +754,9 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        }
         unregisterReceiver(noisyReceiver)
         abandonAudioFocus()
         mediaSession?.run {

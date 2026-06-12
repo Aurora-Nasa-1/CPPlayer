@@ -35,6 +35,8 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var pauseOnNoisy by mutableStateOf(UserPreferences.getPauseOnNoisy(application))
         private set
+    var autoResumeUsbAudio by mutableStateOf(UserPreferences.getAutoResumeUsbAudio(application))
+        private set
     var fadeMode by mutableIntStateOf(UserPreferences.getFadeMode(application))
         private set
     var autoAudioFocus by mutableStateOf(UserPreferences.getAutoAudioFocus(application))
@@ -125,6 +127,11 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updatePauseOnNoisy(p: Boolean) {
         pauseOnNoisy = p
         UserPreferences.savePauseOnNoisy(getApplication(), p)
+    }
+
+    fun updateAutoResumeUsbAudio(r: Boolean) {
+        autoResumeUsbAudio = r
+        UserPreferences.saveAutoResumeUsbAudio(getApplication(), r)
     }
 
     fun updateDownloadPath(p: String) {

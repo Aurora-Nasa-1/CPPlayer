@@ -27,6 +27,7 @@ object UserPreferences {
     private const val KEY_AUDIO_FOCUS_MODE = "audio_focus_mode"
     private const val KEY_ALLOW_DUCKING = "allow_ducking"
     private const val KEY_PAUSE_ON_NOISY = "pause_on_noisy"
+    private const val KEY_AUTO_RESUME_USB_AUDIO = "auto_resume_usb_audio"
     private const val KEY_FADE_MODE = "fade_mode" // 0: Crossfade, 1: Single Fade, 2: Off
     private const val KEY_AUTO_AUDIO_FOCUS = "auto_audio_focus"
     private const val KEY_SAVED_ACCOUNTS = "saved_accounts"
@@ -326,5 +327,13 @@ object UserPreferences {
 
     fun getPauseOnNoisy(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_PAUSE_ON_NOISY, true)
+    }
+
+    fun saveAutoResumeUsbAudio(context: Context, resume: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_AUTO_RESUME_USB_AUDIO, resume).apply()
+    }
+
+    fun getAutoResumeUsbAudio(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AUTO_RESUME_USB_AUDIO, false)
     }
 }

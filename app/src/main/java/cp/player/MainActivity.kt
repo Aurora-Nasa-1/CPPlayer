@@ -653,6 +653,8 @@ fun AppMainContent(
                                 onAllowDuckingChange = { settingsViewModel.updateAllowDucking(it) },
                                 pauseOnNoisy = settingsViewModel.pauseOnNoisy,
                                 onPauseOnNoisyChange = { settingsViewModel.updatePauseOnNoisy(it) },
+                                autoResumeUsbAudio = settingsViewModel.autoResumeUsbAudio,
+                                onAutoResumeUsbAudioChange = { settingsViewModel.updateAutoResumeUsbAudio(it) },
                                 downloadDir = settingsViewModel.downloadDir,
                                 onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
