@@ -2,9 +2,9 @@ package cp.player.ui.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,7 +39,7 @@ fun SongCard(song: Song, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(MaterialTheme.shapes.extraLarge),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                color = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Icon(
                     Icons.Default.MusicNote,

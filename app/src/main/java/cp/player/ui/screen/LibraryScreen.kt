@@ -6,13 +6,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
@@ -29,7 +29,6 @@ import cp.player.R
 import cp.player.util.ImageUtils
 import cp.player.model.Playlist
 import cp.player.ui.component.PlaylistItem
-import cp.player.ui.component.ExpressiveShapes
 import cp.player.ui.component.AppScaffold
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -49,13 +48,8 @@ fun LibraryScreen(
     val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     AppScaffold(
-        title = {
-            Text(
-                stringResource(R.string.your_library),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Normal
-            )
-        },
+        title = stringResource(R.string.your_library),
+
         actions = {
             IconButton(onClick = onNavigateToSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
@@ -78,67 +72,73 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.downloads), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                    supportingContent = { Text(stringResource(R.string.offline_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                    leadingContent = {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = MaterialTheme.shapes.large
-                        ) {
-                            Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(16.dp))
-                        }
-                    },
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(ExpressiveShapes.calculateShape(0, topItemsCount))
-                        .clickable { onNavigateToDownloads() },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
-                )
-            }
-            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                    supportingContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                    leadingContent = {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.large
-                        ) {
-                            Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(16.dp))
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(ExpressiveShapes.calculateShape(1, topItemsCount))
-                        .clickable { onNavigateToCloud() },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
-                )
-            }
-            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.live_sort), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                    supportingContent = { Text(stringResource(R.string.smart_reordering), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                    leadingContent = {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.large
-                        ) {
-                            Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(16.dp))
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(ExpressiveShapes.calculateShape(2, topItemsCount))
-                        .clickable { onNavigateToLiveSort() },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
-                )
+                        .padding(horizontal = 16.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(androidx.compose.material3.ListItemDefaults.SegmentedGap)
+                    ) {
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { onNavigateToDownloads() },
+    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(0, 3),
+                            headlineContent = { Text(stringResource(R.string.downloads), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
+                            supportingContent = { Text(stringResource(R.string.offline_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                            leadingContent = {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.large
+                                ) {
+                                    Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(16.dp))
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                ,
+                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
+                        )
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { onNavigateToCloud() },
+    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(1, 3),
+                            headlineContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
+                            supportingContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                            leadingContent = {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.large
+                                ) {
+                                    Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(16.dp))
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                ,
+                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
+                        )
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { onNavigateToLiveSort() },
+    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(2, 3),
+                            headlineContent = { Text(stringResource(R.string.live_sort), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
+                            supportingContent = { Text(stringResource(R.string.smart_reordering), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
+                            leadingContent = {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.large
+                                ) {
+                                    Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(16.dp))
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                ,
+                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
+                        )
+                    }
+                }
             }
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -152,8 +152,9 @@ fun LibraryScreen(
                     playlist = playlist,
                     onClick = { onPlaylistClick(playlist) },
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    shape = ExpressiveShapes.calculateShape(index, userPlaylists.size),
-                    containerColor = MaterialTheme.colorScheme.surface
+                    index = index,
+                    total = userPlaylists.size,
+                    containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                 )
             }
         }

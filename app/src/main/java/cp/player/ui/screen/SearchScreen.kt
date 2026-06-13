@@ -8,17 +8,17 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.*
-import cp.player.ui.component.WavyLinearProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.PlaylistItem
-import cp.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -107,18 +106,17 @@ fun SearchScreen(
                         }
                     }
                     searchHistory.forEachIndexed { index, historyItem ->
-                        val shape = ExpressiveShapes.calculateShape(index, searchHistory.size)
-                        ListItem(
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { query = historyItem
+                                    onSearch(historyItem, searchType)
+                                    active = false },
+                            shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(index, searchHistory.size),
                             headlineContent = { Text(historyItem) },
                             leadingContent = { Icon(Icons.Default.History, null) },
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 1.dp)
-                                .clip(shape)
-                                .clickable {
-                                    query = historyItem
-                                    onSearch(historyItem, searchType)
-                                    active = false
-                                },
+
+                                ,
                             colors = ListItemDefaults.colors(
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
@@ -128,18 +126,17 @@ fun SearchScreen(
             } else {
                 // Suggestions
                 suggestions.forEachIndexed { index, suggestion ->
-                    val shape = ExpressiveShapes.calculateShape(index, suggestions.size)
-                    ListItem(
+                    cp.player.ui.component.UnifiedListItem(
+    onClick = { query = suggestion
+                                onSearch(suggestion, searchType)
+                                active = false },
+                        shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(index, suggestions.size),
                         headlineContent = { Text(suggestion) },
                         leadingContent = { Icon(Icons.Default.Search, null) },
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 1.dp)
-                            .clip(shape)
-                            .clickable {
-                                query = suggestion
-                                onSearch(suggestion, searchType)
-                                active = false
-                            },
+
+                            ,
                         colors = ListItemDefaults.colors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
@@ -151,7 +148,7 @@ fun SearchScreen(
         if (!active) {
             if (isLoading) {
 
-                WavyLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
             // Filter Chips
@@ -205,8 +202,9 @@ fun SearchScreen(
                     }
 
                     itemsIndexed(hotSearches, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, hot ->
-                        val shape = ExpressiveShapes.calculateShape(index, hotSearches.size)
-                        ListItem(
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { query = hot.first
+                                    onSearch(hot.first, searchType) },
                             headlineContent = { Text(hot.first) },
                             supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
                             leadingContent = {
@@ -219,55 +217,44 @@ fun SearchScreen(
                             },
                             trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                             modifier = Modifier
-                                .clip(shape)
-                                .clickable {
-                                    query = hot.first
-                                    onSearch(hot.first, searchType)
-                                },
+
+                                ,
                             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
                         )
                     }
                 } else {
                     if (searchType == 1) {
                         itemsIndexed(searchResults, key = { _, song -> song.id }) { index, song ->
-                            val shape = ExpressiveShapes.calculateShape(index, searchResults.size)
                             SongItem(
                                 song = song,
                                 isFavorite = favoriteSongs.contains(song.id),
                                 onLikeClick = { onLikeClick(song) },
                                 onClick = { onSongClick(song) },
                                 showDivider = false,
-                                shape = shape,
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         }
                     } else if (searchType == 10) {
                         itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            val shape = ExpressiveShapes.calculateShape(index, searchPlaylists.size)
                             PlaylistItem(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
-                                shape = shape,
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         }
                     } else if (searchType == 100) {
                         itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            val shape = ExpressiveShapes.calculateShape(index, searchPlaylists.size)
                             PlaylistItem(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
-                                shape = shape,
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         }
                     } else if (searchType == 1000) {
                         itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            val shape = ExpressiveShapes.calculateShape(index, searchPlaylists.size)
                             PlaylistItem(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
-                                shape = shape,
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         }

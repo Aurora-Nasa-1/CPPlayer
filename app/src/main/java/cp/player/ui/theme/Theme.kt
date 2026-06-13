@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toArgb
@@ -14,6 +16,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
+import cp.player.R
+
+val GoogleSansFlex = FontFamily(
+    Font(R.font.google_sans_flex, weight = FontWeight.Light),
+    Font(R.font.google_sans_flex, weight = FontWeight.Normal),
+    Font(R.font.google_sans_flex, weight = FontWeight.Medium),
+    Font(R.font.google_sans_flex, weight = FontWeight.SemiBold),
+    Font(R.font.google_sans_flex, weight = FontWeight.Bold)
+)
 
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
@@ -117,16 +128,23 @@ fun CPPlayerTheme(
     // Extra extra large (48dp)
     // Fully Rounded (full token)
 
+    val defaultTypography = Typography()
     val expressiveTypography = Typography(
-        displayLarge = Typography().displayLarge.copy(fontWeight = FontWeight.Normal),
-        displayMedium = Typography().displayMedium.copy(fontWeight = FontWeight.Normal),
-        displaySmall = Typography().displaySmall.copy(fontWeight = FontWeight.Normal),
-        headlineLarge = Typography().headlineLarge.copy(fontWeight = FontWeight.Normal),
-        headlineMedium = Typography().headlineMedium.copy(fontWeight = FontWeight.Normal),
-        headlineSmall = Typography().headlineSmall.copy(fontWeight = FontWeight.Normal),
-        titleLarge = Typography().titleLarge.copy(fontWeight = FontWeight.Normal),
-        titleMedium = Typography().titleMedium.copy(fontWeight = FontWeight.Normal),
-        titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.Normal),
+        displayLarge = defaultTypography.displayLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        displayMedium = defaultTypography.displayMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        displaySmall = defaultTypography.displaySmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        titleLarge = defaultTypography.titleLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        titleMedium = defaultTypography.titleMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        titleSmall = defaultTypography.titleSmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
+        bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = GoogleSansFlex),
+        bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = GoogleSansFlex),
+        bodySmall = defaultTypography.bodySmall.copy(fontFamily = GoogleSansFlex),
+        labelLarge = defaultTypography.labelLarge.copy(fontFamily = GoogleSansFlex),
+        labelMedium = defaultTypography.labelMedium.copy(fontFamily = GoogleSansFlex),
+        labelSmall = defaultTypography.labelSmall.copy(fontFamily = GoogleSansFlex)
         // All labels and buttons should be Sentence case by default in the UI layer
     )
     val view = LocalView.current

@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,8 +18,7 @@ import cp.player.R
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.AppScaffold
-import cp.player.ui.component.WavyCircularProgressIndicator
-import cp.player.ui.component.ExpressiveShapes
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
@@ -36,11 +33,12 @@ fun CloudMusicScreen(
 ) {
     AppScaffold(
         title = stringResource(R.string.cloud_music),
-        onBackPressed = onBackPressed
+        onBackPressed = onBackPressed,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading && songs.isEmpty()) {
-                WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (songs.isEmpty()) {
                 Text(
                     text = stringResource(R.string.no_cloud_songs),
@@ -65,7 +63,6 @@ fun CloudMusicScreen(
                             isFavorite = favoriteSongs.contains(song.id),
                             onClick = { onSongClick(song) },
                             onLikeClick = { onLikeClick(song) },
-                            shape = ExpressiveShapes.calculateShape(index, songs.size),
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }

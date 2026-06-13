@@ -1,21 +1,23 @@
 package cp.player.ui.component
-import cp.player.ui.component.ContainedLoadingIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cp.player.R
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,23 +29,47 @@ fun AppScaffold(
     isLoading: Boolean = false,
     scrollBehavior: TopAppBarScrollBehavior? = null,
     bottomBar: @Composable () -> Unit = {},
+    containerColor: androidx.compose.ui.graphics.Color = Color.Transparent,
+    topBarContainerColor: androidx.compose.ui.graphics.Color = Color.Unspecified,
     content: @Composable (PaddingValues) -> Unit
 ) {
+    val defaultScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val actualScrollBehavior = scrollBehavior ?: defaultScrollBehavior
+
+    // If topBarContainerColor is Unspecified, make it match the scaffold's containerColor
+    // This ensures that the unscrolled TopAppBar blends seamlessly with the background
+    // (Requirement: 默认情况下跟背景色一样)
+    val actualTopBarContainerColor = if (topBarContainerColor == Color.Unspecified) {
+        if (containerColor == Color.Transparent) MaterialTheme.colorScheme.surface.copy(alpha = 0f) else containerColor
+    } else {
+        topBarContainerColor
+    }
+
     Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.nestedScroll(actualScrollBehavior.nestedScrollConnection),
+        containerColor = containerColor,
         bottomBar = bottomBar,
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = title,
                 navigationIcon = navigationIcon ?: {
                     if (onBackPressed != null) {
-                        CommonBackButton(onClick = onBackPressed)
+                        FilledIconButton(
+                            onClick = onBackPressed,
+                            modifier = Modifier.padding(start = 4.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = LocalContentColor.current
+                            )
+                        ) {
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back))
+                        }
                     }
                 },
                 actions = actions,
-                scrollBehavior = scrollBehavior,
+                scrollBehavior = actualScrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    containerColor = actualTopBarContainerColor,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
@@ -68,6 +94,8 @@ fun AppScaffold(
     isLoading: Boolean = false,
     scrollBehavior: TopAppBarScrollBehavior? = null,
     bottomBar: @Composable () -> Unit = {},
+    containerColor: androidx.compose.ui.graphics.Color = Color.Transparent,
+    topBarContainerColor: androidx.compose.ui.graphics.Color = Color.Unspecified,
     content: @Composable (PaddingValues) -> Unit
 ) {
     AppScaffold(
@@ -78,6 +106,8 @@ fun AppScaffold(
         isLoading = isLoading,
         scrollBehavior = scrollBehavior,
         bottomBar = bottomBar,
+        containerColor = containerColor,
+        topBarContainerColor = topBarContainerColor,
         content = content
     )
 }

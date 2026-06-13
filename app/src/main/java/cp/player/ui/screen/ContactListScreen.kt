@@ -6,8 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -72,7 +70,8 @@ fun ContactItem(
         SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
     } ?: ""
 
-    ListItem(
+    cp.player.ui.component.UnifiedListItem(
+    onClick = { onAvatarClick() },
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -107,7 +106,7 @@ fun ContactItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .clickable { onAvatarClick() },
+                    ,
                 contentScale = ContentScale.Crop
             )
         },

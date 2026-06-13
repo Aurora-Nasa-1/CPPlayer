@@ -11,13 +11,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,8 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cp.player.R
 import cp.player.ui.component.AppScaffold
-import cp.player.ui.component.WavyLinearProgressIndicator
-import cp.player.ui.component.ExpressiveShapes
+import androidx.compose.material3.LinearProgressIndicator
 import cp.player.model.Song
 import cp.player.model.DownloadTask
 import cp.player.model.DownloadStatus
@@ -76,6 +74,7 @@ fun DownloadsScreen(
     AppScaffold(
         title = stringResource(R.string.offline_music),
         onBackPressed = onBackPressed,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         actions = {
             if (selectedTabIndex == 1) {
                 IconButton(onClick = { permissionLauncher.launch(permissionToRequest) }) {
@@ -113,7 +112,7 @@ fun DownloadsScreen(
                     if (downloadingTasks.isNotEmpty()) {
                         item { Text(stringResource(R.string.downloading), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 16.dp)) }
                         itemsIndexed(downloadingTasks) { index, task ->
-                            ListItem(
+                            cp.player.ui.component.UnifiedListItem(
                                 headlineContent = { Text(task.song.name) },
                                 supportingContent = {
                                     Column {
@@ -121,7 +120,7 @@ fun DownloadsScreen(
                                             Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
                                             Text(if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else stringResource(R.string.connecting), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                         }
-                                        WavyLinearProgressIndicator(
+                                        LinearProgressIndicator(
                                             progress = { if (task.progress >= 0f) task.progress else 0f },
                                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                         )
@@ -134,8 +133,8 @@ fun DownloadsScreen(
                                 },
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    .clip(ExpressiveShapes.calculateShape(index, downloadingTasks.size)),
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    ,
+                                colors = ListItemDefaults.colors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface)
                             )
                         }
                     }
@@ -149,11 +148,12 @@ fun DownloadsScreen(
                             } else {
                                 android.net.Uri.fromFile(java.io.File(metadata.filePath ?: ""))
                             }
-                            ListItem(
+                            cp.player.ui.component.UnifiedListItem(
+    onClick = { onPlayLocalSong(metadata.song, uri) },
                                 headlineContent = { Text(metadata.song.name) },
                                 supportingContent = { Text(metadata.song.artist) },
                                 leadingContent = {
-                                    Surface(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(12.dp)) {
+                                    Surface(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                                         Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(12.dp))
                                     }
                                 },
@@ -164,9 +164,9 @@ fun DownloadsScreen(
                                 },
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp, vertical = 2.dp)
-                                    .clip(ExpressiveShapes.calculateShape(index, validDownloadedSongs.size))
-                                    .clickable { onPlayLocalSong(metadata.song, uri) },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    
+                                    ,
+                                colors = ListItemDefaults.colors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface)
                             )
                         }
                     }
@@ -189,19 +189,20 @@ fun DownloadsScreen(
                                 album = localSong.album,
                                 albumArtUrl = localSong.albumArtUrl
                             )
-                            ListItem(
+                            cp.player.ui.component.UnifiedListItem(
+    onClick = { onPlayLocalSong(convertedSong, uri) },
                                 headlineContent = { Text(localSong.songName, maxLines = 1) },
                                 supportingContent = { Text(localSong.artist, maxLines = 1) },
                                 leadingContent = {
-                                    Surface(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(12.dp)) {
+                                    Surface(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                                         Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                                     }
                                 },
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp, vertical = 2.dp)
-                                    .clip(ExpressiveShapes.calculateShape(index, localSongs.size))
-                                    .clickable { onPlayLocalSong(convertedSong, uri) },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    
+                                    ,
+                                colors = ListItemDefaults.colors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface)
                             )
                         }
                     } else {

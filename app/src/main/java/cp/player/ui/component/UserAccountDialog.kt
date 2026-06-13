@@ -3,10 +3,10 @@ package cp.player.ui.component
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,8 +44,7 @@ fun UserAccountDialog(
     val savedAccounts = remember { UserPreferences.getSavedAccounts(context) }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = MaterialTheme.shapes.extraLarge,
+        Card(shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -129,7 +128,8 @@ fun UserAccountDialog(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             items(otherAccounts) { account ->
-                                ListItem(
+                                cp.player.ui.component.UnifiedListItem(
+    onClick = { onSwitchAccount(account) },
                                     headlineContent = { Text(account.nickname) },
                                     leadingContent = {
                                         if (account.avatarUrl.isNotEmpty()) {
@@ -145,21 +145,20 @@ fun UserAccountDialog(
                                     },
                                     modifier = Modifier
                                         .clip(MaterialTheme.shapes.medium)
-                                        .clickable { 
-                                            onSwitchAccount(account) 
-                                        },
+                                        ,
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                 )
                             }
                         }
                     }
                     
-                    ListItem(
+                    cp.player.ui.component.UnifiedListItem(
+    onClick = { onNavigateToLogin() },
                         headlineContent = { Text(stringResource(R.string.add_another_account)) },
                         leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
                         modifier = Modifier
                             .clip(MaterialTheme.shapes.medium)
-                            .clickable { onNavigateToLogin() },
+                            ,
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }

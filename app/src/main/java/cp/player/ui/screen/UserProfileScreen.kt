@@ -1,6 +1,6 @@
 package cp.player.ui.screen
 
-import cp.player.ui.component.ContainedLoadingIndicator
+import androidx.compose.material3.CircularProgressIndicator as ContainedLoadingIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,7 +31,7 @@ import cp.player.model.UserProfile
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.PlaylistItem
 import cp.player.ui.component.AppScaffold
-import cp.player.ui.component.ExpressiveShapes
+import androidx.compose.material3.ListItemDefaults
 import cp.player.util.ImageUtils
 
 @Composable
@@ -183,7 +183,8 @@ fun UserProfileScreen(
                         SongItem(
                             song = song,
                             onClick = { onSongClick(song) },
-                            shape = ExpressiveShapes.calculateShape(index, displaySongs.size),
+                            index = index,
+                            total = displaySongs.size,
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     }
@@ -218,7 +219,8 @@ fun UserProfileScreen(
                         PlaylistItem(
                             playlist = album,
                             onClick = { onPlaylistClick(album) },
-                            shape = ExpressiveShapes.calculateShape(index, displayAlbums.size),
+                            index = index,
+                            total = displayAlbums.size,
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     }
@@ -253,7 +255,8 @@ fun UserProfileScreen(
                         PlaylistItem(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) },
-                            shape = ExpressiveShapes.calculateShape(index, displayPlaylists.size),
+                            index = index,
+                            total = displayPlaylists.size,
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     }

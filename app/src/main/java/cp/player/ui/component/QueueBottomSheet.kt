@@ -7,12 +7,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import cp.player.model.Song
-import cp.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,8 +63,7 @@ fun QueueBottomSheet(
                         isCurrent = song.id == currentSongId,
                         onRemove = { onRemove(index) },
                         onMoveUp = { if (index > 0) onMove(index, index - 1) },
-                        onMoveDown = { if (index < items.size - 1) onMove(index, index + 1) },
-                        shape = ExpressiveShapes.calculateShape(index, items.size)
+                        onMoveDown = { if (index < items.size - 1) onMove(index, index + 1) }
                     )
                 }
             }
@@ -83,7 +81,7 @@ fun QueueItem(
     modifier: Modifier = Modifier,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(6.dp),
 ) {
-    ListItem(
+    cp.player.ui.component.UnifiedListItem(
         modifier = modifier.clip(shape),
         headlineContent = {
             Text(

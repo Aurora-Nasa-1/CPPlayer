@@ -1,6 +1,6 @@
 package cp.player.ui.screen
 
-import cp.player.ui.component.ContainedLoadingIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -22,11 +21,11 @@ import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
@@ -42,9 +41,9 @@ import cp.player.util.ImageUtils
 import cp.player.model.Playlist
 import cp.player.model.Song
 import androidx.compose.foundation.shape.CircleShape
-import cp.player.ui.component.ExpressiveShapes
 import cp.player.ui.component.SongItem
-import cp.player.ui.component.CommonBackButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import cp.player.ui.component.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -86,6 +85,7 @@ fun PlaylistDetailScreen(
     if (isSelectionMode) {
         AppScaffold(
             title = stringResource(R.string.selected_count, selectedSongs.size),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             navigationIcon = {
                 IconButton(onClick = {
                     isSelectionMode = false
@@ -141,6 +141,7 @@ fun PlaylistDetailScreen(
         AppScaffold(
             title = stringResource(R.string.playlist),
             onBackPressed = onBackPressed,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             actions = {
                 IconButton(onClick = { showSortMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More")
@@ -229,37 +230,32 @@ private fun PlaylistDetailContent(
 
             itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
                 val isSelected = selectedSongs.contains(song.id)
-                val itemShape = ExpressiveShapes.calculateShape(index, songs.size)
-                SongItem(
+                                SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),
                     isDownloaded = completedSongs.contains(song.id),
                     onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
-                    onClick = null,
-                    shape = itemShape,
+                    onClick = {
+                        if (isSelectionMode) {
+                            onSelectionChange(song.id, !isSelected)
+                        } else {
+                            onSongClick(song)
+                        }
+                    },
+                    onLongClick = {
+                        if (!isSelectionMode) {
+                            onToggleSelectionMode(true)
+                            onSelectionChange(song.id, true)
+                        }
+                    },
                     leadingContent = if (isSelectionMode) {
                         { Checkbox(checked = isSelected, onCheckedChange = {
                             onSelectionChange(song.id, it)
                         }) }
                     } else null,
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .combinedClickable(
-                            onClick = {
-                                if (isSelectionMode) {
-                                    onSelectionChange(song.id, !isSelected)
-                                } else {
-                                    onSongClick(song)
-                                }
-                            },
-                            onLongClick = {
-                                if (!isSelectionMode) {
-                                    onToggleSelectionMode(true)
-                                    onSelectionChange(song.id, true)
-                                }
-                            }
-                        ),
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+                        .padding(horizontal = 16.dp),
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                 )
             }
         }
@@ -286,8 +282,7 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // MD3E Containment for main actions
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge, // Rounded Container
+        Surface(shape = MaterialTheme.shapes.extraLarge, // Rounded Container
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth().height(64.dp)
         ) {
@@ -307,8 +302,7 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
                         Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
                     }
                     Button(
-                        onClick = onPlayAllClick,
-                        shape = MaterialTheme.shapes.extraLarge,
+                        onClick = onPlayAllClick, shape = MaterialTheme.shapes.extraLarge,
                         contentPadding = PaddingValues(horizontal = 24.dp)
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)

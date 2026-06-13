@@ -29,14 +29,20 @@ fun SongItem(
     isDownloaded: Boolean = false,
     onLikeClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    index: Int = 0,
+    total: Int = 1,
     leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     showDivider: Boolean = false,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
-    containerColor: Color = MaterialTheme.colorScheme.surface
+    containerColor: Color = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 ) {
-    ListItem(
+    cp.player.ui.component.UnifiedListItem(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(index, total),
         headlineContent = {
             Text(song.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
         },
@@ -84,7 +90,7 @@ fun SongItem(
         colors = ListItemDefaults.colors(containerColor = containerColor),
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            
+            .then(if (onClick != null) Modifier else Modifier)
     )
 }

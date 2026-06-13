@@ -1,13 +1,16 @@
 package cp.player.ui.screen
+import androidx.compose.material3.CircularProgressIndicator
 
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +101,7 @@ fun SetupScreen(
             Spacer(modifier = Modifier.height(48.dp))
             
             if (isImporting) {
-                cp.player.ui.component.WavyCircularProgressIndicator()
+                androidx.compose.material3.CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(stringResource(R.string.importing_module))
             } else {

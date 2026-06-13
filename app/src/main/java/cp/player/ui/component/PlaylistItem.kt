@@ -23,19 +23,19 @@ fun PlaylistItem(
     playlist: Playlist,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    index: Int = 0,
+    total: Int = 1,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
     containerColor: Color = MaterialTheme.colorScheme.surface,
     trailingContent: (@Composable () -> Unit)? = null,
     bottomContent: (@Composable () -> Unit)? = null
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .background(containerColor)
+        modifier = modifier.fillMaxWidth()
     ) {
-        ListItem(
+        cp.player.ui.component.UnifiedListItem(
+            onClick = onClick,
+            shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(index, total),
             headlineContent = { 
                 Text(
                     playlist.name, 
@@ -77,7 +77,7 @@ fun PlaylistItem(
                 }
             },
             trailingContent = trailingContent,
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            colors = ListItemDefaults.colors(containerColor = containerColor)
         )
         if (bottomContent != null) {
             Box(modifier = Modifier.padding(start = 88.dp, end = 16.dp, bottom = 12.dp)) {

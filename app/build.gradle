@@ -54,6 +54,7 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_21
+            freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
         }
     }
 

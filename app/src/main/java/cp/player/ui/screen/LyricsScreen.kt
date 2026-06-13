@@ -1,14 +1,18 @@
 package cp.player.ui.screen
+import androidx.compose.ui.res.stringResource
+import cp.player.R
 
 import cp.player.model.LyricLine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
@@ -19,7 +23,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import cp.player.viewmodel.PlaybackViewModel
 import cp.player.ui.component.LyricContent
-import cp.player.ui.component.CommonBackButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import cp.player.ui.theme.createCustomColorScheme
 import cp.player.ui.component.AppScaffold
 
@@ -74,22 +79,16 @@ fun LyricsScreen(
                 .background(bgBrush)
         ) {
             AppScaffold(
-                title = { 
+                title = {
                     Text(
-                        songName, 
-                        style = MaterialTheme.typography.titleMedium, 
+                        songName,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 4.dp),
                         color = Color.White
-                    ) 
-                },
-                navigationIcon = {
-                    CommonBackButton(
-                        onClick = onBackPressed,
-                        containerColor = Color.White.copy(alpha = 0.12f),
-                        iconColor = Color.White
                     )
-                }
+                },
+                onBackPressed = onBackPressed,
+                topBarContainerColor = Color.Transparent
             ) { innerPadding ->
                 Box(
                     modifier = Modifier

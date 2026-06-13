@@ -6,9 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +44,7 @@ fun DockedToolbar(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .height(80.dp)
-            .fillMaxWidth(),
-        shape = CircleShape, // Fully Rounded for MD3E Docked Toolbar
+            .fillMaxWidth(), // Fully Rounded for MD3E Docked Toolbar
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 6.dp,
         shadowElevation = 8.dp
@@ -102,8 +102,7 @@ fun DockedToolbar(
                         ) {
                             FilledTonalIconButton(
                                 onClick = onSkipPrevious,
-                                modifier = Modifier.requiredSize(32.dp),
-                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.requiredSize(32.dp), shape = MaterialTheme.shapes.small,
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 )
@@ -114,14 +113,13 @@ fun DockedToolbar(
                             FilledTonalIconButton(
                                 onClick = onPlayPause,
                                 modifier = Modifier.requiredSize(44.dp),
-                                shape = CircleShape,
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                                     contentColor = MaterialTheme.colorScheme.primary
                                 )
                             ) {
                                 if (isBuffering) {
-                                    WavyCircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                 } else {
                                     Icon(
                                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -133,8 +131,7 @@ fun DockedToolbar(
 
                             FilledTonalIconButton(
                                 onClick = onSkipNext,
-                                modifier = Modifier.requiredSize(32.dp),
-                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.requiredSize(32.dp), shape = MaterialTheme.shapes.small,
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
                                 )

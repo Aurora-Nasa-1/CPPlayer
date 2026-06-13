@@ -2,12 +2,13 @@ package cp.player.ui.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,7 @@ fun BottomPlaybackBar(
     MaterialTheme(colorScheme = barColorScheme) {
         // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
+            shape = MaterialTheme.shapes.extraLarge,
             modifier = modifier
                 .fillMaxWidth(0.9f)
                 .padding(bottom = 8.dp) // Lift it up slightly
@@ -69,7 +71,6 @@ fun BottomPlaybackBar(
                 )
                 .clickable { onClick() },
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-            shape = CircleShape,
             shadowElevation = 8.dp
         ) {
             Row(
@@ -128,14 +129,13 @@ fun BottomPlaybackBar(
                     FilledIconButton(
                         onClick = onPlayPause,
                         modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     ) {
                         if (isBuffering) {
-                            WavyCircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
                         } else {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,

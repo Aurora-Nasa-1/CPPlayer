@@ -1,6 +1,6 @@
 package cp.player.ui.component
 
-import cp.player.ui.component.WavyCircularProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,9 +8,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import cp.player.R
 import cp.player.model.Comment
 import cp.player.ui.theme.createCustomColorScheme
-import cp.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,15 +94,14 @@ fun FloorCommentBottomSheet(
                             comment = comment,
                             onLikeClick = { onLikeClick(comment) },
                             onReplyClick = { onReplyClick(comment) },
-                            onAvatarClick = { onAvatarClick(comment.userId) },
-                            shape = ExpressiveShapes.calculateShape(index, replies.size)
+                            onAvatarClick = { onAvatarClick(comment.userId) }
                         )
                     }
 
                     if (isLoading) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                WavyCircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             }
                         }
                     }
@@ -126,8 +124,7 @@ fun FloorCommentBottomSheet(
                         value = commentText,
                         onValueChange = { commentText = it },
                         placeholder = { Text(stringResource(R.string.add_comment)) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp)
+                        modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(

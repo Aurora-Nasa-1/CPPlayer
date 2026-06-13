@@ -1,8 +1,9 @@
 package cp.player.ui.component
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -39,8 +40,8 @@ fun PlaybackControls(
     ) {
         Surface(
             onClick = onSkipPrevious,
-            modifier = sideButtonModifier,
             shape = CircleShape,
+            modifier = sideButtonModifier,
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -50,13 +51,13 @@ fun PlaybackControls(
 
         Surface(
             onClick = onPlayPause,
-            modifier = centerButtonModifier,
             shape = CircleShape,
+            modifier = centerButtonModifier,
             color = MaterialTheme.colorScheme.primary
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (isBuffering) {
-                    WavyCircularProgressIndicator(modifier = Modifier.size(36.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(36.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Icon(
                         if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -70,8 +71,8 @@ fun PlaybackControls(
 
         Surface(
             onClick = onSkipNext,
-            modifier = sideButtonModifier,
             shape = CircleShape,
+            modifier = sideButtonModifier,
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
         ) {
             Box(contentAlignment = Alignment.Center) {

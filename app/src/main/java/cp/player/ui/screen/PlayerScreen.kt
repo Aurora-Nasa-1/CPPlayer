@@ -11,13 +11,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import cp.player.ui.component.ExpressiveShapes
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -45,7 +45,8 @@ import cp.player.model.Playlist
 import cp.player.model.Song
 import cp.player.ui.component.*
 import cp.player.ui.theme.createCustomColorScheme
-import cp.player.ui.component.CommonBackButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import cp.player.util.ImageUtils
 import cp.player.viewmodel.PlaybackViewModel
 import cp.player.ui.component.AppScaffold
@@ -133,7 +134,7 @@ fun PlayerScreen(
 
     if (song == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            WavyCircularProgressIndicator()
+            CircularProgressIndicator()
         }
         return
     }
@@ -206,15 +207,13 @@ fun PlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     itemsIndexed(allPlaylists) { index, p ->
-                        val shape = ExpressiveShapes.calculateShape(index, allPlaylists.size)
-                        ListItem(
+                        cp.player.ui.component.UnifiedListItem(
+    onClick = { onAddToPlaylist(song.id, p.id)
+                                    showAddToPlaylistDialog = false },
                             headlineContent = { Text(p.name) },
                             modifier = Modifier
-                                .clip(shape)
-                                .clickable {
-                                    onAddToPlaylist(song.id, p.id)
-                                    showAddToPlaylistDialog = false
-                                },
+
+                                ,
                             colors = ListItemDefaults.colors(
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
@@ -356,13 +355,15 @@ fun PlayerScreen(
                 AppScaffold(
                     title = { },
                     navigationIcon = {
-                        CommonBackButton(
-                            onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() },
-                            icon = Icons.Default.KeyboardArrowDown,
-                            containerColor = Color.Transparent,
-                            iconColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                        IconButton(onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() }) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = stringResource(id = R.string.back),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    topBarContainerColor = Color.Transparent
                 ) { innerPadding ->
                     Box(
                         modifier = Modifier
@@ -520,9 +521,9 @@ private fun PlayerWideLayout(
             ) {
                 val size = if (maxWidth < maxHeight) maxWidth else maxHeight
                 Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier.size(size),
                     color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(32.dp),
                     shadowElevation = 16.dp
                 ) {
                     if (song.albumArtUrl != null) {
@@ -585,20 +586,6 @@ private fun PlayerWideLayout(
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (bitrate > 0) {
-                            Surface(
-                                onClick = onQualityClick,
-                                color = if (bitrate > 800000) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                                shape = MaterialTheme.shapes.extraSmall
-                            ) {
-                                Text(
-                                    text = if (bitrate > 800000) "HI-RES" else "LOSSLESS",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (bitrate > 800000) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
                         IconButton(onClick = onCommentClick, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(28.dp))
                         }
@@ -624,10 +611,9 @@ private fun PlayerWideLayout(
 
                 // Progress Bar
                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    WavySlider(
+                    Slider(
                         value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                         onValueChange = { onSeek((it * duration).toLong()) },
-                        isWavy = if (useWavyProgress) isPlaying else false,
                         modifier = Modifier.fillMaxWidth(),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
@@ -697,7 +683,6 @@ private fun PlayerWideLayout(
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Surface(
                             onClick = onQueueClick,
-                            shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ) {
                             Row(
@@ -857,12 +842,12 @@ private fun PlayerMobileLayout(
         ) {
             if (!showLyrics) {
                 Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
                         .aspectRatio(1f)
                         .fillMaxWidth(0.95f)
                         .clickable { showLyrics = true },
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(36.dp),
                     shadowElevation = 16.dp
                 ) {
                     if (song.albumArtUrl != null) {
@@ -945,34 +930,6 @@ private fun PlayerMobileLayout(
             }
         }
 
-        // Quality Info (Small Row)
-        if (bitrate > 0) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Surface(
-                    onClick = onQualityClick,
-                    color = if (bitrate > 800000) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.extraSmall
-                ) {
-                    Text(
-                        text = if (bitrate > 800000) "HI-RES" else "LOSSLESS",
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Normal,
-                        color = if (bitrate > 800000) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-                Text(
-                    text = "${bitrate / 1000} kbps",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-
         // Progress Bar & Time
         if (useWavyProgress) {
             Row(
@@ -987,10 +944,9 @@ private fun PlayerMobileLayout(
                     modifier = Modifier.width(45.dp),
                     textAlign = TextAlign.Start
                 )
-                WavySlider(
+                Slider(
                     value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                     onValueChange = { onSeek((it * duration).toLong()) },
-                    isWavy = isPlaying,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
@@ -1003,10 +959,9 @@ private fun PlayerMobileLayout(
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                WavySlider(
+                Slider(
                     value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                     onValueChange = { onSeek((it * duration).toLong()) },
-                    isWavy = false,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row(

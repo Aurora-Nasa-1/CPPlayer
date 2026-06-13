@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
@@ -15,6 +14,7 @@ import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +41,6 @@ import cp.player.model.UserProfile
 import cp.player.ui.component.UserAccountDialog
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.SongCard
-import cp.player.ui.component.ExpressiveShapes
 import cp.player.ui.component.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
@@ -118,9 +117,10 @@ fun MainScreen(
     }
 
     AppScaffold(
-        title = { 
-            Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        title = {
+            Text(greeting, fontWeight = FontWeight.Bold)
         },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         actions = {
             actions()
             IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
@@ -211,8 +211,7 @@ fun MainScreen(
             if (recommendedSongs.isNotEmpty()) {
                 item {
                     // Intuitive Daily Recommended Songs Banner
-                    Surface(
-                        shape = MaterialTheme.shapes.extraLarge,
+                    Surface(shape = MaterialTheme.shapes.extraLarge,
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth().clickable { onSongClick(recommendedSongs.first()) }
                     ) {
@@ -298,8 +297,7 @@ fun MainScreen(
                         isDownloaded = completedSongs.contains(s.id),
                         onLikeClick = { onLikeClick(s) },
                         onClick = { onSongClick(s) },
-                        modifier = Modifier.weight(1f),
-                        shape = ExpressiveShapes.calculateShape(rowIndex, totalRows)
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -309,27 +307,28 @@ fun MainScreen(
 
 @Composable
 fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp).clickable(onClick = onClick)
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerLowest,
+        modifier = Modifier.height(48.dp)
     ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.size(72.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp)) {
                 icon()
             }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = title, 
+                style = MaterialTheme.typography.labelLarge, 
+                maxLines = 1, 
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = title, 
-            style = MaterialTheme.typography.labelLarge, 
-            maxLines = 1, 
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }
 
@@ -340,8 +339,7 @@ fun ExpressiveListCard(
     content: @Composable () -> Unit
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge, // Large 32dp+ rounded corners
+        modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, // Large 32dp+ rounded corners
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(modifier = Modifier.padding(bottom = 8.dp)) {

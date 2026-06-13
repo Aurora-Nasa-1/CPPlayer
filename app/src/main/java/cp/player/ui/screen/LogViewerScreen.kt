@@ -15,15 +15,13 @@ import androidx.compose.ui.res.stringResource
 import cp.player.R
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.draw.clip
-import cp.player.ui.component.ExpressiveShapes
 import cp.player.ui.component.AppScaffold
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,7 +100,7 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         itemsIndexed(logs) { index, entry ->
-                            LogEntryItem(entry, ExpressiveShapes.calculateShape(index, logs.size))
+                            LogEntryItem(entry, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                         }
                         if (logs.isEmpty()) {
                             item {

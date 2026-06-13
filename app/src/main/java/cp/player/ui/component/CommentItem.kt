@@ -3,10 +3,10 @@ package cp.player.ui.component
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,8 +36,7 @@ fun CommentItem(
             .fillMaxWidth()
             .clip(shape)
             .clickable { onReplyClick() },
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = shape
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -115,8 +114,7 @@ fun CommentItem(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp, start = 48.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        shape = MaterialTheme.shapes.small
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small
                     ) {
                         Text(
                             text = "${reply.nickname}: ${reply.content}",

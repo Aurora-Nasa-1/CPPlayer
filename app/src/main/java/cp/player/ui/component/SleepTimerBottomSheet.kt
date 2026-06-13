@@ -56,15 +56,14 @@ fun SleepTimerBottomSheet(
             }
 
             options.forEach { (label, minutes) ->
-                ListItem(
+                cp.player.ui.component.UnifiedListItem(
+    onClick = { onSetTimer(minutes)
+                            onDismiss() },
                     headlineContent = { Text(label) },
                     modifier = Modifier
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable {
-                            onSetTimer(minutes)
-                            onDismiss()
-                        },
+                        ,
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )

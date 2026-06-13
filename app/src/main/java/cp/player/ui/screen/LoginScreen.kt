@@ -1,9 +1,10 @@
 package cp.player.ui.screen
 
-import cp.player.ui.component.ContainedLoadingIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -29,7 +30,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -197,8 +197,8 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
             ) {
                 items(savedAccounts.size) { index ->
                     val account = savedAccounts[index]
-                    val shape = cp.player.ui.component.ExpressiveShapes.calculateShape(index, savedAccounts.size)
-                    ListItem(
+                    cp.player.ui.component.UnifiedListItem(
+    onClick = { viewModel.switchAccount(account) },
                         headlineContent = { Text(account.nickname) },
                         supportingContent = { Text("UID: ${account.uid}") },
                         leadingContent = {
@@ -220,8 +220,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
                             }
                         },
                         modifier = Modifier
-                            .clip(shape)
-                            .clickable { viewModel.switchAccount(account) },
+                            ,
                         colors = ListItemDefaults.colors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )

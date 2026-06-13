@@ -1,0 +1,10 @@
+{
+  "actions": [
+    {
+      "text": "Build and Run",
+      "command": "./gradlew assembleRelease && adb install -r app/build/outputs/apk/release/app-release.apk && adb shell monkey -p cp.player -c android.intent.category.LAUNCHER 1",
+      "tooltip": "Build and run the application",
+      "color": "#ff0034"
+    }
+  ]
+}

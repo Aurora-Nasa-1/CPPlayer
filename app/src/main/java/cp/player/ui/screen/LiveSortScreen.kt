@@ -10,12 +10,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import cp.player.ui.component.AppScaffold
-import cp.player.ui.component.WavyCircularProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import cp.player.viewmodel.LiveSortState
 import cp.player.viewmodel.LiveSortViewModel
 import cp.player.viewmodel.PlaybackViewModel
@@ -184,7 +184,6 @@ private fun IdleState(
                 val isSelected = selectedSongs.contains(song)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                     onClick = {
                         selectedSongs = if (isSelected) selectedSongs - song else selectedSongs + song
@@ -218,7 +217,6 @@ private fun IdleState(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
             enabled = selectedSongs.isNotEmpty()
         ) {
             Icon(Icons.Default.AutoGraph, contentDescription = null)
@@ -240,7 +238,7 @@ private fun AnalyzingState(state: LiveSortState.Analyzing) {
         val progress = if (state.total > 0) state.progress.toFloat() / state.total else 0f
         
         Box(contentAlignment = Alignment.Center) {
-            WavyCircularProgressIndicator(
+            CircularProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.size(140.dp)
             )
@@ -289,7 +287,7 @@ private fun SortingState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        WavyCircularProgressIndicator(
+        CircularProgressIndicator(
             modifier = Modifier.size(100.dp)
         )
         Spacer(modifier = Modifier.height(32.dp))
@@ -361,7 +359,6 @@ private fun CompletedState(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
             tonalElevation = 2.dp
         ) {
@@ -427,7 +424,6 @@ private fun CompletedState(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             )
@@ -634,7 +630,6 @@ private fun SongListItem(
     Surface(
         modifier = modifier
             .padding(horizontal = 8.dp),
-        shape = RoundedCornerShape(16.dp),
         color = backgroundColor,
         tonalElevation = elevation,
         shadowElevation = elevation
