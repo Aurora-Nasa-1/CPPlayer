@@ -21,6 +21,9 @@ import cp.player.ui.component.AppScaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 @Composable
 fun CloudMusicContent(
     songs: List<Song>,
@@ -30,6 +33,8 @@ fun CloudMusicContent(
     onLikeClick: (Song) -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
+    var selectedSongForOptions by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Song?>(null) }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading && songs.isEmpty()) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -56,7 +61,7 @@ fun CloudMusicContent(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),
                         onClick = { onSongClick(song) },
-                        onLikeClick = { onLikeClick(song) },
+                        onOptionsClick = { selectedSongForOptions = song },
                         index = index,
                         total = songs.size,
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -65,5 +70,21 @@ fun CloudMusicContent(
                 }
             }
         }
+    }
+
+    selectedSongForOptions?.let { song ->
+        cp.player.ui.component.SongOptionsBottomSheet(
+            song = song,
+            isFavorite = favoriteSongs.contains(song.id),
+            onDismissRequest = { selectedSongForOptions = null },
+            onPlayClick = {
+                onSongClick(song)
+                selectedSongForOptions = null
+            },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            }
+        )
     }
 }

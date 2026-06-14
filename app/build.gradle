@@ -27,6 +27,10 @@ android {
         versionCode 1
         versionName "1.0"
 
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
@@ -44,6 +48,13 @@ android {
         debug {
             signingConfig signingConfigs.debug
             crunchPngs false
+        }
+        // 快速编译且具备接近 release 的运行性能（关闭 R8 压缩，关闭 debuggable，适用于 Compose 性能调试）
+        fastRelease {
+            initWith release
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
         }
         release {
             minifyEnabled true
@@ -129,9 +140,6 @@ tasks.register('buildRust', Exec) {
     workingDir file('src/main/rust')
     commandLine 'cargo', 'ndk',
             '-t', 'arm64-v8a',
-            '-t', 'armeabi-v7a',
-            '-t', 'x86_64',
-            '-t', 'x86',
             '-o', '../jniLibs',
             'build', '--release'
 }

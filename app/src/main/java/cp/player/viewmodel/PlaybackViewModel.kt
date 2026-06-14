@@ -147,6 +147,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         }
                         updateQueue()
                     }
+                    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                        updateQueue()
+                    }
                     override fun onPlaybackStateChanged(state: Int) {
                         isBuffering = state == Player.STATE_BUFFERING
                         if (state == Player.STATE_READY || state == Player.STATE_BUFFERING) {
@@ -321,7 +324,43 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     fun addToQueue(song: Song?) = runWithController { controller ->
         if (song != null) {
-            createMediaItem(song)?.let { controller.addMediaItem(it) }
+            createMediaItem(song)?.let { 
+                val wasEmpty = controller.mediaItemCount == 0
+                controller.addMediaItem(it)
+                updateQueue()
+                if (wasEmpty) {
+                    controller.prepare()
+                    controller.play()
+                }
+            }
+        }
+    }
+    
+    fun insertNext(song: Song?) = runWithController { controller ->
+        if (song != null) {
+            createMediaItem(song)?.let {
+                val wasEmpty = controller.mediaItemCount == 0
+                val nextIndex = if (wasEmpty) 0 else controller.currentMediaItemIndex + 1
+                controller.addMediaItem(nextIndex, it)
+                updateQueue()
+                if (wasEmpty) {
+                    controller.prepare()
+                    controller.play()
+                }
+            }
+        }
+    }
+
+    fun addSongsToQueue(songs: List<Song>) = runWithController { controller ->
+        if (songs.isNotEmpty()) {
+            val wasEmpty = controller.mediaItemCount == 0
+            val items = songs.mapNotNull { createMediaItem(it) }
+            controller.addMediaItems(items)
+            updateQueue()
+            if (wasEmpty) {
+                controller.prepare()
+                controller.play()
+            }
         }
     }
     fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueue() }

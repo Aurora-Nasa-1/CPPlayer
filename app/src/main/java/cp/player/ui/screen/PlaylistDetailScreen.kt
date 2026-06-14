@@ -147,20 +147,22 @@ fun PlaylistDetailScreen(
                     Icon(Icons.Default.MoreVert, contentDescription = "More")
                 }
                 val context = androidx.compose.ui.platform.LocalContext.current
-                DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_name)) }, onClick = { onSortChange("name"); showSortMenu = false })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
-                    DropdownMenuItem(
-                        text = { Text("Share Playlist") },
-                        onClick = {
+                if (showSortMenu) {
+                    cp.player.ui.component.PlaylistOptionsBottomSheet(
+                        playlist = playlist,
+                        onDismissRequest = { showSortMenu = false },
+                        onPlayClick = { onPlayAllClick(songs) },
+                        onAddToQueueClick = { onQueueAllClick(songs) },
+                        onShareClick = {
                             val shareIntent = android.content.Intent().apply {
                                 action = android.content.Intent.ACTION_SEND
                                 putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${playlist.name}\nhttps://music.163.com/playlist?id=${playlist.id}")
                                 type = "text/plain"
                             }
                             context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
-                            showSortMenu = false
-                        }
+                        },
+                        onSortByNameClick = { onSortChange("name") },
+                        onSortByArtistClick = { onSortChange("artist") }
                     )
                 }
             },
@@ -209,6 +211,8 @@ private fun PlaylistDetailContent(
     onSelectionChange: (String, Boolean) -> Unit,
     onToggleSelectionMode: (Boolean) -> Unit
 ) {
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
+
     if (isLoading && songs.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
              ContainedLoadingIndicator()
@@ -234,7 +238,7 @@ private fun PlaylistDetailContent(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),
                     isDownloaded = completedSongs.contains(song.id),
-                    onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
+                    onOptionsClick = if (!isSelectionMode) { { selectedSongForOptions = song } } else null,
                     onClick = {
                         if (isSelectionMode) {
                             onSelectionChange(song.id, !isSelected)
@@ -259,6 +263,22 @@ private fun PlaylistDetailContent(
                 )
             }
         }
+    }
+
+    selectedSongForOptions?.let { song ->
+        cp.player.ui.component.SongOptionsBottomSheet(
+            song = song,
+            isFavorite = favoriteSongs.contains(song.id),
+            onDismissRequest = { selectedSongForOptions = null },
+            onPlayClick = {
+                onSongClick(song)
+                selectedSongForOptions = null
+            },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            }
+        )
     }
 }
 

@@ -145,6 +145,17 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    suspend fun getPlaylistSongs(playlistId: Long): List<Song> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val tracksBody = callApi("playlist/track/all", mapOf("id" to playlistId.toString(), "limit" to "1000", "offset" to "0"))
+                tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
     fun fetchCloudSongs() {
         viewModelScope.launch {
             isLoading = true

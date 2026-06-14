@@ -83,6 +83,7 @@ fun MainScreen(
     val isLandscape = widthClass != WindowWidthSizeClass.Compact
 
     var showAccountDialog by remember { mutableStateOf(false) }
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     if (showAccountDialog) {
         UserAccountDialog(
@@ -226,13 +227,29 @@ fun MainScreen(
                         song = s,
                         isFavorite = favoriteSongs.contains(s.id),
                         isDownloaded = completedSongs.contains(s.id),
-                        onLikeClick = { onLikeClick(s) },
+                        onOptionsClick = { selectedSongForOptions = s },
                         onClick = { onSongClick(s) },
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
         }
+    }
+
+    selectedSongForOptions?.let { song ->
+        cp.player.ui.component.SongOptionsBottomSheet(
+            song = song,
+            isFavorite = favoriteSongs.contains(song.id),
+            onDismissRequest = { selectedSongForOptions = null },
+            onPlayClick = {
+                onSongClick(song)
+                selectedSongForOptions = null
+            },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            }
+        )
     }
 }
 

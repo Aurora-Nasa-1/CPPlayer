@@ -40,7 +40,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     }
 
     private val engineLock = ReentrantLock()
-    private var playlist: List<MediaItem> = emptyList()
+    private class PlaylistItem(val uid: java.util.UUID, val item: MediaItem)
+    private var playlist: List<PlaylistItem> = emptyList()
     private var currentMediaItemIndex = 0
     private var playWhenReady = false
     private var isPlaying = false
@@ -216,7 +217,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
     private fun getRealDuration(): Long {
         if (playlist.isEmpty()) return 0L
-        val item = playlist[currentMediaItemIndex]
+        val item = playlist[currentMediaItemIndex].item
         val extraDuration = item.mediaMetadata.extras?.getLong("duration") ?: 0L
         if (extraDuration > 0) return extraDuration
         
@@ -278,7 +279,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             .setShuffleModeEnabled(shuffleModeEnabled)
             
         if (playlist.isNotEmpty()) {
-            val mediaItemDataList = playlist.mapIndexed { index, item ->
+            val mediaItemDataList = playlist.mapIndexed { index, pItem ->
+                val item = pItem.item
                 val itemDurationMs = item.mediaMetadata.extras?.getLong("duration") ?: 0L
                 val displayDurationMs = if (index == currentMediaItemIndex && durationMs > 0) {
                     durationMs
@@ -288,7 +290,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                     C.TIME_UNSET
                 }
                 
-                SimpleBasePlayer.MediaItemData.Builder(item.mediaId)
+                SimpleBasePlayer.MediaItemData.Builder(pItem.uid)
                     .setMediaItem(item)
                     .setMediaMetadata(item.mediaMetadata)
                     .setIsSeekable(true)
@@ -361,15 +363,66 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     }
 
     override fun handleSetMediaItems(
-        mediaItems: MutableList<MediaItem>,
+        mediaItems: List<MediaItem>,
         startIndex: Int,
         startPositionMs: Long
     ): ListenableFuture<*> {
-        playlist = mediaItems.toList()
+        playlist = mediaItems.map { PlaylistItem(java.util.UUID.randomUUID(), it) }
         currentMediaItemIndex = if (startIndex in mediaItems.indices) startIndex else 0
         if (playWhenReady && playlist.isNotEmpty()) {
             playCurrentItem()
         }
+        invalidateState()
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleAddMediaItems(index: Int, mediaItems: List<MediaItem>): ListenableFuture<*> {
+        val newList = playlist.toMutableList()
+        val wasEmpty = newList.isEmpty()
+        val insertIndex = if (index == C.INDEX_UNSET) newList.size else index.coerceIn(0, newList.size)
+        newList.addAll(insertIndex, mediaItems.map { PlaylistItem(java.util.UUID.randomUUID(), it) })
+        playlist = newList
+        
+        if (wasEmpty) {
+            currentMediaItemIndex = 0
+        } else if (currentMediaItemIndex >= insertIndex) {
+            currentMediaItemIndex += mediaItems.size
+        }
+        
+        // Safety check
+        currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
+        
+        invalidateState()
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleMoveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int): ListenableFuture<*> {
+        val newList = playlist.toMutableList()
+        val validFrom = fromIndex.coerceAtLeast(0)
+        val validTo = toIndex.coerceAtMost(newList.size)
+        if (validFrom >= validTo) return Futures.immediateVoidFuture()
+
+        val itemsToMove = newList.subList(validFrom, validTo).toList()
+        newList.subList(validFrom, validTo).clear()
+        
+        // Calculate insert index based on original list sizing
+        val insertIndex = newIndex.coerceIn(0, newList.size)
+        newList.addAll(insertIndex, itemsToMove)
+        
+        playlist = newList
+        
+        // Adjust currentMediaItemIndex
+        if (currentMediaItemIndex in validFrom until validTo) {
+            currentMediaItemIndex = insertIndex + (currentMediaItemIndex - validFrom)
+        } else if (currentMediaItemIndex >= validTo && currentMediaItemIndex < insertIndex) {
+            currentMediaItemIndex -= (validTo - validFrom)
+        } else if (currentMediaItemIndex >= insertIndex && currentMediaItemIndex < validFrom) {
+            currentMediaItemIndex += (validTo - validFrom)
+        }
+        
+        // Safety check
+        currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
+        
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -386,7 +439,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             if (currentMediaItemIndex >= validTo) {
                 currentMediaItemIndex -= (validTo - validFrom)
             } else if (currentMediaItemIndex >= validFrom) {
-                currentMediaItemIndex = validFrom.coerceAtMost(playlist.size - 1)
+                currentMediaItemIndex = validFrom.coerceAtMost(playlist.size - 1).coerceAtLeast(0)
                 if (playlist.isEmpty()) {
                     engineLock.lock()
                     try { RustEngine.stop() } finally { engineLock.unlock() }
@@ -397,6 +450,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                     playCurrentItem()
                 }
             }
+            // Safety check
+            currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
+            
             invalidateState()
         }
         return Futures.immediateVoidFuture()
@@ -475,7 +531,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     private fun playCurrentItem() {
         if (playlist.isEmpty()) return
         
-        val item = playlist[currentMediaItemIndex]
+        val item = playlist[currentMediaItemIndex].item
         updatePosition(0L)
         durationMs = item.mediaMetadata.extras?.getLong("duration") ?: 0L
         isDownloading = false

@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material3.*
@@ -27,7 +28,7 @@ fun SongItem(
     song: Song,
     isFavorite: Boolean = false,
     isDownloaded: Boolean = false,
-    onLikeClick: (() -> Unit)? = null,
+    onOptionsClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -76,14 +77,20 @@ fun SongItem(
                 }
             }
         },
-        trailingContent = trailingContent ?: if (onLikeClick != null) {
+        trailingContent = trailingContent ?: if (onOptionsClick != null) {
             {
-                IconButton(onClick = onLikeClick) {
-                    Icon(
-                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                    )
+                Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(40.dp).clickable(onClick = onOptionsClick)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         } else null,

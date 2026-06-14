@@ -70,6 +70,7 @@ fun LibraryScreen(
     )
     val pagerState = rememberPagerState(pageCount = { filters.size })
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     var showCreateDialog by remember { mutableStateOf(false) }
 
@@ -131,14 +132,22 @@ fun LibraryScreen(
                                             onClick = { onPlaylistClick(userPlaylists[index]) },
                                             onDelete = { userViewModel.deletePlaylist(userPlaylists[index].id) },
                                             onAddToQueue = {
-                                                // Fetch playlist songs and add to queue
                                                 coroutineScope.launch {
-                                                    // This is a simplified approach. Ideally we'd have a specific function in UserViewModel that returns the songs and then we add to queue.
-                                                    // Since userViewModel.fetchPlaylistSongs updates a state variable asynchronously, this requires slightly different handling in a real app,
-                                                    // but for now we just show a snackbar or similar UI feedback if we had one.
+                                                    val songs = userViewModel.getPlaylistSongs(userPlaylists[index].id)
+                                                    if (songs.isNotEmpty()) {
+                                                        playbackViewModel.addSongsToQueue(songs)
+                                                        android.widget.Toast.makeText(context, "Added ${songs.size} songs to queue", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
                                             },
-                                            onShare = { /* TODO: Implement share */ }
+                                            onShare = {
+                                                val shareIntent = android.content.Intent().apply {
+                                                    action = android.content.Intent.ACTION_SEND
+                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${userPlaylists[index].name}\nhttps://music.163.com/playlist?id=${userPlaylists[index].id}")
+                                                    type = "text/plain"
+                                                }
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
+                                            }
                                         )
                                     }
                                 }
@@ -280,42 +289,14 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, 
     }
 
     if (showMenu) {
-        ModalBottomSheet(onDismissRequest = { showMenu = false }) {
-            Column(modifier = Modifier.padding(bottom = 32.dp)) {
-                Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(16.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text("Add to Queue") },
-                    leadingContent = { Icon(Icons.Rounded.QueueMusic, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        onAddToQueue()
-                        showMenu = false
-                    }
-                )
-                ListItem(
-                    headlineContent = { Text("Share") },
-                    leadingContent = { Icon(Icons.Rounded.Share, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        onShare()
-                        showMenu = false
-                    }
-                )
-                ListItem(
-                    headlineContent = { Text("Delete Playlist", color = MaterialTheme.colorScheme.error) },
-                    leadingContent = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                    modifier = Modifier.clickable {
-                        showDeleteConfirm = true
-                        showMenu = false
-                    }
-                )
-            }
-        }
+        cp.player.ui.component.PlaylistOptionsBottomSheet(
+            playlist = playlist,
+            onDismissRequest = { showMenu = false },
+            onPlayClick = { onClick() },
+            onAddToQueueClick = { onAddToQueue() },
+            onShareClick = { onShare() },
+            onDeleteClick = { showDeleteConfirm = true }
+        )
     }
 
     if (showDeleteConfirm) {

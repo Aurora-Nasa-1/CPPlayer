@@ -54,6 +54,7 @@ fun SearchScreen(
 
     var query by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(
@@ -228,7 +229,7 @@ fun SearchScreen(
                             SongItem(
                                 song = song,
                                 isFavorite = favoriteSongs.contains(song.id),
-                                onLikeClick = { onLikeClick(song) },
+                                onOptionsClick = { selectedSongForOptions = song },
                                 onClick = { onSongClick(song) },
                                 showDivider = false,
                                 containerColor = MaterialTheme.colorScheme.surface
@@ -262,5 +263,21 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    selectedSongForOptions?.let { song ->
+        cp.player.ui.component.SongOptionsBottomSheet(
+            song = song,
+            isFavorite = favoriteSongs.contains(song.id),
+            onDismissRequest = { selectedSongForOptions = null },
+            onPlayClick = {
+                onSongClick(song)
+                selectedSongForOptions = null
+            },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            }
+        )
     }
 }
