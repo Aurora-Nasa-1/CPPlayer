@@ -22,7 +22,8 @@ object JsonUtils {
                     name = item.get("songName").asString,
                     artist = item.get("artist")?.asString ?: "Unknown",
                     album = item.get("album")?.asString ?: "Cloud Storage",
-                    albumArtUrl = null
+                    albumArtUrl = null,
+                    durationMs = item.get("dt")?.asLong ?: item.get("duration")?.asLong ?: 0L
                 )
             }
 
@@ -45,7 +46,8 @@ object JsonUtils {
                 artist = artistName,
                 artistId = artistId,
                 album = albumName,
-                albumArtUrl = picUrl
+                albumArtUrl = picUrl,
+                durationMs = obj.get("dt")?.asLong ?: obj.get("duration")?.asLong ?: 0L
             )
         } catch (e: Exception) {
             null

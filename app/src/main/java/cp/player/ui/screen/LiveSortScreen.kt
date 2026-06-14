@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import cp.player.ui.component.AppScaffold
 import androidx.compose.material3.CircularProgressIndicator
 import cp.player.viewmodel.LiveSortState
 import cp.player.viewmodel.LiveSortViewModel
@@ -44,10 +43,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LiveSortScreen(
+fun LiveSortContent(
     liveSortViewModel: LiveSortViewModel,
     playbackViewModel: PlaybackViewModel,
-    onBackPressed: () -> Unit
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val sortState by liveSortViewModel.sortState.collectAsState()
     val currentQueue = playbackViewModel.currentQueue
@@ -56,11 +55,7 @@ fun LiveSortScreen(
     // Reset state if currentQueue changes completely (e.g. user switched playlist)
     LaunchedEffect(currentQueue) {
         if (sortState !is LiveSortState.Idle) {
-            // A simple heuristic: if the current queue size changed drastically or the first song changed,
-            // we should probably reset. For safety, just reset whenever the queue changes unless we just started playback from LiveSort.
-            // Actually, we don't want to reset if the user just clicked "Play" and it updated the queue.
-            // But playing the LiveSort result updating the queue shouldn't reset the UI immediately if they want to admire the curve.
-            val isSameQueue = sortState is LiveSortState.Completed && 
+            val isSameQueue = sortState is LiveSortState.Completed &&
                               (sortState as LiveSortState.Completed).sortedSongs.map { it.song } == currentQueue
             if (!isSameQueue) {
                 liveSortViewModel.reset()
@@ -68,61 +63,56 @@ fun LiveSortScreen(
         }
     }
 
-    AppScaffold(
-        title = "LiveSort",
-        onBackPressed = onBackPressed
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (val state = sortState) {
-                is LiveSortState.Idle -> IdleState(
-                    currentQueue = currentQueue,
-                    localSongs = localSongs,
-                    onStart = { selectedSongs ->
-                        val processableSongs = selectedSongs.mapNotNull { song ->
-                            val uri = localSongs.find { it.first.id == song.id }?.second
-                                ?: if (song.id.startsWith("local_")) {
-                                    android.net.Uri.parse("content://media/external/audio/media/${song.id.removePrefix("local_")}")
-                                } else null
-                                
-                            if (uri != null) {
-                                song to uri.toString()
-                            } else {
-                                null
-                            }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = bottomContentPadding.calculateBottomPadding())
+    ) {
+        when (val state = sortState) {
+            is LiveSortState.Idle -> IdleState(
+                currentQueue = currentQueue,
+                localSongs = localSongs,
+                onStart = { selectedSongs ->
+                    val processableSongs = selectedSongs.mapNotNull { song ->
+                        val uri = localSongs.find { it.first.id == song.id }?.second
+                            ?: if (song.id.startsWith("local_")) {
+                                android.net.Uri.parse("content://media/external/audio/media/${song.id.removePrefix("local_")}")
+                            } else null
+
+                        if (uri != null) {
+                            song to uri.toString()
+                        } else {
+                            null
                         }
-                        liveSortViewModel.processPlaylist(processableSongs)
                     }
-                )
+                    liveSortViewModel.processPlaylist(processableSongs)
+                }
+            )
 
-                is LiveSortState.Analyzing -> AnalyzingState(state)
+            is LiveSortState.Analyzing -> AnalyzingState(state)
 
-                is LiveSortState.Sorting -> SortingState()
+            is LiveSortState.Sorting -> SortingState()
 
-                is LiveSortState.Error -> ErrorState(state.message, onRetry = {
-                    liveSortViewModel.processPlaylist(emptyList())
-                })
+            is LiveSortState.Error -> ErrorState(state.message, onRetry = {
+                liveSortViewModel.processPlaylist(emptyList())
+            })
 
-                is LiveSortState.Completed -> CompletedState(
-                    state = state,
-                    onPlay = {
-                        // Enable AutoMix/Crossfade (fadeMode = 0) with a nice duration for seamless transition
-                        cp.player.util.UserPreferences.saveFadeMode(liveSortViewModel.getApplication(), 0)
-                        cp.player.util.UserPreferences.saveFadeDuration(liveSortViewModel.getApplication(), 6f)
-                        
-                        val songs = state.sortedSongs.map { it.song }
-                        if (songs.isNotEmpty()) {
-                            playbackViewModel.playSong(songs.first(), songs)
-                        }
-                    },
-                    onReorder = { from, to ->
-                        liveSortViewModel.reorderCompletedList(from, to)
+            is LiveSortState.Completed -> CompletedState(
+                state = state,
+                onPlay = {
+                    // Enable AutoMix/Crossfade (fadeMode = 0) with a nice duration for seamless transition
+                    cp.player.util.UserPreferences.saveFadeMode(liveSortViewModel.getApplication(), 0)
+                    cp.player.util.UserPreferences.saveFadeDuration(liveSortViewModel.getApplication(), 6f)
+
+                    val songs = state.sortedSongs.map { it.song }
+                    if (songs.isNotEmpty()) {
+                        playbackViewModel.playSong(songs.first(), songs)
                     }
-                )
-            }
+                },
+                onReorder = { from, to ->
+                    liveSortViewModel.reorderCompletedList(from, to)
+                }
+            )
         }
     }
 }

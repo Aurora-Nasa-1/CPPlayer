@@ -265,7 +265,7 @@ private fun PlaylistDetailContent(
 @Composable
 fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surfaceContainerLow))).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(modifier = Modifier.size(200.dp), shape = MaterialTheme.shapes.medium, shadowElevation = 8.dp) {

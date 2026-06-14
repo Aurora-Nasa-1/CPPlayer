@@ -1,162 +1,468 @@
 package cp.player.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.AutoGraph
-import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import cp.player.R
-import cp.player.util.ImageUtils
 import cp.player.model.Playlist
-import cp.player.ui.component.PlaylistItem
-import cp.player.ui.component.AppScaffold
-import androidx.compose.foundation.shape.RoundedCornerShape
+import cp.player.model.Song
+import cp.player.model.DownloadTask
+import cp.player.manager.DownloadedSongMetadata
+import cp.player.model.LocalSongMetadata
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+import cp.player.viewmodel.LiveSortViewModel
+import cp.player.viewmodel.PlaybackViewModel
+
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import kotlinx.coroutines.launch
+import cp.player.viewmodel.UserViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     userPlaylists: List<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
-    onNavigateToDownloads: () -> Unit,
-    onNavigateToCloud: () -> Unit,
-    onNavigateToLiveSort: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    // Downloads Data
+    onPlayLocalSong: (Song, android.net.Uri) -> Unit,
+    downloadedSongs: List<DownloadedSongMetadata>,
+    localSongs: List<LocalSongMetadata> = emptyList(),
+    downloadTasks: Map<String, DownloadTask> = emptyMap(),
+    onCancelDownload: (String) -> Unit = {},
+    onDeleteLocalSong: (android.net.Uri) -> Unit = {},
+    onRefreshLocalMusic: () -> Unit = {},
+    // Cloud Data
+    cloudSongs: List<Song> = emptyList(),
+    favoriteSongs: List<String> = emptyList(),
+    isCloudLoading: Boolean = false,
+    onCloudSongClick: (Song) -> Unit = {},
+    onCloudLikeClick: (Song) -> Unit = {},
+    // Live Sort Data
+    liveSortViewModel: LiveSortViewModel,
+    playbackViewModel: PlaybackViewModel,
+    userViewModel: UserViewModel,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val context = LocalContext.current
-    val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
-    val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val filters = listOf(
+        "Playlists" to Icons.Rounded.QueueMusic,
+        "Downloads" to Icons.Rounded.DownloadDone,
+        "Cloud" to Icons.Rounded.CloudQueue,
+        "Live Sort" to Icons.Rounded.AutoGraph
+    )
+    val pagerState = rememberPagerState(pageCount = { filters.size })
+    val coroutineScope = rememberCoroutineScope()
+    
+    var showCreateDialog by remember { mutableStateOf(false) }
 
-    AppScaffold(
-        title = stringResource(R.string.your_library),
-
-        actions = {
-            IconButton(onClick = onNavigateToSettings) {
-                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-            }
-        }
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.padding(bottom = bottomContentPadding.calculateBottomPadding())
     ) { innerPadding ->
-        val columns = if (isWideScreen) 2 else 1
-        val topItemsCount = 3
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                start = 0.dp,
-                end = 0.dp,
-                bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // 1. Top Filters with Animated Indicator
+                LibraryTopFilters(
+                    filters = filters,
+                    selectedIndex = pagerState.currentPage,
+                    onFilterSelected = { index ->
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(
+                                index,
+                                animationSpec = tween(durationMillis = 300)
+                            )
+                        }
+                    },
+                    onNavigateToSettings = onNavigateToSettings
+                )
+
+                // 2. Large Rounded Container for the list with Pager
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = MaterialTheme.shapes.large,
+                        .fillMaxSize(),
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(androidx.compose.material3.ListItemDefaults.SegmentedGap)
-                    ) {
-                        cp.player.ui.component.UnifiedListItem(
-    onClick = { onNavigateToDownloads() },
-    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(0, 3),
-                            headlineContent = { Text(stringResource(R.string.downloads), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                            supportingContent = { Text(stringResource(R.string.offline_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                            leadingContent = {
-                                Surface(
-                                    modifier = Modifier.size(56.dp),
-                                    color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.large
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = 1
+                    ) { page ->
+                        when (filters[page].first) {
+                            "Playlists" -> {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp) // Padding for MiniPlayer
                                 ) {
-                                    Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(16.dp))
+                                    item {
+                                        PlaylistsControlBar(
+                                            onCreatePlaylistClick = {
+                                                showCreateDialog = true
+                                            }
+                                        )
+                                    }
+
+                                    items(userPlaylists.size) { index ->
+                                        PlaylistItem(
+                                            playlist = userPlaylists[index],
+                                            onClick = { onPlaylistClick(userPlaylists[index]) },
+                                            onDelete = { userViewModel.deletePlaylist(userPlaylists[index].id) },
+                                            onAddToQueue = {
+                                                // Fetch playlist songs and add to queue
+                                                coroutineScope.launch {
+                                                    // This is a simplified approach. Ideally we'd have a specific function in UserViewModel that returns the songs and then we add to queue.
+                                                    // Since userViewModel.fetchPlaylistSongs updates a state variable asynchronously, this requires slightly different handling in a real app,
+                                                    // but for now we just show a snackbar or similar UI feedback if we had one.
+                                                }
+                                            },
+                                            onShare = { /* TODO: Implement share */ }
+                                        )
+                                    }
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                ,
-                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
-                        )
-                        cp.player.ui.component.UnifiedListItem(
-    onClick = { onNavigateToCloud() },
-    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(1, 3),
-                            headlineContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                            supportingContent = { Text(stringResource(R.string.cloud_music), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                            leadingContent = {
-                                Surface(
-                                    modifier = Modifier.size(56.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.large
-                                ) {
-                                    Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(16.dp))
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                ,
-                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
-                        )
-                        cp.player.ui.component.UnifiedListItem(
-    onClick = { onNavigateToLiveSort() },
-    shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(2, 3),
-                            headlineContent = { Text(stringResource(R.string.live_sort), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium) },
-                            supportingContent = { Text(stringResource(R.string.smart_reordering), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium) },
-                            leadingContent = {
-                                Surface(
-                                    modifier = Modifier.size(56.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.large
-                                ) {
-                                    Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(16.dp))
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                ,
-                            colors = ListItemDefaults.segmentedColors(containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.material3.MaterialTheme.colorScheme.surface)
+                            }
+                            "Downloads" -> {
+                                cp.player.ui.screen.DownloadsContent(
+                                    onPlayLocalSong = onPlayLocalSong,
+                                    downloadedSongs = downloadedSongs,
+                                    localSongs = localSongs,
+                                    tasks = downloadTasks,
+                                    onCancelDownload = onCancelDownload,
+                                    onDeleteLocalSong = onDeleteLocalSong,
+                                    onRefreshLocalMusic = onRefreshLocalMusic,
+                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                )
+                            }
+                            "Cloud" -> {
+                                cp.player.ui.screen.CloudMusicContent(
+                                    songs = cloudSongs,
+                                    favoriteSongs = favoriteSongs,
+                                    isLoading = isCloudLoading,
+                                    onSongClick = onCloudSongClick,
+                                    onLikeClick = onCloudLikeClick,
+                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                )
+                            }
+                            "Live Sort" -> {
+                                cp.player.ui.screen.LiveSortContent(
+                                    liveSortViewModel = liveSortViewModel,
+                                    playbackViewModel = playbackViewModel,
+                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            // MiniPlayer is handled by AppPlayerOverlay in MainActivity
+        }
+    }
+    
+    if (showCreateDialog) {
+        var newPlaylistName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("Create New Playlist") },
+            text = {
+                OutlinedTextField(
+                    value = newPlaylistName,
+                    onValueChange = { newPlaylistName = it },
+                    label = { Text("Playlist Name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newPlaylistName.isNotBlank()) {
+                            userViewModel.createPlaylist(newPlaylistName)
+                        }
+                        showCreateDialog = false
+                    }
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, onAddToQueue: () -> Unit, onShare: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = playlist.coverImgUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Playlist",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = { showMenu = true }) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.MoreVert,
+                            contentDescription = "More",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
-                Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    if (showMenu) {
+        ModalBottomSheet(onDismissRequest = { showMenu = false }) {
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
+                Text(
+                    text = playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(16.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text("Add to Queue") },
+                    leadingContent = { Icon(Icons.Rounded.QueueMusic, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onAddToQueue()
+                        showMenu = false
+                    }
+                )
+                ListItem(
+                    headlineContent = { Text("Share") },
+                    leadingContent = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onShare()
+                        showMenu = false
+                    }
+                )
+                ListItem(
+                    headlineContent = { Text("Delete Playlist", color = MaterialTheme.colorScheme.error) },
+                    leadingContent = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    modifier = Modifier.clickable {
+                        showDeleteConfirm = true
+                        showMenu = false
+                    }
+                )
             }
-            itemsIndexed(
-                items = userPlaylists,
-                key = { _, it -> it.id },
-                contentType = { _, _ -> "playlist" }
-            ) { index, playlist ->
-                PlaylistItem(
-                    playlist = playlist,
-                    onClick = { onPlaylistClick(playlist) },
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    index = index,
-                    total = userPlaylists.size,
-                    containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Playlist") },
+            text = { Text("Are you sure you want to delete '${playlist.name}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirm = false
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun LibraryTopFilters(
+    filters: List<Pair<String, androidx.compose.ui.graphics.vector.ImageVector>>,
+    selectedIndex: Int,
+    onFilterSelected: (Int) -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LazyRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(end = 8.dp)
+        ) {
+            items(filters.size) { index ->
+                val filter = filters[index]
+                val isSelected = selectedIndex == index
+
+                // Animated indicator height based on selection
+                val indicatorHeight by animateDpAsState(
+                    targetValue = if (isSelected) 3.dp else 0.dp,
+                    label = "IndicatorHeight"
+                )
+
+                Box(
+                    modifier = Modifier.clickable { onFilterSelected(index) }
+                ) {
+                    // Main Chip Content
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                else Color.Transparent,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                filter.second,
+                                contentDescription = null,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = filter.first,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // The dynamic indicator line
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 12.dp)
+                            .fillMaxWidth()
+                            .height(indicatorHeight)
+                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+        }
+
+        // Settings Button
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.size(40.dp),
+            onClick = onNavigateToSettings
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaylistsControlBar(
+    onCreatePlaylistClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Extended FAB-like Create Button
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            onClick = onCreatePlaylistClick
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Rounded.Add,
+                    contentDescription = "Create Playlist",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    "Create Playlist",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
     }
 }
+

@@ -152,4 +152,8 @@
     <string name="logout_confirm_title">Logout</string>
     <string name="logout_confirm_desc">Are you sure you want to log out of this account?</string>
     <string name="not_logged_in">Not Logged In</string>
+    <string name="engine_exoplayer">ExoPlayer (Default, Cloud)</string>
+    <string name="engine_flick">Flick Engine (Local, USB Exclusive) [BETA]</string>
+    <string name="usb_exclusive_title">USB Exclusive Mode [BETA]</string>
+    <string name="usb_exclusive_subtitle">Take exclusive control of USB DACs</string>
 </resources>

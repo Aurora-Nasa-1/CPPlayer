@@ -55,9 +55,9 @@ fun BottomPlaybackBar(
     MaterialTheme(colorScheme = barColorScheme) {
         // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = CircleShape,
             modifier = modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.95f)
                 .padding(bottom = 8.dp) // Lift it up slightly
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -70,7 +70,7 @@ fun BottomPlaybackBar(
                     } else Modifier
                 )
                 .clickable { onClick() },
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
             shadowElevation = 8.dp
         ) {
             Row(
@@ -110,32 +110,47 @@ fun BottomPlaybackBar(
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                     Text(
                         text = song.artist,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                     )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // Skip Previous Button
+                    IconButton(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
                     // Play/Pause Button
                     FilledIconButton(
                         onClick = onPlayPause,
                         modifier = Modifier.size(48.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            containerColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.tertiaryContainer
                         )
                     ) {
                         if (isBuffering) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.tertiaryContainer)
                         } else {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -150,7 +165,7 @@ fun BottomPlaybackBar(
                         onClick = onSkipNext,
                         modifier = Modifier.size(40.dp),
                         colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                     ) {
                         Icon(

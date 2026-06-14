@@ -34,6 +34,12 @@ android {
         resConfigs "en", "zh", "ja"
     }
 
+    sourceSets {
+        main {
+            jniLibs.srcDirs += 'src/main/jniLibs'
+        }
+    }
+
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
@@ -116,4 +122,22 @@ dependencies {
     androidTestImplementation libs.androidx.compose.ui.test.junit4
     debugImplementation libs.androidx.compose.ui.tooling
     debugImplementation libs.androidx.compose.ui.test.manifest
+}
+
+tasks.register('buildRust', Exec) {
+    environment 'PATH', '/home/auroranasa/.cargo/bin:' + System.getenv('PATH')
+    workingDir file('src/main/rust')
+    commandLine 'cargo', 'ndk',
+            '-t', 'arm64-v8a',
+            '-t', 'armeabi-v7a',
+            '-t', 'x86_64',
+            '-t', 'x86',
+            '-o', '../jniLibs',
+            'build', '--release'
+}
+
+tasks.whenTaskAdded { task ->
+    if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+        task.dependsOn 'buildRust'
+    }
 }

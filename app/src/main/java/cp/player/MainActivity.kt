@@ -413,46 +413,55 @@ fun AppMainContent(
                                 onPlaylistClick = { p ->
                                     userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}")
                                 },
-                                onNavigateToLiveSort = { navController.navigate("livesort") },
-                                onNavigateToDownloads = { navController.navigate("downloads") },
-                                onNavigateToCloud = { navController.navigate("cloud") },
                                 onNavigateToSettings = { navController.navigate("settings") },
-                                bottomContentPadding = PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    bottom = bottomBarHeight
-                                )
-                            )
-                        }
-                        composable("cloud") {
-                            LaunchedEffect(Unit) { userViewModel.fetchCloudSongs() }
-                            CloudMusicScreen(
-                                songs = userViewModel.cloudSongs,
+                                
+                                // Downloads Data
+                                onPlayLocalSong = { s, u ->
+                                    val playlist = if (s.id.startsWith("local_")) {
+                                        downloadViewModel.localSongs.value.map {
+                                            cp.player.model.Song(
+                                                id = it.songId,
+                                                name = it.songName,
+                                                artist = it.artist,
+                                                album = it.album,
+                                                albumArtUrl = it.albumArtUrl
+                                            )
+                                        }
+                                    } else {
+                                        downloadViewModel.downloadedSongs.value.map { it.song }
+                                    }
+                                    playbackViewModel.playSong(s, playlist)
+                                    onSetPlayerExpanded(true)
+                                },
+                                downloadedSongs = downloadViewModel.downloadedSongs.collectAsState().value,
+                                localSongs = downloadViewModel.localSongs.collectAsState().value,
+                                downloadTasks = downloadViewModel.tasks.collectAsState().value,
+                                onCancelDownload = { downloadViewModel.cancelDownload(it) },
+                                onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) },
+                                onRefreshLocalMusic = { downloadViewModel.refreshLocalMusic() },
+                                
+                                // Cloud Data
+                                cloudSongs = userViewModel.cloudSongs,
                                 favoriteSongs = userViewModel.favoriteSongs,
-                                isLoading = userViewModel.isLoading,
-                                onSongClick = { s ->
-                                    playbackViewModel.playSong(
-                                        s,
-                                        userViewModel.cloudSongs
-                                    ); onSetPlayerExpanded(true)
+                                isCloudLoading = userViewModel.isLoading,
+                                onCloudSongClick = { s ->
+                                    playbackViewModel.playSong(s, userViewModel.cloudSongs)
+                                    onSetPlayerExpanded(true)
                                 },
-                                onLikeClick = { s ->
-                                    userViewModel.toggleLike(
-                                        s.id,
-                                        !userViewModel.favoriteSongs.contains(s.id)
-                                    )
+                                onCloudLikeClick = { s ->
+                                    userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id))
                                 },
-                                onBackPressed = { navController.popBackStack() },
-                                bottomContentPadding = PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    bottom = bottomBarHeight
-                                )
-                            )
-                        }
-                        composable("livesort") {
-                            LiveSortScreen(
+                                
+                                // Live Sort Data
                                 liveSortViewModel = liveSortViewModel,
                                 playbackViewModel = playbackViewModel,
-                                onBackPressed = { navController.popBackStack() })
+                                userViewModel = userViewModel,
+
+                                bottomContentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarHeight
+                                )
+                            )
                         }
                         composable("playlist/{playlistId}") { backStackEntry ->
                             val pid =
@@ -508,41 +517,6 @@ fun AppMainContent(
                                 onBatchDownload = { l -> downloadViewModel.batchDownload(l, null) },
                                 completedSongs = completedSongs,
                                 onBackPressed = { navController.popBackStack() },
-                                bottomContentPadding = PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    bottom = bottomBarHeight
-                                )
-                            )
-                        }
-                        composable("downloads") {
-                            val tasks by downloadViewModel.tasks.collectAsState()
-                            val downloadedSongs by downloadViewModel.downloadedSongs.collectAsState()
-                            val localSongs by downloadViewModel.localSongs.collectAsState()
-                            DownloadsScreen(
-                                onBackPressed = { navController.popBackStack() },
-                                onPlayLocalSong = { s, u ->
-                                    val playlist = if (s.id.startsWith("local_")) {
-                                        localSongs.map {
-                                            cp.player.model.Song(
-                                                id = it.songId,
-                                                name = it.songName,
-                                                artist = it.artist,
-                                                album = it.album,
-                                                albumArtUrl = it.albumArtUrl
-                                            )
-                                        }
-                                    } else {
-                                        downloadedSongs.map { it.song }
-                                    }
-                                    playbackViewModel.playSong(s, playlist)
-                                    onSetPlayerExpanded(true)
-                                },
-                                downloadedSongs = downloadedSongs,
-                                localSongs = localSongs,
-                                tasks = tasks,
-                                onCancelDownload = { downloadViewModel.cancelDownload(it) },
-                                onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) },
-                                onRefreshLocalMusic = { downloadViewModel.refreshLocalMusic() },
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
@@ -657,6 +631,14 @@ fun AppMainContent(
                                 onAutoResumeUsbAudioChange = { settingsViewModel.updateAutoResumeUsbAudio(it) },
                                 downloadDir = settingsViewModel.downloadDir,
                                 onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) },
+                                audioEngine = settingsViewModel.audioEngine,
+                                onAudioEngineChange = { settingsViewModel.updateAudioEngine(it) },
+                                dsdOutputMode = settingsViewModel.dsdOutputMode,
+                                onDsdOutputModeChange = { settingsViewModel.updateDsdOutputMode(it) },
+                                dapBitPerfect = settingsViewModel.dapBitPerfect,
+                                onDapBitPerfectChange = { settingsViewModel.updateDapBitPerfect(it) },
+                                usbExclusive = settingsViewModel.usbExclusive,
+                                onUsbExclusiveChange = { settingsViewModel.updateUsbExclusive(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(

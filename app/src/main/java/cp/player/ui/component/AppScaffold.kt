@@ -50,7 +50,7 @@ fun AppScaffold(
         containerColor = containerColor,
         bottomBar = bottomBar,
         topBar = {
-            MediumTopAppBar(
+            LargeTopAppBar(
                 title = title,
                 navigationIcon = navigationIcon ?: {
                     if (onBackPressed != null) {

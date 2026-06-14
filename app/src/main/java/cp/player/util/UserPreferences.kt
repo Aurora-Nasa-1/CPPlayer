@@ -31,6 +31,10 @@ object UserPreferences {
     private const val KEY_FADE_MODE = "fade_mode" // 0: Crossfade, 1: Single Fade, 2: Off
     private const val KEY_AUTO_AUDIO_FOCUS = "auto_audio_focus"
     private const val KEY_SAVED_ACCOUNTS = "saved_accounts"
+    private const val KEY_AUDIO_ENGINE = "audio_engine"
+    private const val KEY_DSD_OUTPUT_MODE = "dsd_output_mode"
+    private const val KEY_DAP_BIT_PERFECT = "dap_bit_perfect"
+    private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -335,5 +339,37 @@ object UserPreferences {
 
     fun getAutoResumeUsbAudio(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_AUTO_RESUME_USB_AUDIO, false)
+    }
+
+    fun saveAudioEngine(context: Context, engine: Int) {
+        getPrefs(context).edit().putInt(KEY_AUDIO_ENGINE, engine).apply()
+    }
+
+    fun getAudioEngine(context: Context): Int {
+        return getPrefs(context).getInt(KEY_AUDIO_ENGINE, 0)
+    }
+
+    fun saveDsdOutputMode(context: Context, mode: Int) {
+        getPrefs(context).edit().putInt(KEY_DSD_OUTPUT_MODE, mode).apply()
+    }
+
+    fun getDsdOutputMode(context: Context): Int {
+        return getPrefs(context).getInt(KEY_DSD_OUTPUT_MODE, 0)
+    }
+
+    fun saveDapBitPerfect(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_DAP_BIT_PERFECT, enabled).apply()
+    }
+
+    fun getDapBitPerfect(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_DAP_BIT_PERFECT, false)
+    }
+
+    fun saveUsbExclusive(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_USB_EXCLUSIVE, enabled).apply()
+    }
+
+    fun getUsbExclusive(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_USB_EXCLUSIVE, false)
     }
 }

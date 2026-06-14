@@ -22,50 +22,46 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
-fun CloudMusicScreen(
+fun CloudMusicContent(
     songs: List<Song>,
     favoriteSongs: List<String>,
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onLikeClick: (Song) -> Unit,
-    onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    AppScaffold(
-        title = stringResource(R.string.cloud_music),
-        onBackPressed = onBackPressed,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    ) { _ ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isLoading && songs.isEmpty()) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (songs.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_cloud_songs),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.outline
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 0.dp,
-                        end = 0.dp,
-                        top = 8.dp,
-                        bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                        SongItem(
-                            song = song,
-                            isFavorite = favoriteSongs.contains(song.id),
-                            onClick = { onSongClick(song) },
-                            onLikeClick = { onLikeClick(song) },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isLoading && songs.isEmpty()) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        } else if (songs.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_cloud_songs),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.outline
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 0.dp,
+                    end = 0.dp,
+                    top = 16.dp,
+                    bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                    SongItem(
+                        song = song,
+                        isFavorite = favoriteSongs.contains(song.id),
+                        onClick = { onSongClick(song) },
+                        onLikeClick = { onLikeClick(song) },
+                        index = index,
+                        total = songs.size,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
                 }
             }
         }

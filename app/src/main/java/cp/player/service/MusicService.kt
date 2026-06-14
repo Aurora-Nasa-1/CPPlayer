@@ -50,7 +50,7 @@ import androidx.media3.common.util.UnstableApi
 
 @OptIn(UnstableApi::class)
 class MusicService : MediaSessionService() {
-    private val players = arrayOfNulls<ExoPlayer>(2)
+    private val players = arrayOfNulls<Player>(2)
     private var activePlayerIndex = 0
     private var mediaSession: MediaSession? = null
 
@@ -61,6 +61,8 @@ class MusicService : MediaSessionService() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var isCrossfading = false
     private var crossfadeJob: Job? = null
+    
+    private var usbAudioManager: cp.player.engine.UsbAudioManager? = null
 
     private fun abortCrossfade() {
         if (!isCrossfading) return
@@ -204,6 +206,11 @@ class MusicService : MediaSessionService() {
     }
 
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        if (usbAudioManager?.isDeviceRegistered == true && UserPreferences.getUsbExclusive(this@MusicService)) {
+            // Ignore focus loss in USB Exclusive Mode
+            return@OnAudioFocusChangeListener
+        }
+
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 players.forEach { it?.pause() }
@@ -271,6 +278,21 @@ class MusicService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
+        
+        usbAudioManager = cp.player.engine.UsbAudioManager(this)
+        usbAudioManager?.listener = object : cp.player.engine.UsbAudioManager.OnDeviceChangedListener {
+            override fun onDeviceDetached(device: android.hardware.usb.UsbDevice) {
+                DebugLog.i("MusicService: USB Device Detached, stopping FlickPlayer if active")
+                if (UserPreferences.getAudioEngine(this@MusicService) == 1) {
+                    players.forEach { it?.pause() }
+                    // Additional cleanup if needed
+                }
+            }
+            override fun onDeviceAttached(device: android.hardware.usb.UsbDevice) {
+                DebugLog.i("MusicService: USB Device Attached: ${device.productName}")
+            }
+        }
+        usbAudioManager?.start()
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
@@ -296,19 +318,27 @@ class MusicService : MediaSessionService() {
             .setDataSourceFactory(dataSourceFactory)
 
         for (i in 0..1) {
-            val playerBuilder = ExoPlayer.Builder(this, renderersFactory)
-                .setMediaSourceFactory(mediaSourceFactory)
+            val engineType = UserPreferences.getAudioEngine(this)
+            DebugLog.i("MusicService: Initializing player index $i with engineType: $engineType")
+            val player: Player = if (engineType == 1) {
+                DebugLog.i("MusicService: Using FlickPlayer for player index $i")
+                cp.player.engine.FlickPlayer(this)
+            } else {
+                DebugLog.i("MusicService: Using ExoPlayer for player index $i")
+                val playerBuilder = ExoPlayer.Builder(this, renderersFactory)
+                    .setMediaSourceFactory(mediaSourceFactory)
 
-            if (UserPreferences.getAutoAudioFocus(this)) {
-                val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
-                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build()
-                playerBuilder.setAudioAttributes(audioAttributes, true)
-                playerBuilder.setHandleAudioBecomingNoisy(true)
+                if (UserPreferences.getAutoAudioFocus(this)) {
+                    val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                        .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build()
+                    playerBuilder.setAudioAttributes(audioAttributes, true)
+                    playerBuilder.setHandleAudioBecomingNoisy(true)
+                }
+
+                playerBuilder.build()
             }
-
-            val player = playerBuilder.build()
                 
             player.addListener(object : Player.Listener {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -604,7 +634,9 @@ class MusicService : MediaSessionService() {
             while (true) {
                 val p = activePlayer
                 if (p != null && p.playbackState == Player.STATE_READY) {
-                    var activeFormat = p.audioFormat
+                    cp.player.util.DebugLog.d("MusicService: activePlayer Position: ${p.currentPosition} / ${p.duration}")
+                    cp.player.util.DebugLog.d("MusicService: RustEngine State: ${cp.player.engine.RustEngine.getRustAudioDebugStateJson()}")
+                    var activeFormat = (p as? ExoPlayer)?.audioFormat
                     if (activeFormat == null || activeFormat.sampleRate == -1) {
                         val currentTracks = p.currentTracks
                         for (group in currentTracks.groups) {
@@ -754,6 +786,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        usbAudioManager?.stop()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         }

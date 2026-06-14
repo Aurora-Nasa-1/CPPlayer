@@ -164,4 +164,8 @@
     <string name="setup_welcome">Welcome to CPPlayer</string>
     <string name="setup_desc">To start using the app, please import a backend module (.zip file) containing the provider definitions.</string>
     <string name="importing_module">Importing module...</string>
+    <string name="engine_exoplayer">ExoPlayer (默认, 云端)</string>
+    <string name="engine_flick">Flick 引擎 (本地, USB独占) [BETA]</string>
+    <string name="usb_exclusive_title">USB 独占模式 [BETA]</string>
+    <string name="usb_exclusive_subtitle">获取外置 USB DAC 的独占控制权</string>
 </resources>

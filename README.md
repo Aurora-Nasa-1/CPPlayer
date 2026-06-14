@@ -6,6 +6,8 @@ CPPlayer 是一个 Android 平台的音乐播放器应用。
 
 本项目包含核心的音乐播放功能，提供流畅的用户体验和丰富的功能特性。
 
+**使用了[FLICK](https://github.com/moss-apps/Flick) 引擎，感谢**
+
 ## 开发指南
 
 关于模块开发的详细说明，请参考 [MODULE_DEV_GUIDE.md](MODULE_DEV_GUIDE.md)。

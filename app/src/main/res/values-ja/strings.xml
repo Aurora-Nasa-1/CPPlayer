@@ -152,4 +152,8 @@
     <string name="logout_confirm_title">ログアウト</string>
     <string name="logout_confirm_desc">このアカウントからログアウトしてもよろしいですか？</string>
     <string name="not_logged_in">未ログイン</string>
+    <string name="engine_exoplayer">ExoPlayer (デフォルト, クラウド)</string>
+    <string name="engine_flick">Flick エンジン (ローカル, USB排他) [BETA]</string>
+    <string name="usb_exclusive_title">USB排他モード [BETA]</string>
+    <string name="usb_exclusive_subtitle">外付けUSB DACを排他的に制御する</string>
 </resources>

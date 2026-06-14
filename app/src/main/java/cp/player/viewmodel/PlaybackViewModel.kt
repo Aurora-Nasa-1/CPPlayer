@@ -54,6 +54,15 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         initController(application)
 
         viewModelScope.launch {
+            cp.player.engine.RustEngine.audioEvents.collectLatest { event ->
+                if (event is cp.player.engine.AudioEvent.FormatChanged) {
+                    currentSampleRate = event.sampleRate
+                    currentBitrate = event.bitrate
+                }
+            }
+        }
+
+        viewModelScope.launch {
             DownloadRegistry.downloadedSongsFlow.collectLatest { list ->
                 localSongs = list.mapNotNull { metadata ->
                     val song = metadata.song
@@ -262,7 +271,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
-            .setExtras(Bundle().apply { putString("artistId", song.artistId) })
+            .setExtras(Bundle().apply {
+                putString("artistId", song.artistId)
+                putLong("duration", song.durationMs)
+            })
             .build()
 
         val localUri = localSongs.find { (s, _) -> 

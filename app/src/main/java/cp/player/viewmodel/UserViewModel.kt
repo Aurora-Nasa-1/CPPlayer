@@ -207,6 +207,28 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    fun createPlaylist(name: String, privacy: Int = 0) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val body = callApi("playlist/create", mapOf("name" to name, "privacy" to privacy.toString()))
+            if (body.get("code")?.asInt == 200) {
+                // Fetch the updated user data to get the new playlist
+                fetchUserData()
+            }
+        }
+    }
+
+    fun deletePlaylist(pid: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val body = callApi("playlist/delete", mapOf("id" to pid.toString()))
+            if (body.get("code")?.asInt == 200) {
+                // Remove from local state immediately for fast UI feedback
+                withContext(Dispatchers.Main) {
+                    userPlaylists = userPlaylists.filter { it.id != pid }
+                }
+            }
+        }
+    }
+
     fun fetchOtherUserProfile(uid: Long) {
         if (otherUserViewState.uid == uid && otherUserViewState.profile != null && !otherUserViewState.isLoading) return
 

@@ -188,6 +188,29 @@ fun PlayerScreen(
                     } else if (bitrate == 0) {
                         Text(stringResource(R.string.bitrate_na), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+
+                    val engineType = cp.player.util.UserPreferences.getAudioEngine(context)
+                    if (engineType == 1) {
+                        HorizontalDivider()
+                        Text("Hi-Fi & USB DAC", style = MaterialTheme.typography.titleSmall)
+                        val isUsbActive = remember<Boolean> { cp.player.engine.RustEngine.isRustDirectUsbSessionActive() }
+                        Text("USB Exclusive: ${if (isUsbActive) "Active" else "Inactive"}", style = MaterialTheme.typography.bodyMedium, color = if (isUsbActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                        val hasHwVolume = remember<Boolean> { cp.player.engine.RustEngine.hasRustDirectUsbHardwareVolume() }
+                        if (hasHwVolume) {
+                            var hwVolume by remember { mutableStateOf(cp.player.engine.RustEngine.getRustDirectUsbHardwareVolume().toFloat()) }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Hardware Volume: ${(hwVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+                            Slider(
+                                value = hwVolume,
+                                onValueChange = {
+                                    hwVolume = it
+                                    cp.player.engine.RustEngine.setRustDirectUsbHardwareVolume(it.toDouble())
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -352,18 +375,26 @@ fun PlayerScreen(
                 } else {
                     Box(modifier = Modifier.fillMaxSize().background(bgBrush))
                 }
-                AppScaffold(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() }) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = stringResource(id = R.string.back),
-                                tint = MaterialTheme.colorScheme.onSurface
+                Scaffold(
+                    topBar = {
+                        @OptIn(ExperimentalMaterial3Api::class)
+                        TopAppBar(
+                            title = { },
+                            navigationIcon = {
+                                IconButton(onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = stringResource(id = R.string.back),
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent
                             )
-                        }
+                        )
                     },
-                    topBarContainerColor = Color.Transparent
+                    containerColor = Color.Transparent
                 ) { innerPadding ->
                     Box(
                         modifier = Modifier
@@ -424,6 +455,7 @@ fun PlayerScreen(
                                 shuffleMode = shuffleMode,
                                 repeatMode = repeatMode,
                                 bitrate = bitrate,
+                                sampleRate = sampleRate,
                                 isDownloaded = isDownloaded,
                                 useWavyProgress = useWavyProgress,
                                 onPlayPause = onPlayPause,
@@ -457,6 +489,33 @@ fun PlayerScreen(
         }
     }
 }
+
+    @Composable
+    fun AudioQualityBadge(sampleRate: Int, bitrate: Int) {
+        if (sampleRate > 0 || bitrate > 0) {
+            val isDsd = sampleRate >= 2822400
+            val text = if (isDsd) {
+                "DSD \${sampleRate / 1000}kHz"
+            } else if (sampleRate > 0) {
+                "\${sampleRate / 1000}kHz" + if (bitrate > 0) " | \${bitrate / 1000}kbps" else ""
+            } else {
+                "\${bitrate / 1000}kbps"
+            }
+            
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -799,6 +858,7 @@ private fun PlayerMobileLayout(
     shuffleMode: Boolean,
     repeatMode: Int,
     bitrate: Int,
+    sampleRate: Int,
     isDownloaded: Boolean,
     useWavyProgress: Boolean,
     onPlayPause: () -> Unit,

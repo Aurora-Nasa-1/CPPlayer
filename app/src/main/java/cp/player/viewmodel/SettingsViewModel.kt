@@ -44,6 +44,15 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     var downloadDir by mutableStateOf(UserPreferences.getDownloadDir(application))
         private set
 
+    var audioEngine by mutableIntStateOf(UserPreferences.getAudioEngine(application))
+        private set
+    var dsdOutputMode by mutableIntStateOf(UserPreferences.getDsdOutputMode(application))
+        private set
+    var dapBitPerfect by mutableStateOf(UserPreferences.getDapBitPerfect(application))
+        private set
+    var usbExclusive by mutableStateOf(UserPreferences.getUsbExclusive(application))
+        private set
+
     fun updateQualityWifi(q: String) {
         qualityWifi = q
         UserPreferences.saveQualityWifi(getApplication(), q)
@@ -137,6 +146,34 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateDownloadPath(p: String) {
         downloadDir = p
         UserPreferences.saveDownloadDir(getApplication(), p)
+    }
+
+    fun updateAudioEngine(engine: Int) {
+        audioEngine = engine
+        val app = getApplication<Application>()
+        UserPreferences.saveAudioEngine(app, engine)
+        
+        android.widget.Toast.makeText(app, "Audio engine changed. App will restart.", android.widget.Toast.LENGTH_SHORT).show()
+        
+        // Force kill the process so the service restarts completely
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            kotlin.system.exitProcess(0)
+        }, 1000)
+    }
+
+    fun updateDsdOutputMode(mode: Int) {
+        dsdOutputMode = mode
+        UserPreferences.saveDsdOutputMode(getApplication(), mode)
+    }
+
+    fun updateDapBitPerfect(enabled: Boolean) {
+        dapBitPerfect = enabled
+        UserPreferences.saveDapBitPerfect(getApplication(), enabled)
+    }
+
+    fun updateUsbExclusive(enabled: Boolean) {
+        usbExclusive = enabled
+        UserPreferences.saveUsbExclusive(getApplication(), enabled)
     }
 
     fun clearCache() { /* API */ }

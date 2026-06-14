@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
     <application
         android:name=".CPApplication"
         android:allowBackup="true"

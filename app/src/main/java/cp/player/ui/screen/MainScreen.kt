@@ -168,13 +168,6 @@ fun MainScreen(
                                 onClick = onHeartbeatClick
                             )
                         }
-                        item {
-                            FavoriteCircleItem(
-                                title = stringResource(R.string.live_sort),
-                                icon = { Icon(Icons.Default.SwapVert, null, tint = MaterialTheme.colorScheme.tertiary) },
-                                onClick = onLiveSortClick
-                            )
-                        }
                         val displayPlaylists = userPlaylists.take(5)
                         items(displayPlaylists) { p ->
                             FavoriteCircleItem(
@@ -210,72 +203,10 @@ fun MainScreen(
 
             if (recommendedSongs.isNotEmpty()) {
                 item {
-                    // Intuitive Daily Recommended Songs Banner
-                    Surface(shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth().clickable { onSongClick(recommendedSongs.first()) }
-                    ) {
-                        Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
-                            // Background Image
-                            AsyncImage(
-                                model = ImageUtils.getResizedImageUrl(recommendedSongs.first().albumArtUrl ?: "", 600),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            // Gradient Overlay for text readability
-                            Box(modifier = Modifier.fillMaxSize().background(
-                                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                                )
-                            ))
-                            Row(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "今日专属推荐",
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "开启音乐之旅，发现好歌",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White.copy(alpha = 0.8f)
-                                    )
-                                }
-                                FilledIconButton(
-                                    onClick = { onSongClick(recommendedSongs.first()) },
-                                    modifier = Modifier.size(56.dp),
-                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = "Play All", modifier = Modifier.size(32.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    if (widthClass != WindowWidthSizeClass.Compact) {
-                        val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
-                        cp.player.ui.component.VerticalGrid(
-                            items = recommendedSongs.take(10),
-                            columns = columns,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) { s -> SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f)) }
-                    } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
-                            items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
-                        }
-                    }
+                    DailyMixCard(
+                        songs = recommendedSongs.take(5),
+                        onSongClick = onSongClick
+                    )
                 }
             }
 
@@ -328,6 +259,122 @@ fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () 
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+@Composable
+fun DailyMixCard(
+    songs: List<Song>,
+    onSongClick: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column {
+            // Header with distinct background and overlapping images
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DAILY MIX\nBased on History",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                    
+                    // Overlapping album art cluster
+                    if (songs.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(80.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            songs.take(3).reversed().forEachIndexed { index, song ->
+                                val offset = (index * 20).dp
+                                val size = 64.dp
+                                AsyncImage(
+                                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl ?: "", 300),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(size)
+                                        .offset(x = -offset)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // List of songs
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                songs.forEach { song ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSongClick(song) }
+                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl ?: "", 150),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = song.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = song.artist,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Footer action
+            TextButton(
+                onClick = { if (songs.isNotEmpty()) onSongClick(songs.first()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            ) {
+                Text("Check all of Daily Mix ->")
+            }
         }
     }
 }
