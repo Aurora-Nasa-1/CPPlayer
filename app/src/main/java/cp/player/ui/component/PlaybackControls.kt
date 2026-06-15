@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -31,52 +32,58 @@ fun PlaybackControls(
     centerButtonModifier: Modifier = Modifier,
     sideIconSize: Dp = 28.dp,
     centerIconSize: Dp = 40.dp,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(12.dp)
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.SpaceEvenly
 ) {
-    Row(
+    Surface(
         modifier = modifier,
-        horizontalArrangement = horizontalArrangement,
-        verticalAlignment = Alignment.CenterVertically
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) {
-        Surface(
-            onClick = onSkipPrevious,
-            shape = CircleShape,
-            modifier = sideButtonModifier,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = horizontalArrangement,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(sideIconSize))
-            }
-        }
-
-        Surface(
-            onClick = onPlayPause,
-            shape = CircleShape,
-            modifier = centerButtonModifier,
-            color = MaterialTheme.colorScheme.primary
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (isBuffering) {
-                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(36.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        modifier = Modifier.size(centerIconSize),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
+            Surface(
+                onClick = onSkipPrevious,
+                shape = CircleShape,
+                modifier = sideButtonModifier,
+                color = androidx.compose.ui.graphics.Color.Transparent
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(sideIconSize))
                 }
             }
-        }
 
-        Surface(
-            onClick = onSkipNext,
-            shape = CircleShape,
-            modifier = sideButtonModifier,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(sideIconSize))
+            Surface(
+                onClick = onPlayPause,
+                shape = RoundedCornerShape(24.dp),
+                modifier = centerButtonModifier,
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (isBuffering) {
+                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(36.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            modifier = Modifier.size(centerIconSize),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                onClick = onSkipNext,
+                shape = CircleShape,
+                modifier = sideButtonModifier,
+                color = androidx.compose.ui.graphics.Color.Transparent
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(sideIconSize))
+                }
             }
         }
     }

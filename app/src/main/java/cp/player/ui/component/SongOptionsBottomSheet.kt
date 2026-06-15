@@ -65,11 +65,11 @@ fun SongOptionsBottomSheet(
         null
     }
     val owner = activity ?: LocalViewModelStoreOwner.current!!
-    
+
     val playbackViewModel: PlaybackViewModel = viewModel(viewModelStoreOwner = owner)
     val userViewModel: UserViewModel = viewModel(viewModelStoreOwner = owner)
     val scope = rememberCoroutineScope()
-    
+
     var showInfoDialog by remember { mutableStateOf(false) }
     var infoText by remember { mutableStateOf("Loading...") }
     var showPlaylistDialog by remember { mutableStateOf(false) }
@@ -93,7 +93,7 @@ fun SongOptionsBottomSheet(
         showToast("Added to queue")
         onDismissRequest()
     }
-    
+
     val handlePlayNext = onNextClick ?: {
         playbackViewModel.insertNext(song)
         showToast("Playing next")
@@ -102,22 +102,22 @@ fun SongOptionsBottomSheet(
 
     // Monet dynamic colors using MaterialTheme.colorScheme
     val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    
+
     val playColor = MaterialTheme.colorScheme.primaryContainer
     val playOnColor = MaterialTheme.colorScheme.onPrimaryContainer
-    
+
     val circleBtnColor = MaterialTheme.colorScheme.secondaryContainer
     val circleBtnOnColor = MaterialTheme.colorScheme.onSecondaryContainer
-    
+
     val queueColor = MaterialTheme.colorScheme.tertiaryContainer
     val queueOnColor = MaterialTheme.colorScheme.onTertiaryContainer
-    
+
     val nextColor = MaterialTheme.colorScheme.primary
     val nextOnColor = MaterialTheme.colorScheme.onPrimary
-    
+
     val playlistColor = MaterialTheme.colorScheme.surfaceVariant
     val playlistOnColor = MaterialTheme.colorScheme.onSurfaceVariant
-    
+
     val infoBtnColor = MaterialTheme.colorScheme.surface
     val infoBtnOnColor = MaterialTheme.colorScheme.onSurface
 

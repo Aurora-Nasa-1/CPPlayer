@@ -40,7 +40,7 @@ fun BoxScope.AppPlayerOverlay(
         label = "PlayerTransition"
     ) { expanded ->
         if (expanded) {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 val s = playbackViewModel.currentSong
                 val completedSongs by downloadViewModel.completedSongs.collectAsState()
                 val isFav = s?.let { userViewModel.favoriteSongs.contains(it.id) } ?: false
