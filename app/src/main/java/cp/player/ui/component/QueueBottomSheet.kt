@@ -94,7 +94,7 @@ fun QueueBottomSheet(
         modifier = Modifier.fillMaxHeight(0.9f),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
