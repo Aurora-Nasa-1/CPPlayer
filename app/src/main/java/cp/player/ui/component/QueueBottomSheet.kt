@@ -1,5 +1,7 @@
 package cp.player.ui.component
 
+import android.content.ContextWrapper
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,10 +39,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.model.Song
 import cp.player.util.ImageUtils
+import cp.player.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -60,6 +65,18 @@ fun QueueBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     var showSavePlaylistDialog by remember { mutableStateOf(false) }
     
+    val context = LocalContext.current
+    val activity = remember(context) {
+        var ctx = context
+        while (ctx is ContextWrapper) {
+            if (ctx is ComponentActivity) return@remember ctx
+            ctx = ctx.baseContext
+        }
+        null
+    }
+    val owner = activity ?: LocalViewModelStoreOwner.current!!
+    val userViewModel: UserViewModel = viewModel(viewModelStoreOwner = owner)
+
     // Drag state
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dropIndex by remember { mutableStateOf<Int?>(null) }
@@ -77,6 +94,7 @@ fun QueueBottomSheet(
         modifier = Modifier.fillMaxHeight(0.9f),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
+        windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -130,7 +148,7 @@ fun QueueBottomSheet(
                         .padding(horizontal = 16.dp),
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 100.dp) // Padding for bottom bar
+                    contentPadding = PaddingValues(bottom = 120.dp) // Extra Padding for bottom bar + nav bars
                 ) {
                     itemsIndexed(items, key = { _, item -> item.id }) { index, song ->
                         val isDragged = draggedIndex == index
@@ -184,6 +202,7 @@ fun QueueBottomSheet(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface) // Solid background to hide list behind
+                    .navigationBarsPadding() // Add padding for navigation bar
                     .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
                 Surface(
@@ -210,11 +229,6 @@ fun QueueBottomSheet(
                             Icon(Icons.Default.LocationSearching, contentDescription = "Locate Current")
                         }
                         
-                        // Shuffle (placeholder)
-                        IconButton(onClick = { /* Handle shuffle */ }) {
-                            Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
-                        }
-                        
                         // Save to Playlist
                         IconButton(onClick = { showSavePlaylistDialog = true }) {
                             Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Save as Playlist")
@@ -236,6 +250,37 @@ fun QueueBottomSheet(
             song = song,
             isFavorite = false, // Add placeholder for isFavorite if not available
             onDismissRequest = { selectedSongForOptions = null }
+        )
+    }
+
+    if (showSavePlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showSavePlaylistDialog = false },
+            title = { Text("Add queue to Playlist") },
+            text = {
+                val playlists = userViewModel.userPlaylists
+                if (playlists.isEmpty()) {
+                    Text("No playlists found.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(playlists) { playlist ->
+                            ListItem(
+                                headlineContent = { Text(playlist.name) },
+                                modifier = Modifier.clickable {
+                                    userViewModel.addSongsToPlaylist(playlist.id, items.map { it.id }, null)
+                                    android.widget.Toast.makeText(context, "Added to ${playlist.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                    showSavePlaylistDialog = false
+                                }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSavePlaylistDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }
