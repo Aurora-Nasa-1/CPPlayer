@@ -38,6 +38,14 @@ class DownloadViewModel(application: Application) : BaseViewModel(application) {
         downloadManager.cancelDownload(songId)
     }
 
+    /**
+     * 检查歌曲是否已下载（兼容 provider 前缀 key 和裸 songId）。
+     */
+    fun isSongDownloaded(songId: String): Boolean {
+        val providerId = cp.player.provider.ProviderManager.currentProvider?.id ?: "default"
+        return DownloadRegistry.isDownloaded(songId, providerId)
+    }
+
     fun updateDownloadQuality(q: String) {
         downloadQuality = q
         UserPreferences.saveDownloadQuality(getApplication(), q)

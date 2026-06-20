@@ -12,21 +12,22 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import cp.player.model.LyricLine
 import cp.player.model.Song
 import cp.player.service.MusicService
-import androidx.palette.graphics.Palette
-import coil3.toBitmap
-import coil3.request.allowHardware
+import cp.player.lyrics.LyricsManager
 import cp.player.util.DebugLog
-import cp.player.util.JsonUtils
-import cp.player.util.LyricUtils
+import cp.player.util.MediaItemMapper
 import cp.player.util.UserPreferences
 import cp.player.manager.DownloadRegistry
+import cp.player.repository.PlaybackRepository
+import cp.player.usecase.MediaMetadataUseCase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 
 class PlaybackViewModel(application: Application) : BaseViewModel(application) {
+    private val playbackRepository = PlaybackRepository()
+    private val mediaMetadataUseCase = MediaMetadataUseCase(application)
+
     var currentSong by mutableStateOf<Song?>(null)
     var isPlaying by mutableStateOf(false)
     var isBuffering by mutableStateOf(false)
@@ -35,11 +36,13 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var duration by mutableLongStateOf(0L)
     var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
-    var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
+
     var currentCommentSortType by mutableIntStateOf(1)
     var currentSampleRate by mutableIntStateOf(0)
     var currentBitrate by mutableIntStateOf(0)
     var isFmMode by mutableStateOf(false)
+    var isPersonalFmLoading by mutableStateOf(false)
+    var isHeartbeatLoading by mutableStateOf(false)
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
     var sleepTimerRemaining by mutableLongStateOf(0L)
     var extractedColor by mutableStateOf<Int?>(null)
@@ -81,38 +84,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     fun refreshLocalSongs() {
         viewModelScope.launch(Dispatchers.IO) {
-            val list = mutableListOf<Pair<Song, android.net.Uri>>()
-
-            // 1. Scan Directory and try to recover registry
-            val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
-            val cpMusicDir = java.io.File(musicDir, "CPPlayer")
-
-            val idRegex = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
-
-            if (cpMusicDir.exists()) {
-                cpMusicDir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
-                    val uri = android.net.Uri.fromFile(file)
-                    val match = idRegex.find(file.name)
-                    val songId = match?.groupValues?.get(1)
-
-                    if (songId != null) {
-                        val baseName = file.nameWithoutExtension
-                        val nameArtist = baseName.substringBeforeLast(" [").split(" - ")
-                        val song = Song(
-                            id = songId,
-                            name = nameArtist.getOrNull(0) ?: baseName,
-                            artist = nameArtist.getOrNull(1) ?: "Unknown",
-                            album = "Local Storage"
-                        )
-                        // If not in registry, add it
-                        if (DownloadRegistry.getMetadata(songId) == null) {
-                            DownloadRegistry.register(getApplication(), song, file.absolutePath)
-                        }
-                    }
-                }
-            }
-
-            // The flow will take care of updating localSongs once we call register()
+            mediaMetadataUseCase.refreshLocalSongs()
         }
     }
 
@@ -129,6 +101,18 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         "ACTION_PLAYER_ERROR" -> {
                             DebugLog.toast(getApplication(), args.getString("error") ?: "Unknown error")
                         }
+                        "ACTION_SONG_CHANGED" -> {
+                            val mediaId = args.getString("mediaId") ?: return@onCustomCommand com.google.common.util.concurrent.Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
+                            val title = args.getString("title") ?: "Unknown"
+                            val artist = args.getString("artist") ?: "Unknown"
+                            val album = args.getString("album") ?: "Unknown"
+                            val artworkUri = args.getString("artworkUri")
+                            DebugLog.i("PlaybackVM: ACTION_SONG_CHANGED id=$mediaId title=$title")
+                            val song = Song(id = mediaId, name = title, artist = artist, album = album, albumArtUrl = artworkUri)
+                            currentSong = song
+                            LyricsManager.fetch(mediaId, getApplication())
+                            extractColorFromUrl(artworkUri)
+                        }
                     }
                     return com.google.common.util.concurrent.Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
                 }
@@ -141,7 +125,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 controller.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
                     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                        updateSongFromMediaItem(mediaItem)
+                        // mediaItem 可能为 null，直接从 controller 获取当前歌曲
+                        val item = mediaItem ?: controller.currentMediaItem
+                        DebugLog.i("PlaybackVM: onMediaItemTransition id=${item?.mediaId} reason=$reason")
+                        updateSongFromMediaItem(item)
                         if (isFmMode && controller.currentMediaItemIndex >= controller.mediaItemCount - 2) {
                             fetchMoreFmSongs()
                         }
@@ -162,9 +149,23 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 })
 
                 viewModelScope.launch {
+                    var lastMediaId: String? = null
                     while (isActive) {
                         currentPosition = controller.currentPosition
-                        delay(1000L)
+                        // 轮询检测歌曲切换（MediaController 的 onMediaItemTransition 可能不触发）
+                        val currentItem = controller.currentMediaItem
+                        val currentMediaId = currentItem?.mediaId
+                        if (currentMediaId != null && currentMediaId != lastMediaId) {
+                            lastMediaId = currentMediaId
+                            val song = MediaItemMapper.toSong(currentItem)
+                            if (currentSong?.id != song.id) {
+                                DebugLog.i("PlaybackVM: poll detected song change → ${song.id} ${song.name}")
+                                currentSong = song
+                                // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，轮询只更新歌曲信息
+                                extractColorFromUrl(song.albumArtUrl)
+                            }
+                        }
+                        delay(100L)
                     }
                 }
             }
@@ -183,16 +184,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     private fun updateSongFromMediaItem(mediaItem: MediaItem?) {
         mediaItem?.let {
-            val song = Song(
-                id = it.mediaId,
-                name = it.mediaMetadata.title?.toString() ?: "Unknown",
-                artist = it.mediaMetadata.artist?.toString() ?: "Unknown",
-                album = it.mediaMetadata.albumTitle?.toString() ?: "Unknown",
-                albumArtUrl = it.mediaMetadata.artworkUri?.toString(),
-                artistId = it.mediaMetadata.extras?.getString("artistId")
-            )
+            val song = MediaItemMapper.toSong(it)
+            DebugLog.i("PlaybackVM: updateSong id=${song.id} name=${song.name}")
             currentSong = song
-            fetchLyrics(it.mediaId)
+            // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，此处不重复调用
             extractColorFromUrl(song.albumArtUrl)
         }
     }
@@ -203,57 +198,27 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                DebugLog.d("Extracting color from $url")
-                val loader = coil3.SingletonImageLoader.get(getApplication())
-                val request = coil3.request.ImageRequest.Builder(getApplication())
-                    .data(url)
-                    .allowHardware(false)
-                    .build()
-                val result = loader.execute(request)
-                if (result is coil3.request.SuccessResult) {
-                    val bitmap = result.image.toBitmap()
-                    val palette = Palette.from(bitmap).generate()
-                    val color = palette.getVibrantColor(palette.getMutedColor(0))
-                    if (color != 0) {
-                        DebugLog.d("Extracted color: ${Integer.toHexString(color)}")
-                        withContext(Dispatchers.Main) {
-                            extractedColor = color
-                        }
-                    } else {
-                        DebugLog.e("Palette extraction returned 0")
-                    }
-                } else {
-                    DebugLog.e("Coil result not success: $result")
+            val color = mediaMetadataUseCase.extractColorFromUrl(url)
+            withContext(Dispatchers.Main) {
+                if (color != null) {
+                    extractedColor = color
                 }
-            } catch (e: Exception) {
-                DebugLog.e("Palette extraction failed: ${e.message}")
-                e.printStackTrace()
             }
         }
     }
 
     fun updateQueue() {
         mediaController?.let { controller ->
-            val list = mutableListOf<Song>()
-            for (i in 0 until controller.mediaItemCount) {
-                val item = controller.getMediaItemAt(i)
-                list.add(Song(
-                    id = item.mediaId,
-                    name = item.mediaMetadata.title?.toString() ?: "Unknown",
-                    artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
-                    album = item.mediaMetadata.albumTitle?.toString() ?: "Unknown",
-                    albumArtUrl = item.mediaMetadata.artworkUri?.toString(),
-                    artistId = item.mediaMetadata.extras?.getString("artistId")
-                ))
+            val list = (0 until controller.mediaItemCount).map { i ->
+                MediaItemMapper.toSong(controller.getMediaItemAt(i))
             }
             currentQueue = list
         }
     }
 
-    fun playSong(song: Song?, playlist: List<Song?> = emptyList()) {
+    fun playSong(song: Song?, playlist: List<Song?> = emptyList(), resetFmMode: Boolean = true) {
         if (song == null) return
-        isFmMode = false
+        if (resetFmMode) isFmMode = false
         val target = (if (playlist.isNotEmpty()) playlist else listOf(song)).filterNotNull()
         val startIndex = target.indexOf(song).coerceAtLeast(0)
 
@@ -269,37 +234,12 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     private fun createMediaItem(song: Song?): MediaItem? {
         if (song == null) return null
-        val metadata = MediaMetadata.Builder()
-            .setTitle(song.name)
-            .setArtist(song.artist)
-            .setAlbumTitle(song.album)
-            .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
-            .setExtras(Bundle().apply {
-                putString("artistId", song.artistId)
-                putLong("duration", song.durationMs)
-            })
-            .build()
-
-        val localUri = localSongs.find { (s, _) -> 
+        val localUri = localSongs.find { (s, _) ->
             @Suppress("SENSELESS_COMPARISON")
-            s != null && s.id == song.id 
-        }?.second ?: if (song.id.startsWith("local_")) {
-            android.net.Uri.parse("content://media/external/audio/media/${song.id.removePrefix("local_")}")
-        } else null
-        
-        val mediaUri = if (localUri != null) {
-            localUri
-        } else {
-            val quality = UserPreferences.getQualityWifi(getApplication())
-            android.net.Uri.Builder()
-                .scheme("cp")
-                .authority(song.id)
-                .appendQueryParameter("quality", quality)
-                .apply { cookie?.let { appendQueryParameter("cookie", it) } }
-                .build()
-        }
-
-        return MediaItem.Builder().setMediaId(song.id).setUri(mediaUri).setMediaMetadata(metadata).build()
+            s != null && s.id == song.id
+        }?.second ?: MediaItemMapper.buildLocalContentUri(song)
+        val quality = UserPreferences.getQualityWifi(getApplication())
+        return MediaItemMapper.toMediaItem(song, localUri, quality, cookie)
     }
 
     fun togglePlayPause() = runWithController { if (it.isPlaying) it.pause() else it.play() }
@@ -363,6 +303,13 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             }
         }
     }
+    fun playAt(index: Int) = runWithController { controller ->
+        if (index in 0 until controller.mediaItemCount) {
+            controller.seekToDefaultPosition(index)
+            controller.play()
+        }
+    }
+
     fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueue() }
     fun removeQueueItem(i: Int) = runWithController { it.removeMediaItem(i); updateQueue() }
     fun clearQueue() = runWithController { it.clearMediaItems(); updateQueue() }
@@ -371,42 +318,13 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         mediaController?.let(action) ?: mediaControllerFuture?.addListener({ mediaController?.let(action) }, MoreExecutors.directExecutor())
     }
 
-    fun fetchLyrics(songId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val body = callApi("lyric/new", mapOf("id" to songId))
-                val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-                val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-                val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
-                val klyric = body.get("klyric")?.asJsonObject?.get("lyric")?.asString ?: ""
-
-                var lines = if (yrc.isNotEmpty()) LyricUtils.parseYrc(yrc) else LyricUtils.parseLrc(lrc, duration)
-
-                val finalLines = if (tlyric.isNotEmpty()) {
-                    val tlines = LyricUtils.parseLrc(tlyric).associateBy { it.time }
-                    lines.map { line ->
-                        // Match translation within 500ms window
-                        val trans = tlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
-                        if (trans != null) line.copy(translation = trans.value.text) else line
-                    }
-                } else lines
-
-                withContext(Dispatchers.Main) { currentLyrics = finalLines }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { currentLyrics = emptyList() }
-            }
-        }
-    }
-
     fun playPersonalFm() {
         viewModelScope.launch {
-            isLoading = true
+            isPersonalFmLoading = true
             try {
-                val body = withContext(Dispatchers.IO) { callApi("personal_fm", mapOf("timestamp" to System.currentTimeMillis().toString())) }
-                val songs = (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
-                    ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
-                if (songs.isNotEmpty()) { isFmMode = true; playSong(songs[0], songs) }
-            } finally { isLoading = false }
+                val songs = withContext(Dispatchers.IO) { playbackRepository.getPersonalFm(cookie) }
+                if (songs.isNotEmpty()) { isFmMode = true; playSong(songs[0], songs, resetFmMode = false) }
+            } finally { isPersonalFmLoading = false }
         }
     }
 
@@ -415,9 +333,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         isFetchingMoreFm = true
         viewModelScope.launch {
             try {
-                val body = withContext(Dispatchers.IO) { callApi("personal_fm", mapOf("timestamp" to System.currentTimeMillis().toString())) }
-                val songs = (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
-                    ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                val songs = withContext(Dispatchers.IO) { playbackRepository.getPersonalFm(cookie) }
                 runWithController { controller ->
                     songs.filterNotNull().forEach { song ->
                         createMediaItem(song)?.let { controller.addMediaItem(it) }
@@ -430,37 +346,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     fun playHeartbeat(songId: String, playlistId: Long) {
         viewModelScope.launch {
             try {
-                isLoading = true
-
-                // If playlistId is 0, heart mode might fail.
-                // However, CP API often requires a valid playlist ID that the song belongs to.
-                // If it's 0, it means it's likely from 'Liked Songs' which we should have the ID for in UserViewModel.
-
+                isHeartbeatLoading = true
                 DebugLog.d("Heartbeat: id=$songId, pid=$playlistId")
-
-                val params = mutableMapOf(
-                    "id" to songId,
-                    "pid" to playlistId.toString(),
-                    "sid" to songId,
-                    "count" to "20"
-                )
-
-                val body = withContext(Dispatchers.IO) { callApi("playmode/intelligence/list", params) }
-
-                if (body.get("code")?.asInt != 200) {
-                    DebugLog.e("Heartbeat API failed: ${body.get("message")?.asString}")
-                    // Fallback: If playlistId was 0, maybe try without it or with a different param?
-                    // Actually, if it failed with 400 "歌单不存在", it means pid was definitely wrong.
-                }
-
-                val songsJson = when {
-                    body.get("data")?.isJsonArray == true -> body.get("data").asJsonArray
-                    body.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") -> body.get("data").asJsonObject.get("data").asJsonArray
-                    body.has("list") && body.get("list").isJsonArray -> body.get("list").asJsonArray
-                    else -> null
-                }
-
-                val songs = songsJson?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                val songs = withContext(Dispatchers.IO) { playbackRepository.getHeartbeatSongs(songId, playlistId, cookie) }
                 if (songs.isNotEmpty()) {
                     playSong(songs[0], songs)
                 } else {
@@ -469,7 +357,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             } catch (e: Exception) {
                 DebugLog.e("Heartbeat error: ${e.message}")
             } finally {
-                isLoading = false
+                isHeartbeatLoading = false
             }
         }
     }

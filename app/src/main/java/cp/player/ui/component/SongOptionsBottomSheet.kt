@@ -28,12 +28,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.activity.ComponentActivity
 import android.content.ContextWrapper
+import androidx.compose.ui.res.stringResource
 import coil3.compose.AsyncImage
+import cp.player.R
 import cp.player.model.Song
 import cp.player.util.ImageUtils
 import cp.player.viewmodel.PlaybackViewModel
 import cp.player.viewmodel.UserViewModel
-import cp.player.provider.ProviderManager
+import cp.player.api.MusicApiServiceFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,9 +53,22 @@ fun SongOptionsBottomSheet(
     onNextClick: (() -> Unit)? = null,
     onPlaylistClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
+    onDownloadClick: (() -> Unit)? = null,
     onSetAsSoundClick: (() -> Unit)? = null,
     onOptionsClick: (() -> Unit)? = null,
-    onInfoClick: (() -> Unit)? = null
+    onInfoClick: (() -> Unit)? = null,
+    onBindCloudClick: (() -> Unit)? = null,
+    isDownloaded: Boolean = false,
+    /** 是否显示收藏按钮（云盘/本地歌曲设为 false） */
+    showFavorite: Boolean = true,
+    /** 是否显示分享按钮（云盘/本地歌曲设为 false） */
+    showShare: Boolean = true,
+    /** 是否显示添加到歌单按钮（云盘/本地歌曲设为 false） */
+    showPlaylist: Boolean = true,
+    /** 是否显示 INFO 按钮（云盘/本地歌曲设为 false） */
+    showInfo: Boolean = true,
+    /** 是否显示关联云端歌曲按钮 */
+    showBindCloud: Boolean = false
 ) {
     val context = LocalContext.current
     val activity = remember(context) {
@@ -71,7 +86,7 @@ fun SongOptionsBottomSheet(
     val scope = rememberCoroutineScope()
 
     var showInfoDialog by remember { mutableStateOf(false) }
-    var infoText by remember { mutableStateOf("Loading...") }
+    var songDetailMap by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
     val handleShare = onShareClick ?: {
@@ -118,8 +133,8 @@ fun SongOptionsBottomSheet(
     val playlistColor = MaterialTheme.colorScheme.surfaceVariant
     val playlistOnColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    val infoBtnColor = MaterialTheme.colorScheme.surface
-    val infoBtnOnColor = MaterialTheme.colorScheme.onSurface
+    val infoBtnColor = MaterialTheme.colorScheme.secondaryContainer
+    val infoBtnOnColor = MaterialTheme.colorScheme.onSecondaryContainer
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -184,7 +199,7 @@ fun SongOptionsBottomSheet(
                 }
             }
 
-            // Row 1: Play, Favorite, Share
+            // Row 1: Play, Favorite (optional), Share (optional)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -209,39 +224,43 @@ fun SongOptionsBottomSheet(
                     }
                 }
 
-                // Favorite
-                Surface(
-                    shape = CircleShape,
-                    color = circleBtnColor,
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clickable(onClick = onFavoriteClick)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = circleBtnOnColor,
-                            modifier = Modifier.size(32.dp)
-                        )
+                // Favorite (only when showFavorite is true)
+                if (showFavorite) {
+                    Surface(
+                        shape = CircleShape,
+                        color = circleBtnColor,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clickable(onClick = onFavoriteClick)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = circleBtnOnColor,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
                 }
 
-                // Share
-                Surface(
-                    shape = CircleShape,
-                    color = circleBtnColor,
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clickable(onClick = handleShare)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share",
-                            tint = circleBtnOnColor,
-                            modifier = Modifier.size(32.dp)
-                        )
+                // Share (only when showShare is true)
+                if (showShare) {
+                    Surface(
+                        shape = CircleShape,
+                        color = circleBtnColor,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clickable(onClick = handleShare)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = "Share",
+                                tint = circleBtnOnColor,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -269,74 +288,162 @@ fun SongOptionsBottomSheet(
                 )
             }
 
-            // Row 3: Playlist, INFO
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                PillButton(
-                    modifier = Modifier.weight(1f),
-                    text = "Playlist",
-                    icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
-                    bgColor = playlistColor,
-                    textColor = playlistOnColor,
-                    onClick = onPlaylistClick ?: { showPlaylistDialog = true }
-                )
-                PillButton(
-                    modifier = Modifier.weight(1f),
-                    text = "INFO",
-                    icon = Icons.Rounded.Info,
-                    bgColor = infoBtnColor,
-                    textColor = infoBtnOnColor,
-                    onClick = onInfoClick ?: {
-                        showInfoDialog = true
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val result = ProviderManager.callApi("song/detail", mapOf("ids" to song.id))
-                                withContext(Dispatchers.Main) {
-                                    infoText = org.json.JSONObject(result).toString(4)
-                                }
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    infoText = "Failed to load info: ${e.message}"
+            // Row 3: Download, Playlist (optional), INFO (optional), Delete (optional)
+            val downloadBtnColor = if (isDownloaded) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.secondaryContainer
+            val downloadBtnOnColor = if (isDownloaded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSecondaryContainer
+            val hasRow3 = onDownloadClick != null || showPlaylist || showInfo || onDeleteClick != null || showBindCloud
+            if (hasRow3) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (onDownloadClick != null) {
+                        PillButton(
+                            modifier = Modifier.weight(1f),
+                            text = if (isDownloaded) "Downloaded" else "Download",
+                            icon = if (isDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                            bgColor = downloadBtnColor,
+                            textColor = downloadBtnOnColor,
+                            onClick = {
+                                if (!isDownloaded) {
+                                    onDownloadClick()
+                                    onDismissRequest()
                                 }
                             }
-                        }
-                        Unit
+                        )
                     }
-                )
+                    if (showPlaylist) {
+                        PillButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Playlist",
+                            icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
+                            bgColor = playlistColor,
+                            textColor = playlistOnColor,
+                            onClick = onPlaylistClick ?: { showPlaylistDialog = true }
+                        )
+                    }
+                    if (showInfo) {
+                        // 圆形图标按钮，与其他按钮高度对齐
+                        Surface(
+                            shape = CircleShape,
+                            color = infoBtnColor,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clickable(onClick = onInfoClick ?: {
+                                    showInfoDialog = true
+                                    scope.launch(Dispatchers.IO) {
+                                        try {
+                                            val body = MusicApiServiceFactory.instance.getSongDetail(listOf(song.id))
+                                            val songs = body.get("songs")?.asJsonArray
+                                            val obj = songs?.firstOrNull()?.asJsonObject
+                                            val map = linkedMapOf<String, String>()
+                                            if (obj != null) {
+                                                map["歌曲名称"] = obj.get("name")?.asString ?: ""
+                                                // 歌手列表
+                                                val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
+                                                map["歌手"] = artists?.joinToString(", ") {
+                                                    it.asJsonObject.get("name")?.asString ?: ""
+                                                } ?: ""
+                                                // 专辑
+                                                val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
+                                                map["专辑"] = album?.get("name")?.asString ?: ""
+                                                // 时长
+                                                val dt = obj.get("dt")?.asLong ?: obj.get("duration")?.asLong ?: 0L
+                                                val min = dt / 1000 / 60
+                                                val sec = (dt / 1000) % 60
+                                                map["时长"] = "%d:%02d".format(min, sec)
+                                                // 发行时间
+                                                val publishTime = obj.get("publishTime")?.asLong ?: 0L
+                                                if (publishTime > 0) {
+                                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                                    map["发行时间"] = sdf.format(java.util.Date(publishTime))
+                                                }
+                                                // 评论数
+                                                val commentCount = obj.get("commentCount")?.asLong ?: 0L
+                                                if (commentCount > 0) map["评论数"] = commentCount.toString()
+                                                // MV
+                                                val mvId = obj.get("mv")?.asInt ?: 0
+                                                if (mvId > 0) map["MV ID"] = mvId.toString()
+                                                // 音质信息
+                                                val privilege = body.get("privileges")?.asJsonArray?.firstOrNull()?.asJsonObject
+                                                if (privilege != null) {
+                                                    val maxBr = privilege.get("maxbr")?.asInt ?: 0
+                                                    if (maxBr > 0) map["最高码率"] = "${maxBr / 1000}kbps"
+                                                    val fee = privilege.get("fee")?.asInt ?: -1
+                                                    map["付费类型"] = when (fee) {
+                                                        0 -> "免费"
+                                                        1 -> "VIP"
+                                                        4 -> "付费专辑"
+                                                        8 -> "免费+VIP"
+                                                        else -> "未知"
+                                                    }
+                                                }
+                                                map["歌曲 ID"] = song.id
+                                            }
+                                            withContext(Dispatchers.Main) {
+                                                songDetailMap = map
+                                            }
+                                        } catch (e: Exception) {
+                                            withContext(Dispatchers.Main) {
+                                                songDetailMap = mapOf("错误" to (e.message ?: "Unknown error"))
+                                            }
+                                        }
+                                    }
+                                    Unit
+                                })
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Info,
+                                    contentDescription = "Info",
+                                    tint = infoBtnOnColor,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
+                    // Delete button (for downloaded songs etc.)
+                    if (onDeleteClick != null) {
+                        PillButton(
+                            modifier = Modifier.weight(1f),
+                            text = "Delete",
+                            icon = Icons.Rounded.Delete,
+                            bgColor = MaterialTheme.colorScheme.errorContainer,
+                            textColor = MaterialTheme.colorScheme.onErrorContainer,
+                            onClick = {
+                                onDeleteClick()
+                                onDismissRequest()
+                            }
+                        )
+                    }
+                    // 关联云端歌曲按钮
+                    if (showBindCloud) {
+                        PillButton(
+                            modifier = Modifier.weight(1f),
+                            text = stringResource(R.string.bind_cloud_song),
+                            icon = Icons.Rounded.Cloud,
+                            bgColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            textColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            onClick = {
+                                onBindCloudClick?.invoke()
+                                onDismissRequest()
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 
     if (showPlaylistDialog) {
-        AlertDialog(
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = userViewModel.userPlaylists,
             onDismissRequest = { showPlaylistDialog = false },
-            title = { Text("Add to Playlist") },
-            text = {
-                val playlists = userViewModel.userPlaylists
-                if (playlists.isEmpty()) {
-                    Text("No playlists found.")
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                        items(playlists) { playlist ->
-                            ListItem(
-                                headlineContent = { Text(playlist.name) },
-                                modifier = Modifier.clickable {
-                                    userViewModel.addSongsToPlaylist(playlist.id, listOf(song.id), null)
-                                    showToast("Added to ${playlist.name}")
-                                    showPlaylistDialog = false
-                                    onDismissRequest()
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPlaylistDialog = false }) {
-                    Text("Cancel")
-                }
+            onPlaylistSelected = { playlist ->
+                userViewModel.addSongsToPlaylist(playlist.id, listOf(song.id), null)
+                showToast("Added to ${playlist.name}")
+                showPlaylistDialog = false
+                onDismissRequest()
             }
         )
     }
@@ -344,17 +451,36 @@ fun SongOptionsBottomSheet(
     if (showInfoDialog) {
         AlertDialog(
             onDismissRequest = { showInfoDialog = false },
-            title = { Text("Song Info") },
+            title = { Text("歌曲详情") },
             text = {
-                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                    item {
-                        Text(text = infoText, style = MaterialTheme.typography.bodySmall)
+                if (songDetailMap.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                        songDetailMap.forEach { (label, value) ->
+                            item {
+                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = value,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showInfoDialog = false }) {
-                    Text("Close")
+                    Text("关闭")
                 }
             }
         )
@@ -382,9 +508,11 @@ private fun PillButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = text, tint = textColor)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Icon(icon, contentDescription = text.ifEmpty { null }, tint = textColor)
+            if (text.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text, color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }

@@ -33,12 +33,12 @@ object LogManager {
             throwable = throwable?.let { android.util.Log.getStackTraceString(it) }
         )
         _logs.update { current ->
-            val next = current.toMutableList()
-            next.add(entry)
-            if (next.size > 1000) {
-                next.removeAt(0)
+            // 新日志插入头部，限制最大数量
+            if (current.size >= 1000) {
+                listOf(entry) + current.take(999)
+            } else {
+                listOf(entry) + current
             }
-            next
         }
     }
 

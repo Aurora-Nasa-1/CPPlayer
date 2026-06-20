@@ -3,19 +3,13 @@ package cp.player.service
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.BroadcastReceiver
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.ForwardingPlayer
-import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import android.app.PendingIntent
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -29,8 +23,13 @@ import androidx.media3.common.Rating
 import androidx.media3.common.HeartRating
 import android.content.Context
 import java.io.File
-import cp.player.util.UserPreferences
+import cp.player.engine.CPPlayerManager
+import cp.player.engine.CrossfadeManager
+import cp.player.engine.UsbAudioManager
+import cp.player.monitor.HealthMonitor
 import cp.player.provider.ProviderManager
+import cp.player.util.UserPreferences
+import cp.player.api.MusicApiServiceFactory
 import cp.player.util.DebugLog
 import io.github.proify.lyricon.provider.LyriconFactory
 import io.github.proify.lyricon.provider.LyriconProvider
@@ -53,92 +52,44 @@ class MusicService : MediaSessionService() {
     private val players = arrayOfNulls<Player>(2)
     private var activePlayerIndex = 0
     private var mediaSession: MediaSession? = null
+    private lateinit var crossfadeManager: CrossfadeManager
 
     private val activePlayer get() = players[activePlayerIndex]
     private val nextPlayer get() = players[(activePlayerIndex + 1) % 2]
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
-    private var isCrossfading = false
-    private var crossfadeJob: Job? = null
     
     private var usbAudioManager: cp.player.engine.UsbAudioManager? = null
-
-    private fun abortCrossfade() {
-        if (!isCrossfading) return
-        crossfadeJob?.cancel()
-        if (UserPreferences.getFadeMode(this@MusicService) == 0) {
-            val old = nextPlayer ?: return
-            old.pause()
-            old.volume = 1.0f
-            old.clearMediaItems()
-        }
-        activePlayer?.volume = 1.0f
-        isCrossfading = false
-    }
-
-    private fun startSinglePlayerFadeOut(fadeDurationMs: Long) {
-        isCrossfading = true
-        val p = activePlayer ?: return
-        crossfadeJob?.cancel()
-        crossfadeJob = serviceScope.launch {
-            val steps = 20
-            val delayTime = fadeDurationMs / steps
-            for (i in 1..steps) {
-                val progress = i.toFloat() / steps
-                p.volume = 1.0f - progress
-                delay(delayTime)
-            }
-            isCrossfading = false
-        }
-    }
-
-    private fun startSinglePlayerFadeIn(fadeDurationMs: Long) {
-        val p = activePlayer ?: return
-        p.volume = 0f
-        isCrossfading = true
-        crossfadeJob?.cancel()
-        crossfadeJob = serviceScope.launch {
-            val steps = 20
-            val delayTime = fadeDurationMs / steps
-            for (i in 1..steps) {
-                val progress = i.toFloat() / steps
-                p.volume = progress
-                delay(delayTime)
-            }
-            p.volume = 1.0f
-            isCrossfading = false
-        }
-    }
 
     private fun createForwardingPlayer(player: Player): ForwardingPlayer {
         return object : ForwardingPlayer(player) {
             override fun seekToPrevious() {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToPreviousMediaItem()
             }
             override fun seekToNext() {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToNext()
             }
             override fun seekToPreviousMediaItem() {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToPreviousMediaItem()
             }
             override fun seekToNextMediaItem() {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToNextMediaItem()
             }
             override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekTo(mediaItemIndex, positionMs)
             }
             override fun seekToDefaultPosition() {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToDefaultPosition()
             }
             override fun seekToDefaultPosition(mediaItemIndex: Int) {
-                abortCrossfade()
+                crossfadeManager.abortCrossfade()
                 super.seekToDefaultPosition(mediaItemIndex)
             }
         }
@@ -155,12 +106,35 @@ class MusicService : MediaSessionService() {
             }
             return cache!!
         }
+
+        /**
+         * 清除音频流磁盘缓存。
+         */
+        fun clearAudioCache(context: Context) {
+            try {
+                getCache(context).release()
+                cache = null
+                val cacheDir = File(context.cacheDir, "media")
+                cacheDir.deleteRecursively()
+            } catch (_: Exception) {}
+        }
     }
     private var lyriconProvider: LyriconProvider? = null
     private var lyricJob: Job? = null
     private var playbackInfoJob: Job? = null
     private val likedSongIds = mutableSetOf<String>()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Live engine switch listener
+    private val enginePrefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        if (key == "audio_engine") {
+            val newEngine = prefs.getInt("audio_engine", 0)
+            DebugLog.i("MusicService: Engine preference changed to $newEngine, switching...")
+            serviceScope.launch(Dispatchers.Main) {
+                switchEngine(newEngine)
+            }
+        }
+    }
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -235,7 +209,7 @@ class MusicService : MediaSessionService() {
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 players.forEach {
-                    if (it == activePlayer && !isCrossfading) {
+                    if (it == activePlayer && !crossfadeManager.isCrossfading) {
                         it?.volume = 1.0f
                     }
                 }
@@ -278,67 +252,18 @@ class MusicService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
-        
-        usbAudioManager = cp.player.engine.UsbAudioManager(this)
-        usbAudioManager?.listener = object : cp.player.engine.UsbAudioManager.OnDeviceChangedListener {
-            override fun onDeviceDetached(device: android.hardware.usb.UsbDevice) {
-                DebugLog.i("MusicService: USB Device Detached, stopping FlickPlayer if active")
-                if (UserPreferences.getAudioEngine(this@MusicService) == 1) {
-                    players.forEach { it?.pause() }
-                    // Additional cleanup if needed
-                }
-            }
-            override fun onDeviceAttached(device: android.hardware.usb.UsbDevice) {
-                DebugLog.i("MusicService: USB Device Attached: ${device.productName}")
-            }
-        }
-        usbAudioManager?.start()
 
+        usbAudioManager = UsbAudioManager(this)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             audioManager.registerAudioDeviceCallback(audioDeviceCallback, android.os.Handler(android.os.Looper.getMainLooper()))
         }
 
-        val renderersFactory = DefaultRenderersFactory(this).setEnableDecoderFallback(true)
-
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
-            .setAllowCrossProtocolRedirects(true)
-            .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
-
-        val cpDataSourceFactory = BackendDataSource.Factory(this, httpDataSourceFactory)
-
-        val dataSourceFactory: DataSource.Factory = CacheDataSource.Factory()
-            .setCache(getCache(this))
-            .setUpstreamDataSourceFactory(cpDataSourceFactory)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-
-        val mediaSourceFactory = DefaultMediaSourceFactory(this)
-            .setDataSourceFactory(dataSourceFactory)
-
         for (i in 0..1) {
             val engineType = UserPreferences.getAudioEngine(this)
             DebugLog.i("MusicService: Initializing player index $i with engineType: $engineType")
-            val player: Player = if (engineType == 1) {
-                DebugLog.i("MusicService: Using FlickPlayer for player index $i")
-                cp.player.engine.FlickPlayer(this)
-            } else {
-                DebugLog.i("MusicService: Using ExoPlayer for player index $i")
-                val playerBuilder = ExoPlayer.Builder(this, renderersFactory)
-                    .setMediaSourceFactory(mediaSourceFactory)
-
-                if (UserPreferences.getAutoAudioFocus(this)) {
-                    val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
-                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                        .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build()
-                    playerBuilder.setAudioAttributes(audioAttributes, true)
-                    playerBuilder.setHandleAudioBecomingNoisy(true)
-                }
-
-                playerBuilder.build()
-            }
+            val player: Player = CPPlayerManager.createPlayer(this, engineType)
                 
             player.addListener(object : Player.Listener {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -360,18 +285,30 @@ class MusicService : MediaSessionService() {
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    DebugLog.i("MusicService: onMediaItemTransition id=${mediaItem?.mediaId} reason=$reason player==$activePlayer?${player == activePlayer}")
                     if (player != activePlayer) return
-                    
+
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                         if (UserPreferences.getFadeMode(this@MusicService) == 1) {
                             val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
-                            startSinglePlayerFadeIn(fadeDur)
+                            crossfadeManager.startSinglePlayerFadeIn(fadeDur)
                         }
                     }
 
                     updateMediaSessionLayout()
                     updateWidget()
-                    mediaItem?.let { updateLyriconSong(it) }
+                    mediaItem?.let {
+                        updateLyriconSong(it)
+                        // 通知 MediaController 歌曲切换（MediaController 可能收不到 onMediaItemTransition）
+                        val extras = android.os.Bundle().apply {
+                            putString("mediaId", it.mediaId)
+                            putString("title", it.mediaMetadata.title?.toString() ?: "")
+                            putString("artist", it.mediaMetadata.artist?.toString() ?: "")
+                            putString("album", it.mediaMetadata.albumTitle?.toString() ?: "")
+                            putString("artworkUri", it.mediaMetadata.artworkUri?.toString() ?: "")
+                        }
+                        mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_SONG_CHANGED", android.os.Bundle.EMPTY), extras)
+                    }
                 }
 
                 override fun onEvents(eventPlayer: Player, events: Player.Events) {
@@ -399,6 +336,16 @@ class MusicService : MediaSessionService() {
                     if (player != activePlayer) return
                     val errorMsg = "Error ${error.errorCode}: ${error.errorCodeName}\n${error.message}"
                     DebugLog.e("MusicService: Player Error", error)
+                    // 记录播放错误到健康监控
+                    HealthMonitor.recordCall(HealthMonitor.ApiCallRecord(
+                        timestamp = System.currentTimeMillis(),
+                        providerId = ProviderManager.getCurrentProviderId(),
+                        method = "PLAYBACK_ERROR",
+                        durationMs = 0,
+                        success = false,
+                        errorCode = error.errorCode,
+                        errorMessage = errorMsg
+                    ))
 
                     val args = android.os.Bundle().apply { putString("error", errorMsg) }
                     mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
@@ -419,6 +366,15 @@ class MusicService : MediaSessionService() {
             players[i] = player
         }
 
+        crossfadeManager = CrossfadeManager(this, serviceScope) { newPlayer ->
+            activePlayerIndex = crossfadeManager.activePlayerIndex
+            mediaSession?.player = createForwardingPlayer(newPlayer)
+        }
+        for (i in 0..1) {
+            crossfadeManager.players[i] = players[i]
+        }
+        crossfadeManager.activePlayerIndex = activePlayerIndex
+
         startPlaybackInfoLoop()
 
         val intent = Intent(this, cp.player.MainActivity::class.java).apply {
@@ -437,6 +393,7 @@ class MusicService : MediaSessionService() {
                         .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
                         .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
                         .add(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY))
+                        .add(SessionCommand("ACTION_SONG_CHANGED", android.os.Bundle.EMPTY))
                         .build()
                     return MediaSession.ConnectionResult.accept(availableSessionCommands, MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 }
@@ -448,7 +405,7 @@ class MusicService : MediaSessionService() {
                             if (rating.isHeart) likedSongIds.add(mediaId) else likedSongIds.remove(mediaId)
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
-                                ProviderManager.callApi("like", mapOf("id" to mediaId, "like" to rating.isHeart.toString(), "cookie" to (cookie ?: "")))
+                                MusicApiServiceFactory.instance.likeSong(mediaId, rating.isHeart)
                                 withContext(Dispatchers.Main) { updateMediaSessionLayout() }
                             }
                         }
@@ -467,7 +424,7 @@ class MusicService : MediaSessionService() {
 
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
-                                ProviderManager.callApi("like", mapOf("id" to mediaId, "like" to nextLikeState.toString(), "cookie" to (cookie ?: "")))
+                                MusicApiServiceFactory.instance.likeSong(mediaId, nextLikeState)
                                 withContext(Dispatchers.Main) { updateMediaSessionLayout() }
                             }
                         }
@@ -480,6 +437,94 @@ class MusicService : MediaSessionService() {
 
         initLyricon()
         updateMediaSessionLayout()
+
+        // Listen for engine preference changes for live switching
+        UserPreferences.getPrefs(this).registerOnSharedPreferenceChangeListener(enginePrefListener)
+    }
+
+    private fun switchEngine(engineType: Int) {
+        val currentEngine = UserPreferences.getAudioEngine(this)
+        if (engineType == currentEngine) return
+
+        DebugLog.i("MusicService: switchEngine($engineType) — current=$currentEngine")
+        val listener = players[activePlayerIndex]?.let { player ->
+            // Extract the listener from the current player — we need to re-attach it to new players
+            // Since we can't extract the listener, we create a fresh one
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (playWhenReady) {
+                        if (!UserPreferences.getAutoAudioFocus(this@MusicService)) {
+                            if (!requestAudioFocus()) {
+                                players.forEach { it?.pause() }
+                            }
+                        }
+                    }
+                }
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    updateMediaSessionLayout()
+                    updateWidget()
+                    lyriconProvider?.player?.setPlaybackState(isPlaying)
+                }
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                        if (UserPreferences.getFadeMode(this@MusicService) == 1) {
+                            val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
+                            crossfadeManager.startSinglePlayerFadeIn(fadeDur)
+                        }
+                    }
+                    updateMediaSessionLayout()
+                    updateWidget()
+                    mediaItem?.let {
+                        updateLyriconSong(it)
+                        val extras = android.os.Bundle().apply {
+                            putString("mediaId", it.mediaId)
+                            putString("title", it.mediaMetadata.title?.toString() ?: "")
+                            putString("artist", it.mediaMetadata.artist?.toString() ?: "")
+                            putString("album", it.mediaMetadata.albumTitle?.toString() ?: "")
+                            putString("artworkUri", it.mediaMetadata.artworkUri?.toString() ?: "")
+                        }
+                        mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_SONG_CHANGED", android.os.Bundle.EMPTY), extras)
+                    }
+                }
+                override fun onEvents(eventPlayer: Player, events: Player.Events) {
+                    if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
+                        updateMediaSessionLayout()
+                        updateWidget()
+                    }
+                    if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
+                        val state = eventPlayer.playbackState
+                        updateMediaSessionLayout()
+                        updateWidget()
+                        if (state == Player.STATE_READY) {
+                            startPlaybackInfoLoop()
+                        }
+                    }
+                }
+                override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                    lyriconProvider?.player?.setPosition(newPosition.positionMs)
+                }
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    val errorMsg = "Error ${error.errorCode}: ${error.errorCodeName}\n${error.message}"
+                    DebugLog.e("MusicService: Player Error", error)
+                    val args = android.os.Bundle().apply { putString("error", errorMsg) }
+                    mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
+                }
+            }
+        }
+
+        if (listener != null) {
+            crossfadeManager.switchEngine(engineType, listener)
+            activePlayerIndex = crossfadeManager.activePlayerIndex
+            mediaSession?.player = createForwardingPlayer(crossfadeManager.activePlayer!!)
+
+            // Update USB audio manager
+            if (engineType == 1) {
+                if (usbAudioManager == null) usbAudioManager = cp.player.engine.UsbAudioManager(this)
+            } else {
+                usbAudioManager?.stop()
+                usbAudioManager = null
+            }
+        }
     }
 
     private fun initLyricon() {
@@ -499,7 +544,7 @@ class MusicService : MediaSessionService() {
                 if (p != null && p.isPlaying) {
                     lyriconProvider?.player?.setPosition(p.currentPosition)
                     
-                    if (!isCrossfading) {
+                    if (!crossfadeManager.isCrossfading) {
                         val dur = p.duration
                         val pos = p.currentPosition
                         val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
@@ -508,9 +553,9 @@ class MusicService : MediaSessionService() {
                         if (dur != C.TIME_UNSET && fadeDur > 0 && dur - pos <= fadeDur && dur - pos > 0) {
                             if (p.currentMediaItemIndex < p.mediaItemCount - 1) {
                                 if (fadeMode == 0) {
-                                    startCrossfade(fadeDur)
+                                    crossfadeManager.startCrossfade(fadeDur)
                                 } else if (fadeMode == 1) {
-                                    startSinglePlayerFadeOut(fadeDur)
+                                    crossfadeManager.startSinglePlayerFadeOut(fadeDur)
                                 }
                             }
                         }
@@ -518,104 +563,6 @@ class MusicService : MediaSessionService() {
                 }
                 delay(100)
             }
-        }
-    }
-
-    private var outgoingReverb: android.media.audiofx.PresetReverb? = null
-    private var outgoingEq: android.media.audiofx.Equalizer? = null
-
-    private fun startCrossfade(fadeDurationMs: Long) {
-        val oldPlayer = activePlayer ?: return
-        val newPlayer = nextPlayer ?: return
-        val targetIndex = oldPlayer.currentMediaItemIndex + 1
-        
-        if (targetIndex >= oldPlayer.mediaItemCount) return
-        
-        isCrossfading = true
-        val items = (0 until oldPlayer.mediaItemCount).map { oldPlayer.getMediaItemAt(it) }
-        
-        activePlayerIndex = (activePlayerIndex + 1) % 2
-        mediaSession?.player = createForwardingPlayer(newPlayer)
-
-        newPlayer.volume = 0f
-        newPlayer.setMediaItems(items, targetIndex, 0)
-        newPlayer.repeatMode = oldPlayer.repeatMode
-        newPlayer.shuffleModeEnabled = oldPlayer.shuffleModeEnabled
-        newPlayer.prepare()
-        newPlayer.play()
-        
-        oldPlayer.repeatMode = Player.REPEAT_MODE_OFF
-        if (oldPlayer.mediaItemCount > targetIndex) {
-            oldPlayer.removeMediaItems(targetIndex, oldPlayer.mediaItemCount)
-        }
-        
-        crossfadeJob?.cancel()
-        
-        // Setup Live DJ effects for the outgoing track
-        try {
-            outgoingReverb?.release()
-            outgoingEq?.release()
-            
-            val sessionId = oldPlayer.audioSessionId
-            if (sessionId != C.AUDIO_SESSION_ID_UNSET) {
-                outgoingReverb = android.media.audiofx.PresetReverb(0, sessionId).apply {
-                    preset = android.media.audiofx.PresetReverb.PRESET_LARGEHALL
-                    enabled = true
-                }
-                outgoingEq = android.media.audiofx.Equalizer(0, sessionId).apply {
-                    enabled = true
-                }
-            }
-        } catch (e: Exception) {
-            cp.player.util.DebugLog.e("MusicService: Failed to setup audio FX", e)
-        }
-
-        crossfadeJob = serviceScope.launch {
-            val steps = 30
-            val delayTime = fadeDurationMs / steps
-            for (i in 1..steps) {
-                val progress = i.toFloat() / steps
-                
-                // Non-linear DJ mix curves
-                val outVol = kotlin.math.max(0.0, Math.pow((1.0f - progress).toDouble(), 1.5)).toFloat()
-                val inVol = kotlin.math.max(0.0, Math.pow(progress.toDouble(), 0.8)).toFloat()
-
-                newPlayer.volume = inVol
-                oldPlayer.volume = outVol
-                
-                // DJ High-pass filter effect on outgoing track (fade out the bass)
-                try {
-                    outgoingEq?.let { eq ->
-                        val numBands = eq.numberOfBands
-                        for (b in 0 until numBands) {
-                            val centerFreq = eq.getCenterFreq(b.toShort())
-                            if (centerFreq < 600_000) { // Frequencies below 600Hz
-                                val minLevel = eq.bandLevelRange[0]
-                                // Drop bass progressively
-                                eq.setBandLevel(b.toShort(), (minLevel * progress).toInt().toShort())
-                            } else if (centerFreq > 8_000_000) { // Frequencies above 8kHz
-                                val minLevel = eq.bandLevelRange[0]
-                                // Slight drop on highs to push track backwards
-                                eq.setBandLevel(b.toShort(), (minLevel * (progress * 0.5f)).toInt().toShort())
-                            }
-                        }
-                    }
-                } catch (e: Exception) {}
-
-                delay(delayTime)
-            }
-            oldPlayer.pause()
-            oldPlayer.volume = 1.0f
-            oldPlayer.clearMediaItems()
-            
-            try {
-                outgoingReverb?.release()
-                outgoingReverb = null
-                outgoingEq?.release()
-                outgoingEq = null
-            } catch (e: Exception) {}
-
-            isCrossfading = false
         }
     }
 
@@ -634,8 +581,10 @@ class MusicService : MediaSessionService() {
             while (true) {
                 val p = activePlayer
                 if (p != null && p.playbackState == Player.STATE_READY) {
-                    cp.player.util.DebugLog.d("MusicService: activePlayer Position: ${p.currentPosition} / ${p.duration}")
-                    cp.player.util.DebugLog.d("MusicService: RustEngine State: ${cp.player.engine.RustEngine.getRustAudioDebugStateJson()}")
+                    var sampleRate = 0
+                    var bitrate = 0
+
+                    // Try ExoPlayer's audioFormat first
                     var activeFormat = (p as? ExoPlayer)?.audioFormat
                     if (activeFormat == null || activeFormat.sampleRate == -1) {
                         val currentTracks = p.currentTracks
@@ -652,18 +601,28 @@ class MusicService : MediaSessionService() {
                         }
                     }
 
-                    if (activeFormat != null) {
-                        val sampleRate = if (activeFormat.sampleRate != -1) activeFormat.sampleRate else 0
-                        val bitrate = if (activeFormat.bitrate != -1) activeFormat.bitrate else 0
+                    if (activeFormat != null && activeFormat.sampleRate != -1) {
+                        sampleRate = activeFormat.sampleRate
+                        bitrate = if (activeFormat.bitrate != -1) activeFormat.bitrate else 0
+                    }
 
-                        if (sampleRate > 0 || bitrate > 0) {
-                            val extras = android.os.Bundle().apply {
-                                putInt("sampleRate", sampleRate)
-                                putInt("bitrate", bitrate)
-                            }
-                            mediaSession?.setSessionExtras(extras)
-                            mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)
+                    // Fallback: read format from FlickPlayer's FormatChanged events
+                    if (sampleRate == 0 && bitrate == 0) {
+                        val flickPlayer = p as? cp.player.engine.FlickPlayer
+                        if (flickPlayer != null) {
+                            val (sr, br) = flickPlayer.getFormatInfo()
+                            sampleRate = sr
+                            bitrate = br
                         }
+                    }
+
+                    if (sampleRate > 0 || bitrate > 0) {
+                        val extras = android.os.Bundle().apply {
+                            putInt("sampleRate", sampleRate)
+                            putInt("bitrate", bitrate)
+                        }
+                        mediaSession?.setSessionExtras(extras)
+                        mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)
                     }
                 }
                 delay(1500)
@@ -677,54 +636,30 @@ class MusicService : MediaSessionService() {
         val title = metadata.title?.toString() ?: "Unknown"
         val artist = metadata.artist?.toString() ?: "Unknown"
 
+        // 先设置歌曲基本信息
         lyriconProvider?.player?.setPlaybackState(activePlayer?.isPlaying ?: false)
         lyriconProvider?.player?.setSong(Song(id = songId, name = title, artist = artist))
 
+        // 通过 LyricsManager 统一获取歌词
+        cp.player.lyrics.LyricsManager.fetch(songId, this)
+
+        // 观察歌词状态变化，同步到 Lyricon
         lyricJob?.cancel()
         lyricJob = serviceScope.launch {
-            try {
-                val result = ProviderManager.callApi("lyric/new", mapOf("id" to songId))
-                val body = com.google.gson.JsonParser.parseString(result).asJsonObject
-
-                if (body.has("lrc") || body.has("yrc")) {
-                    val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-                    val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
-                    val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-
-                    val lyricLines = if (yrc.isNotEmpty()) {
-                        cp.player.util.LyricUtils.parseYrc(yrc)
-                    } else {
-                        cp.player.util.LyricUtils.parseLrc(lrc, activePlayer?.duration ?: 0L)
-                    }
-
-                    val finalLines = if (tlyric.isNotEmpty()) {
-                        val tlines = cp.player.util.LyricUtils.parseLrc(tlyric).associateBy { it.time }
-                        lyricLines.map { line ->
-                            val trans = tlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
-                            if (trans != null) {
-                                line.copy(translation = trans.value.text)
-                            } else {
-                                line
-                            }
-                        }
-                    } else {
-                        lyricLines
-                    }
-
+            cp.player.lyrics.LyricsManager.state.collect { state ->
+                if (state is cp.player.lyrics.LyricsState.Success && state.songId == songId) {
                     lyriconProvider?.player?.setSong(
                         Song(
                             id = songId,
                             name = title,
                             artist = artist,
                             duration = activePlayer?.duration?.coerceAtLeast(0L) ?: 0L,
-                            lyrics = cp.player.util.LyricUtils.toRichLyricLines(finalLines)
+                            lyrics = state.richLyricLines
                         )
                     )
                     lyriconProvider?.player?.setPosition(activePlayer?.currentPosition ?: 0L)
-                    lyriconProvider?.player?.setDisplayTranslation(tlyric.isNotEmpty())
+                    lyriconProvider?.player?.setDisplayTranslation(state.lyricsInfo.hasTranslation)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
@@ -733,11 +668,11 @@ class MusicService : MediaSessionService() {
         if (intent != null) {
             when (intent.action) {
                 "ACTION_PREVIOUS" -> {
-                    abortCrossfade()
+                    crossfadeManager.abortCrossfade()
                     activePlayer?.seekToPrevious()
                 }
                 "ACTION_NEXT" -> {
-                    abortCrossfade()
+                    crossfadeManager.abortCrossfade()
                     activePlayer?.seekToNext()
                 }
                 "ACTION_TOGGLE_PLAY" -> activePlayer?.let { if (it.isPlaying) it.pause() else it.play() }
@@ -786,6 +721,8 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)
+        crossfadeManager.release()
         usbAudioManager?.stop()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)

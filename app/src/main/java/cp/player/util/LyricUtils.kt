@@ -1,6 +1,9 @@
 package cp.player.util
 
 import cp.player.model.LyricLine
+import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
+import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
+import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import io.github.proify.lyricon.lyric.model.LyricWord
 import io.github.proify.lyricon.lyric.model.RichLyricLine
 import java.util.regex.Pattern
@@ -103,6 +106,53 @@ object LyricUtils {
                     )
                 }
             )
+        }
+    }
+
+    /**
+     * 将 accompanist-lyrics-core 的 [SyncedLyrics] 转换为 Lyricon 的 [RichLyricLine] 列表。
+     * 用于 MusicService 中 Lyricon 插件的歌词同步。
+     */
+    fun syncedLyricsToRichLyricLines(syncedLyrics: SyncedLyrics): List<RichLyricLine> {
+        return syncedLyrics.lines.map { line ->
+            val begin = line.start.toLong()
+            val end = line.end.toLong()
+            when (line) {
+                is KaraokeLine -> {
+                    RichLyricLine(
+                        begin = begin,
+                        end = end,
+                        duration = end - begin,
+                        text = line.syllables.joinToString("") { it.content },
+                        translation = line.translation?.ifEmpty { null },
+                        roma = line.phonetic?.ifEmpty { null },
+                        words = line.syllables.map { syl ->
+                            LyricWord(
+                                text = syl.content,
+                                begin = syl.start.toLong(),
+                                end = syl.end.toLong()
+                            )
+                        }
+                    )
+                }
+                is SyncedLine -> {
+                    RichLyricLine(
+                        begin = begin,
+                        end = end,
+                        duration = end - begin,
+                        text = line.content,
+                        translation = line.translation?.ifEmpty { null }
+                    )
+                }
+                else -> {
+                    RichLyricLine(
+                        begin = begin,
+                        end = end,
+                        duration = end - begin,
+                        text = ""
+                    )
+                }
+            }
         }
     }
 }

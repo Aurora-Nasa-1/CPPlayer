@@ -2,7 +2,12 @@ package cp.player.viewmodel
 
 import android.app.Application
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewModelScope
+import cp.player.util.CacheManager
 import cp.player.util.UserPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsViewModel(application: Application) : BaseViewModel(application) {
     var qualityWifi by mutableStateOf(UserPreferences.getQualityWifi(application))
@@ -27,8 +32,6 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var useFluidBackground by mutableStateOf(UserPreferences.getUseFluidBackground(application))
         private set
-    var useWavyProgress by mutableStateOf(UserPreferences.getUseWavyProgress(application))
-        private set
     var audioFocusMode by mutableIntStateOf(UserPreferences.getAudioFocusMode(application))
         private set
     var allowDucking by mutableStateOf(UserPreferences.getAllowDucking(application))
@@ -51,6 +54,14 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     var dapBitPerfect by mutableStateOf(UserPreferences.getDapBitPerfect(application))
         private set
     var usbExclusive by mutableStateOf(UserPreferences.getUsbExclusive(application))
+        private set
+    var fontRoundness by mutableIntStateOf(UserPreferences.getFontRoundness(application))
+        private set
+    var playImmediately by mutableStateOf(UserPreferences.getPlayImmediately(application))
+        private set
+    var lyricsSource by mutableIntStateOf(UserPreferences.getLyricsSource(application))
+        private set
+    var amllPlatform by mutableStateOf(UserPreferences.getAmllPlatform(application))
         private set
 
     fun updateQualityWifi(q: String) {
@@ -118,11 +129,6 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         UserPreferences.saveUseFluidBackground(getApplication(), e)
     }
 
-    fun updateUseWavyProgress(e: Boolean) {
-        useWavyProgress = e
-        UserPreferences.saveUseWavyProgress(getApplication(), e)
-    }
-
     fun updateAudioFocusMode(m: Int) {
         audioFocusMode = m
         UserPreferences.saveAudioFocusMode(getApplication(), m)
@@ -176,5 +182,47 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         UserPreferences.saveUsbExclusive(getApplication(), enabled)
     }
 
-    fun clearCache() { /* API */ }
+    fun updateFontRoundness(mode: Int) {
+        fontRoundness = mode
+        UserPreferences.saveFontRoundness(getApplication(), mode)
+    }
+
+    fun updatePlayImmediately(e: Boolean) {
+        playImmediately = e
+        UserPreferences.savePlayImmediately(getApplication(), e)
+    }
+
+    fun updateLyricsSource(source: Int) {
+        lyricsSource = source
+        UserPreferences.saveLyricsSource(getApplication(), source)
+    }
+
+    fun updateAmllPlatform(platform: String) {
+        amllPlatform = platform
+        UserPreferences.saveAmllPlatform(getApplication(), platform)
+    }
+
+    fun clearCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // 1. 清除 SharedPreferences 数据缓存
+            CacheManager.clearAll(getApplication(), providerOnly = false)
+
+            // 2. 清除 Media3 音频流磁盘缓存
+            cp.player.service.MusicService.clearAudioCache(getApplication())
+
+            // 3. 清除 StreamProxy 临时文件
+            try {
+                val cacheDir = getApplication<Application>().cacheDir
+                cacheDir.listFiles()
+                    ?.filter { it.name.startsWith("stream_cache_") }
+                    ?.forEach { it.delete() }
+            } catch (_: Exception) {}
+
+            // 4. 清除 Coil 图片磁盘缓存
+            try {
+                val imageCacheDir = getApplication<Application>().cacheDir.resolve("image_cache")
+                imageCacheDir.deleteRecursively()
+            } catch (_: Exception) {}
+        }
+    }
 }

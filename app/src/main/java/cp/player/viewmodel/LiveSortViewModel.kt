@@ -1,10 +1,8 @@
 package cp.player.viewmodel
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cp.player.model.Song
-import cp.player.provider.ProviderManager
 import cp.player.util.UserPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,7 +49,7 @@ sealed class LiveSortState {
     data class Error(val message: String) : LiveSortState()
 }
 
-class LiveSortViewModel(application: Application) : AndroidViewModel(application) {
+class LiveSortViewModel(application: Application) : BaseViewModel(application) {
     private val _sortState = MutableStateFlow<LiveSortState>(LiveSortState.Idle)
     val sortState: StateFlow<LiveSortState> = _sortState.asStateFlow()
 
@@ -169,25 +167,6 @@ class LiveSortViewModel(application: Application) : AndroidViewModel(application
         val actualCurve = currentSongs.map { it.emotionScore }
         val idealCurve = generateIdealCurveLocal(currentSongs.size)
         _sortState.value = LiveSortState.Completed(currentSongs, actualCurve, idealCurve)
-    }
-
-    private fun parseAudioFeatures(jsonString: String): AudioFeatures {
-        return try {
-            val jsonObject = JSONObject(jsonString)
-            val bpm = jsonObject.optDouble("bpm", 120.0)
-            val energy = jsonObject.optDouble("energy", 0.5)
-            AudioFeatures(
-                bpm = bpm,
-                energy = energy,
-                brightness = jsonObject.optDouble("brightness", 0.5),
-                startBpm = jsonObject.optDouble("start_bpm", bpm),
-                endBpm = jsonObject.optDouble("end_bpm", bpm),
-                startEnergy = jsonObject.optDouble("start_energy", energy),
-                endEnergy = jsonObject.optDouble("end_energy", energy)
-            )
-        } catch (e: Exception) {
-            AudioFeatures(120.0, 0.5, 0.5)
-        }
     }
 
     private fun computeEmotionScores(songs: List<SongWithEmotion>): List<SongWithEmotion> {

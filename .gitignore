@@ -36,3 +36,7 @@ obj/
 # *.keystore
 
 /API使用例/
+
+# External repos (not submodules)
+/3rd-rust-server/
+/accompanist-lyrics-ui/

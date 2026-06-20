@@ -43,8 +43,10 @@ fun UserProfileScreen(
     isArtist: Boolean = false,
     isLoading: Boolean = false,
     onPlaylistClick: (Playlist) -> Unit,
+    onAlbumClick: (Playlist) -> Unit = onPlaylistClick,
     onSongClick: (Song) -> Unit,
     onMessageClick: (Long, String) -> Unit,
+    currentSongId: String? = null,
     onBackPressed: () -> Unit
 ) {
     if (userProfile != null && userProfile.userId == 0L) {
@@ -66,9 +68,9 @@ fun UserProfileScreen(
                     IconButton(onClick = { showLogoutDialog = true }) {
                         Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout")
                     }
-                }
-                IconButton(onClick = { onMessageClick(it.userId, it.nickname) }) {
-                    Icon(Icons.Default.Email, contentDescription = "Message")
+                    IconButton(onClick = { onMessageClick(it.userId, it.nickname) }) {
+                        Icon(Icons.Default.Email, contentDescription = "Message")
+                    }
                 }
             }
         }
@@ -108,8 +110,6 @@ fun UserProfileScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 8.dp,
-                    end = 8.dp,
                     top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding() + 16.dp
                 ),
@@ -182,10 +182,12 @@ fun UserProfileScreen(
                         ) { index, song ->
                         SongItem(
                             song = song,
+                            isCurrentlyPlaying = song.id == currentSongId,
                             onClick = { onSongClick(song) },
                             index = index,
                             total = displaySongs.size,
-                            containerColor = MaterialTheme.colorScheme.surface
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
 
@@ -218,10 +220,11 @@ fun UserProfileScreen(
                         ) { index, album ->
                         PlaylistItem(
                             playlist = album,
-                            onClick = { onPlaylistClick(album) },
+                            onClick = { onAlbumClick(album) },
                             index = index,
                             total = displayAlbums.size,
-                            containerColor = MaterialTheme.colorScheme.surface
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
 
@@ -257,7 +260,8 @@ fun UserProfileScreen(
                             onClick = { onPlaylistClick(playlist) },
                             index = index,
                             total = displayPlaylists.size,
-                            containerColor = MaterialTheme.colorScheme.surface
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
 

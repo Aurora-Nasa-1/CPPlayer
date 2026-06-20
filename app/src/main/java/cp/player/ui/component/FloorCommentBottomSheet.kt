@@ -1,20 +1,16 @@
 package cp.player.ui.component
 
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,7 +18,7 @@ import cp.player.R
 import cp.player.model.Comment
 import cp.player.ui.theme.createCustomColorScheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FloorCommentBottomSheet(
     parentComment: Comment,
@@ -39,7 +35,13 @@ fun FloorCommentBottomSheet(
     coverColor: Int? = null,
     onDismiss: () -> Unit
 ) {
-    val floorColorScheme = MaterialTheme.colorScheme
+    // 根据封面颜色生成自定义配色方案
+    val isDark = isSystemInDarkTheme()
+    val floorColorScheme = if (useCoverColor && coverColor != null) {
+        createCustomColorScheme(coverColor, isDark)
+    } else {
+        MaterialTheme.colorScheme
+    }
 
     var commentText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -57,90 +59,138 @@ fun FloorCommentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.fillMaxHeight(0.85f),
-        containerColor = floorColorScheme.surface
+        containerColor = floorColorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         MaterialTheme(colorScheme = floorColorScheme) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(R.string.view_replies, totalCount),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 标题
+                Text(
+                    text = stringResource(R.string.all_replies),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                Text(
+                    text = stringResource(R.string.comments_count, totalCount),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
+                )
 
-            Box(modifier = Modifier.weight(1f)) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    item {
-                        CommentItem(
-                            comment = parentComment,
-                            onLikeClick = { onLikeClick(parentComment) },
-                            onReplyClick = { onReplyClick(parentComment) },
-                            onAvatarClick = { onAvatarClick(parentComment.userId) }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "All Replies",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    itemsIndexed(replies, key = { _, it -> it.id }) { index, comment ->
-                        CommentItem(
-                            comment = comment,
-                            onLikeClick = { onLikeClick(comment) },
-                            onReplyClick = { onReplyClick(comment) },
-                            onAvatarClick = { onAvatarClick(comment.userId) }
-                        )
-                    }
-
-                    if (isLoading) {
+                // 回复列表
+                Box(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // 父评论
                         item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            CommentItem(
+                                comment = parentComment,
+                                onLikeClick = { onLikeClick(parentComment) },
+                                onReplyClick = { onReplyClick(parentComment) },
+                                onAvatarClick = { onAvatarClick(parentComment.userId) }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.padding(bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(6.dp),
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                ) {}
+                                Text(
+                                    text = stringResource(R.string.all_replies),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // 回复列表
+                        itemsIndexed(replies, key = { _, it -> it.id }) { _, comment ->
+                            CommentItem(
+                                comment = comment,
+                                onLikeClick = { onLikeClick(comment) },
+                                onReplyClick = { onReplyClick(comment) },
+                                onAvatarClick = { onAvatarClick(comment.userId) }
+                            )
+                        }
+
+                        // 加载指示器
+                        if (isLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ContainedLoadingIndicator(modifier = Modifier.size(32.dp))
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Surface(
-                tonalElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Row(
-                    modifier = Modifier
-                        .windowInsetsPadding(WindowInsets.ime)
-                        .navigationBarsPadding()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // 底部输入栏
+                Surface(
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = floorColorScheme.surface.copy(alpha = 0.95f)
                 ) {
-                    OutlinedTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        placeholder = { Text(stringResource(R.string.add_comment)) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (commentText.isNotBlank()) {
-                                onPostComment(commentText)
-                                commentText = ""
-                            }
-                        },
-                        enabled = commentText.isNotBlank()
+                    Row(
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.ime)
+                            .navigationBarsPadding()
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        TextField(
+                            value = commentText,
+                            onValueChange = { commentText = it },
+                            placeholder = {
+                                Text(
+                                    stringResource(R.string.add_comment),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = floorColorScheme.surfaceVariant,
+                                unfocusedIndicatorColor = floorColorScheme.surfaceVariant,
+                                focusedContainerColor = floorColorScheme.surfaceVariant,
+                                unfocusedContainerColor = floorColorScheme.surfaceVariant
+                            ),
+                            shape = MaterialTheme.shapes.large,
+                            textStyle = MaterialTheme.typography.bodyMedium
+                        )
+                        FilledTonalIconButton(
+                            onClick = {
+                                if (commentText.isNotBlank()) {
+                                    onPostComment(commentText)
+                                    commentText = ""
+                                }
+                            },
+                            enabled = commentText.isNotBlank()
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = stringResource(R.string.send)
+                            )
+                        }
                     }
                 }
             }
-        }
         }
     }
 }

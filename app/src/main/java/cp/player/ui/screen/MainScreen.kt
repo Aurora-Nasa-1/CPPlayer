@@ -31,6 +31,7 @@ import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
 import coil3.compose.AsyncImage
 import cp.player.R
@@ -50,7 +51,7 @@ fun MainScreen(
     recommendedPlaylists: List<Playlist> = emptyList(),
     userPlaylists: List<Playlist>,
     userProfile: UserProfile?,
-    versionName: String,
+    loginViewModel: cp.player.viewmodel.LoginViewModel,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onPersonalFmClick: () -> Unit,
@@ -62,10 +63,11 @@ fun MainScreen(
     unreadMessagesCount: Int = 0,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
+    currentSongId: String? = null,
     onNavigateToSettings: () -> Unit,
-    onNavigateToLogin: () -> Unit,
-    onLogout: () -> Unit,
-    onSwitchAccount: (cp.player.util.UserPreferences.SavedAccount) -> Unit,
+    onFetchUserData: () -> Unit = {},
+    onDownloadClick: ((Song) -> Unit)? = null,
+    onViewAllRecent: ((Playlist) -> Unit)? = null,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
     actions: @Composable RowScope.() -> Unit = {}
 ) {
@@ -87,34 +89,24 @@ fun MainScreen(
 
     if (showAccountDialog) {
         UserAccountDialog(
+            loginViewModel = loginViewModel,
             userProfile = userProfile,
-            versionName = versionName,
             onDismiss = { showAccountDialog = false },
             onNavigateToLogs = {
                 showAccountDialog = false
                 onNavigateToLogs()
             },
-            onNavigateToLogin = {
-                showAccountDialog = false
-                onNavigateToLogin()
-            },
-            onSwitchAccount = { account ->
-                showAccountDialog = false
-                onSwitchAccount(account)
-            },
-            onLogout = {
-                showAccountDialog = false
-                onLogout()
-            }
+            onFetchUserData = onFetchUserData
         )
     }
 
+    // 根据时间选择问候语
     val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
-        in 5..11 -> "早上好"
-        in 12..17 -> "下午好"
-        in 18..22 -> "晚上好"
-        else -> "夜深了"
+        in 5..11 -> stringResource(R.string.greeting_morning)
+        in 12..17 -> stringResource(R.string.greeting_afternoon)
+        in 18..22 -> stringResource(R.string.greeting_evening)
+        else -> stringResource(R.string.greeting_late_night)
     }
 
     AppScaffold(
@@ -124,8 +116,10 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         actions = {
             actions()
-            IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
-            IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
+            IconButton(onClick = onNavigateToMessages) {
+                Icon(Icons.Default.Email, contentDescription = stringResource(R.string.messages))
+            }
+            IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings)) }
             IconButton(onClick = { showAccountDialog = true }) {
                 Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.surfaceVariant) {
                     if (userProfile?.avatarUrl != null) {
@@ -140,31 +134,36 @@ fun MainScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding() + 8.dp, 
+                top = innerPadding.calculateTopPadding() + 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp,
                 start = 16.dp,
                 end = 16.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(32.dp) // Large M3 expressive spacing
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // "Favorites" Section - Circular items
+            // 快速访问区域
             item {
                 Column {
-                    Text("快速访问", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 8.dp, bottom = 16.dp))
+                    Text(
+                        stringResource(R.string.quick_access),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
+                    )
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
                         item {
                             FavoriteCircleItem(
-                                title = "私人漫游",
+                                title = stringResource(R.string.good_day),
                                 icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
                                 onClick = onPersonalFmClick
                             )
                         }
                         item {
                             FavoriteCircleItem(
-                                title = "心动模式",
+                                title = stringResource(R.string.made_for_you),
                                 icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
                                 onClick = onHeartbeatClick
                             )
@@ -173,7 +172,14 @@ fun MainScreen(
                         items(displayPlaylists) { p ->
                             FavoriteCircleItem(
                                 title = p.name,
-                                icon = { AsyncImage(model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 150), contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop) },
+                                icon = {
+                                    AsyncImage(
+                                        model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 150),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                },
                                 onClick = { onPlaylistClick(p) }
                             )
                         }
@@ -181,37 +187,76 @@ fun MainScreen(
                 }
             }
 
+            // 每日推荐卡片
+            if (recommendedSongs.isNotEmpty()) {
+                item {
+                    DailyMixCard(
+                        songs = recommendedSongs.take(5),
+                        onSongClick = onSongClick,
+                        onViewAll = { playlist -> onPlaylistClick(playlist) }
+                    )
+                }
+            }
+
+            // 推荐歌单区域
             if (recommendedPlaylists.isNotEmpty()) {
-                item { Text("推荐歌单", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+                item {
+                    Text(
+                        stringResource(R.string.recommended_playlists),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 item {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
+                    ) {
                         items(items = recommendedPlaylists, key = { "rec_pl_${it.id}" }) { p ->
-                            Column(modifier = Modifier.width(160.dp).clickable { onPlaylistClick(p) }) {
-                                AsyncImage(
-                                    model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 400),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(160.dp).clip(MaterialTheme.shapes.extraLarge),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            }
+                            RecommendedPlaylistCard(
+                                playlist = p,
+                                onClick = { onPlaylistClick(p) }
+                            )
                         }
                     }
                 }
             }
 
-            if (recommendedSongs.isNotEmpty()) {
-                item {
-                    DailyMixCard(
-                        songs = recommendedSongs.take(5),
-                        onSongClick = onSongClick
+            // 最近播放区域
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.recently_played),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
+                    val recentPlayedName = stringResource(R.string.recently_played)
+                    if (onViewAllRecent != null && recommendedSongs.isNotEmpty()) {
+                        FilledTonalButton(
+                            onClick = {
+                                onViewAllRecent(
+                                    Playlist(
+                                        id = -1L,
+                                        name = recentPlayedName,
+                                        trackCount = recommendedSongs.size
+                                    )
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.view_all),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
             }
-
-            item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
 
             item {
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
@@ -225,8 +270,11 @@ fun MainScreen(
                 ) { _, s, rowIndex, totalRows ->
                     SongItem(
                         song = s,
+                        index = rowIndex,
+                        total = totalRows,
                         isFavorite = favoriteSongs.contains(s.id),
                         isDownloaded = completedSongs.contains(s.id),
+                        isCurrentlyPlaying = s.id == currentSongId,
                         onOptionsClick = { selectedSongForOptions = s },
                         onClick = { onSongClick(s) },
                         modifier = Modifier.weight(1f)
@@ -240,6 +288,7 @@ fun MainScreen(
         cp.player.ui.component.SongOptionsBottomSheet(
             song = song,
             isFavorite = favoriteSongs.contains(song.id),
+            isDownloaded = completedSongs.contains(song.id),
             onDismissRequest = { selectedSongForOptions = null },
             onPlayClick = {
                 onSongClick(song)
@@ -248,7 +297,8 @@ fun MainScreen(
             onFavoriteClick = {
                 onLikeClick(song)
                 selectedSongForOptions = null
-            }
+            },
+            onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } }
         )
     }
 }
@@ -258,23 +308,72 @@ fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () 
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = if (androidx.compose.foundation.isSystemInDarkTheme())
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        else MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = Modifier.height(48.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp)) {
                 icon()
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                text = title, 
-                style = MaterialTheme.typography.labelLarge, 
-                maxLines = 1, 
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+fun RecommendedPlaylistCard(playlist: Playlist, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(160.dp)
+            .clickable { onClick() }
+    ) {
+        Box(modifier = Modifier.size(160.dp)) {
+            AsyncImage(
+                model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl ?: "", 400),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.extraLarge),
+                contentScale = ContentScale.Crop
+            )
+            // 底部渐变叠加层
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.4f)
+                            ),
+                            startY = 200f
+                        )
+                    )
+            )
+            // 歌单名称浮在底部
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
             )
         }
     }
@@ -284,18 +383,25 @@ fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () 
 fun DailyMixCard(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    onViewAll: ((Playlist) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    // 暗色模式下使用更亮的背景色
+    val cardColor = if (androidx.compose.foundation.isSystemInDarkTheme())
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    else MaterialTheme.colorScheme.surfaceContainerLow
+
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow
+        shape = MaterialTheme.shapes.extraLarge,
+        color = cardColor
     ) {
         Column {
-            // Header with distinct background and overlapping images
+            // 头部：渐变背景 + 重叠封面
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.tertiaryContainer
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = MaterialTheme.shapes.extraLarge
             ) {
                 Row(
                     modifier = Modifier
@@ -306,14 +412,19 @@ fun DailyMixCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "DAILY MIX\nBased on History",
+                            text = stringResource(R.string.daily_mix_title),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
+                        Text(
+                            text = stringResource(R.string.daily_mix_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                        )
                     }
-                    
-                    // Overlapping album art cluster
+
+                    // 重叠封面集群
                     if (songs.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -340,13 +451,13 @@ fun DailyMixCard(
                 }
             }
 
-            // List of songs
+            // 歌曲列表
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 8.dp)
             ) {
-                songs.forEach { song ->
+                songs.forEachIndexed { index, song ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -354,6 +465,14 @@ fun DailyMixCard(
                             .padding(horizontal = 24.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // 序号
+                        Text(
+                            text = "${index + 1}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         AsyncImage(
                             model = ImageUtils.getResizedImageUrl(song.albumArtUrl ?: "", 150),
                             contentDescription = null,
@@ -383,14 +502,23 @@ fun DailyMixCard(
                 }
             }
 
-            // Footer action
-            TextButton(
-                onClick = { if (songs.isNotEmpty()) onSongClick(songs.first()) },
+            // 底部操作按钮
+            val dailyMixName = stringResource(R.string.daily_mix_title)
+            FilledTonalButton(
+                onClick = {
+                    onViewAll?.invoke(
+                        Playlist(
+                            id = -2L,
+                            name = dailyMixName,
+                            trackCount = songs.size
+                        )
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text("Check all of Daily Mix ->")
+                Text(stringResource(R.string.check_all_daily_mix))
             }
         }
     }
@@ -403,20 +531,28 @@ fun ExpressiveListCard(
     content: @Composable () -> Unit
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, // Large 32dp+ rounded corners
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(modifier = Modifier.padding(bottom = 8.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
                 )
-                Icon(Icons.Default.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.SwapVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             content()
         }

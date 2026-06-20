@@ -63,7 +63,8 @@ class MainActivity : ComponentActivity() {
                 pureBlack = settingsViewModel.pureBlackMode,
                 themeMode = settingsViewModel.themeMode,
                 followCoverApp = settingsViewModel.followCoverApp,
-                seedColor = playbackViewModel.extractedColor
+                seedColor = playbackViewModel.extractedColor,
+                fontRoundness = settingsViewModel.fontRoundness
             ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                     val context = LocalContext.current
@@ -94,7 +95,6 @@ fun AppNavigation(
     val context = LocalContext.current
 
     var isPlayerExpanded by rememberSaveable { mutableStateOf(false) }
-    var isLyricsExpanded by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(intent) {
         if (intent?.action == "ACTION_SHOW_PLAYER") {
@@ -102,12 +102,12 @@ fun AppNavigation(
         }
     }
 
-    val showNav = loginViewModel.isLogged
+    val showNav = true // 始终显示导航，不再强制登录
     val navItems = listOf(Triple("main", "Home", Icons.Filled.Home), Triple("search", "Search", Icons.Filled.Search), Triple("library", "Library", Icons.Filled.LibraryMusic))
     val topLevelRoutes = navItems.map { it.first }
     val isTopLevel = currentDestination?.route in topLevelRoutes
     val hasBottomBar = showNav && isTopLevel // Show bottom bar only on top-level routes
-    val hasMiniPlayer = loginViewModel.isLogged && playbackViewModel.currentSong != null
+    val hasMiniPlayer = playbackViewModel.currentSong != null
     
     // Calculate total bottom padding needed for screens (Mini player + Navigation Bar)
     val bottomBarHeight = when {
@@ -125,7 +125,7 @@ fun AppNavigation(
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!isPlayerExpanded && !isLyricsExpanded) {
+                if (!isPlayerExpanded) {
                     bottomBarOffsetHeightPx.value = (bottomBarOffsetHeightPx.value + available.y).coerceIn(-maxOffset, 0f)
                 }
                 return Offset.Zero
@@ -140,7 +140,7 @@ fun AppNavigation(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (hasBottomBar && !useSideNav && !isPlayerExpanded && !isLyricsExpanded) {
+            if (hasBottomBar && !useSideNav && !isPlayerExpanded) {
                 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                 ShortNavigationBar(
                     modifier = Modifier
@@ -170,7 +170,6 @@ fun AppNavigation(
             innerPadding, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context,
             currentDestination, bottomBarOffsetHeightPx, navItems,
             isPlayerExpanded = isPlayerExpanded, onSetPlayerExpanded = { isPlayerExpanded = it },
-            isLyricsExpanded = isLyricsExpanded, onSetLyricsExpanded = { isLyricsExpanded = it },
             snackbarHostState = snackbarHostState
         )
     }
@@ -199,18 +198,16 @@ fun AppMainContent(
     navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>,
     isPlayerExpanded: Boolean,
     onSetPlayerExpanded: (Boolean) -> Unit,
-    isLyricsExpanded: Boolean,
-    onSetLyricsExpanded: (Boolean) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier.fillMaxSize()
-                .then(if (!isPlayerExpanded && !isLyricsExpanded) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
+                .then(if (!isPlayerExpanded) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
         ) {
             // MAIN APP NAVIGATION LAYER
             Row(modifier = Modifier.fillMaxSize()) {
-                if (hasBottomBar && !isPlayerExpanded && !isLyricsExpanded && useSideNav) {
+                if (hasBottomBar && !isPlayerExpanded && useSideNav) {
                     // M3 Expressive Navigation Rail
                     NavigationRail(
                         modifier = Modifier
@@ -250,7 +247,7 @@ fun AppMainContent(
                 Box(modifier = Modifier.weight(1f).fillMaxHeight().padding(top = 0.dp)) {
                     NavHost(
                         navController = navController,
-                        startDestination = if (cp.player.provider.ModuleManager.getAvailableProviders().isEmpty()) "setup" else if (loginViewModel.isLogged) "main" else "login",
+                        startDestination = if (cp.player.provider.ModuleManager.getAvailableProviders().isEmpty()) "setup" else "main",
                         modifier = Modifier.fillMaxSize(),
                         enterTransition = {
                             slideIntoContainer(
@@ -280,25 +277,24 @@ fun AppMainContent(
                         composable("setup") {
                             SetupScreen(
                                 onSetupComplete = {
-                                    navController.navigate(if (loginViewModel.isLogged) "main" else "login") {
+                                    navController.navigate("main") {
                                         popUpTo("setup") { inclusive = true }
                                     }
                                 }
                             )
                         }
-                        composable("login") {
-                            LoginScreen(
-                                loginViewModel,
-                                onLoginSuccess = {
-                                    userViewModel.fetchUserData(); navController.navigate("main") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                                })
-                        }
                         composable("main") {
                             LaunchedEffect(Unit) {
                                 if (userViewModel.recommendedSongs.isEmpty()) userViewModel.fetchUserData() else {
                                     socialViewModel.fetchUnreadCount(); socialViewModel.fetchContacts()
+                                }
+                            }
+                            // 登录状态变化时刷新用户数据（登录成功后自动加载）
+                            LaunchedEffect(loginViewModel.isLogged) {
+                                if (loginViewModel.isLogged && userViewModel.recommendedSongs.isEmpty()) {
+                                    userViewModel.fetchUserData()
+                                    socialViewModel.fetchUnreadCount()
+                                    socialViewModel.fetchContacts()
                                 }
                             }
                             val tasks by downloadViewModel.tasks.collectAsState()
@@ -309,20 +305,29 @@ fun AppMainContent(
                                 recommendedPlaylists = userViewModel.recommendedPlaylists,
                                 userPlaylists = userViewModel.userPlaylists,
                                 userProfile = userViewModel.userProfile,
-                                versionName = "1.0.0",
+                                loginViewModel = loginViewModel,
                                 onSongClick = { s ->
                                     playbackViewModel.playSong(
                                         s,
                                         userViewModel.recommendedSongs
-                                    ); onSetPlayerExpanded(true)
+                                    ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onPlaylistClick = { p ->
-                                    userViewModel.fetchPlaylistSongs(p.id); navController.navigate(
-                                    "playlist/${p.id}"
-                                )
+                                    if (p.id == -2L) {
+                                        // 每日推荐：使用本地推荐歌曲数据，不调用 API
+                                        userViewModel.setLocalPlaylistDetail(p, userViewModel.recommendedSongs)
+                                        navController.navigate("playlist/${p.id}")
+                                    } else {
+                                        userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}")
+                                    }
+                                },
+                                onViewAllRecent = { p ->
+                                    // 最近播放：使用本地推荐歌曲数据
+                                    userViewModel.setLocalPlaylistDetail(p, userViewModel.recommendedSongs)
+                                    navController.navigate("playlist/${p.id}")
                                 },
                                 onPersonalFmClick = {
-                                    playbackViewModel.playPersonalFm(); onSetPlayerExpanded(true)
+                                    playbackViewModel.playPersonalFm(); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onHeartbeatClick = {
                                     if (userViewModel.favoriteSongs.isNotEmpty()) {
@@ -334,7 +339,7 @@ fun AppMainContent(
                                             userViewModel.favoriteSongs[0],
                                             pid
                                         )
-                                        onSetPlayerExpanded(true)
+                                        if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                     }
                                 },
                                 onLiveSortClick = { navController.navigate("livesort") },
@@ -347,42 +352,43 @@ fun AppMainContent(
                                  },
                                 favoriteSongs = userViewModel.favoriteSongs,
                                 completedSongs = completedSongs,
+                                currentSongId = playbackViewModel.currentSong?.id,
                                 unreadMessagesCount = socialViewModel.unreadCount,
                                 onNavigateToMessages = { navController.navigate("messages") },
                                 onNavigateToSettings = { navController.navigate("settings") },
-                                onNavigateToLogin = {
-                                    loginViewModel.prepareForNewAccount()
-                                    navController.navigate("login")
-                                },
-                                onLogout = {
-                                    loginViewModel.logout()
-                                    navController.navigate("login") {
-                                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                                    }
-                                },
-                                onSwitchAccount = { account ->
-                                    loginViewModel.switchAccount(account)
+                                onFetchUserData = {
                                     userViewModel.fetchUserData()
                                     socialViewModel.fetchUnreadCount()
                                     socialViewModel.fetchContacts()
                                 },
+                                onDownloadClick = { s -> downloadViewModel.downloadSong(s) },
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
-                                ),
-                                actions = { DownloadIndicator(tasks = tasks) { navController.navigate("downloads") } }
+                                )
                             )
+
+                            // 仅在有活跃下载任务时显示下载指示器
+                            val activeTasks = tasks.values.filter {
+                                it.status == cp.player.model.DownloadStatus.DOWNLOADING || it.status == cp.player.model.DownloadStatus.PENDING
+                            }
+                            if (activeTasks.isNotEmpty()) {
+                                DownloadIndicator(tasks = tasks)
+                            }
                         }
                         composable("search") {
+                            val completedSongs by downloadViewModel.completedSongs.collectAsState()
                             SearchScreen(
                                 searchResults = searchViewModel.searchResults,
                                 searchPlaylists = searchViewModel.searchPlaylists,
+                                searchArtists = searchViewModel.searchArtists,
                                 favoriteSongs = userViewModel.favoriteSongs,
                                 hotSearches = searchViewModel.hotSearches,
                                 searchHistory = searchViewModel.searchHistory,
                                 suggestions = searchViewModel.searchSuggestions,
+                                searchQuery = searchViewModel.searchQuery,
                                 searchType = searchViewModel.searchType,
-                                isLoading = searchViewModel.isLoading,
+                                isLoading = searchViewModel.isSearching,
                                 onSearch = { kw, t -> searchViewModel.search(kw, t) },
                                 onSuggestionFetch = { searchViewModel.fetchSuggestions(it) },
                                 onClearHistory = { searchViewModel.clearHistory() },
@@ -390,10 +396,16 @@ fun AppMainContent(
                                     playbackViewModel.playSong(
                                         s,
                                         searchViewModel.searchResults
-                                    ); onSetPlayerExpanded(true)
+                                    ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onPlaylistClick = { p ->
                                     userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}")
+                                },
+                                onAlbumClick = { album ->
+                                    userViewModel.fetchAlbumSongs(album.id); navController.navigate("album/${album.id}")
+                                },
+                                onArtistClick = { artist ->
+                                    userViewModel.fetchOtherUserProfile(artist.id); navController.navigate("user/${artist.id}")
                                 },
                                 onLikeClick = { s ->
                                     userViewModel.toggleLike(
@@ -401,6 +413,9 @@ fun AppMainContent(
                                         !userViewModel.favoriteSongs.contains(s.id)
                                     )
                                 },
+                                onDownloadClick = { s -> downloadViewModel.downloadSong(s) },
+                                completedSongs = completedSongs,
+                                currentSongId = playbackViewModel.currentSong?.id,
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
@@ -408,13 +423,18 @@ fun AppMainContent(
                             )
                         }
                         composable("library") {
+                            // 当进入 library 页面时，如果云盘数据为空，自动加载
+                            LaunchedEffect(Unit) {
+                                userViewModel.fetchCloudSongs()
+                            }
+                            val navContext = LocalContext.current
                             LibraryScreen(
                                 userPlaylists = userViewModel.userPlaylists,
                                 onPlaylistClick = { p ->
                                     userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}")
                                 },
                                 onNavigateToSettings = { navController.navigate("settings") },
-                                
+
                                 // Downloads Data
                                 onPlayLocalSong = { s, u ->
                                     val playlist = if (s.id.startsWith("local_")) {
@@ -424,14 +444,23 @@ fun AppMainContent(
                                                 name = it.songName,
                                                 artist = it.artist,
                                                 album = it.album,
-                                                albumArtUrl = it.albumArtUrl
+                                                albumArtUrl = cp.player.manager.LocalMusicManager.getCoverArt(
+                                                    navContext, it.songId, it.filePath
+                                                )
                                             )
                                         }
                                     } else {
-                                        downloadViewModel.downloadedSongs.value.map { it.song }
+                                        downloadViewModel.downloadedSongs.value.map { metadata ->
+                                            val coverUrl = metadata.localCoverPath
+                                                ?: cp.player.util.CoverArtExtractor.getOrExtract(
+                                                    navContext, metadata.song.id, metadata.filePath
+                                                )
+                                                ?: metadata.song.albumArtUrl
+                                            metadata.song.copy(albumArtUrl = coverUrl)
+                                        }
                                     }
                                     playbackViewModel.playSong(s, playlist)
-                                    onSetPlayerExpanded(true)
+                                    if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 downloadedSongs = downloadViewModel.downloadedSongs.collectAsState().value,
                                 localSongs = downloadViewModel.localSongs.collectAsState().value,
@@ -443,14 +472,15 @@ fun AppMainContent(
                                 // Cloud Data
                                 cloudSongs = userViewModel.cloudSongs,
                                 favoriteSongs = userViewModel.favoriteSongs,
-                                isCloudLoading = userViewModel.isLoading,
+                                isCloudLoading = userViewModel.isCloudLoading,
                                 onCloudSongClick = { s ->
                                     playbackViewModel.playSong(s, userViewModel.cloudSongs)
-                                    onSetPlayerExpanded(true)
+                                    if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onCloudLikeClick = { s ->
                                     userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id))
                                 },
+                                onFetchCloudSongs = { userViewModel.fetchCloudSongs() },
                                 
                                 // Live Sort Data
                                 liveSortViewModel = liveSortViewModel,
@@ -476,21 +506,26 @@ fun AppMainContent(
                                 playlist = userViewModel.currentPlaylistMetadata
                                     ?: cp.player.model.Playlist(pid, "Loading...", null, 0),
                                 songs = userViewModel.playlistSongs,
+                                hasMoreSongs = userViewModel.hasMorePlaylistSongs,
+                                isFetchingMore = userViewModel.isFetchingMorePlaylistSongs,
+                                onLoadMore = {
+                                    userViewModel.fetchPlaylistSongs(pid, isLoadMore = true)
+                                },
                                 favoriteSongs = userViewModel.favoriteSongs,
                                 allPlaylists = userViewModel.userPlaylists,
-                                isLoading = userViewModel.isLoading,
+                                isLoading = userViewModel.isPlaylistLoading,
                                 onSongClick = { s ->
                                     playbackViewModel.playSong(
                                         s,
                                         userViewModel.playlistSongs
-                                    ); onSetPlayerExpanded(true)
+                                    ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onPlayAllClick = { l ->
                                     if (l.isNotEmpty()) {
                                         playbackViewModel.playSong(
                                             l[0],
                                             l
-                                        ); onSetPlayerExpanded(true)
+                                        ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                     }
                                 },
                                 onQueueAllClick = { l -> l.forEach { playbackViewModel.addToQueue(it) } },
@@ -515,7 +550,74 @@ fun AppMainContent(
                                     )
                                 },
                                 onBatchDownload = { l -> downloadViewModel.batchDownload(l, null) },
+                                onFetchSourcePlaylistSongs = { sourcePid ->
+                                    userViewModel.getPlaylistSongs(sourcePid)
+                                },
+                                playbackQueue = playbackViewModel.currentQueue,
                                 completedSongs = completedSongs,
+                                currentSongId = playbackViewModel.currentSong?.id,
+                                onBackPressed = { navController.popBackStack() },
+                                bottomContentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarHeight
+                                )
+                            )
+                        }
+                        composable("album/{albumId}") { backStackEntry ->
+                            val albumId =
+                                backStackEntry.arguments?.getString("albumId")?.toLongOrNull() ?: 0L
+                            LaunchedEffect(albumId) {
+                                if (userViewModel.currentAlbumMetadata?.id != albumId) userViewModel.fetchAlbumSongs(
+                                    albumId
+                                )
+                            }
+                            val completedSongs by downloadViewModel.completedSongs.collectAsState()
+                            PlaylistDetailScreen(
+                                playlist = userViewModel.currentAlbumMetadata
+                                    ?: cp.player.model.Playlist(albumId, "Loading...", null, 0),
+                                songs = userViewModel.albumSongs,
+                                hasMoreSongs = false,
+                                isFetchingMore = false,
+                                onLoadMore = {},
+                                favoriteSongs = userViewModel.favoriteSongs,
+                                allPlaylists = userViewModel.userPlaylists,
+                                isLoading = userViewModel.isAlbumLoading,
+                                onSongClick = { s ->
+                                    playbackViewModel.playSong(
+                                        s,
+                                        userViewModel.albumSongs
+                                    ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                },
+                                onPlayAllClick = { l ->
+                                    if (l.isNotEmpty()) {
+                                        playbackViewModel.playSong(
+                                            l[0],
+                                            l
+                                        ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                    }
+                                },
+                                onQueueAllClick = { l -> l.forEach { playbackViewModel.addToQueue(it) } },
+                                onLikeClick = { s ->
+                                    userViewModel.toggleLike(
+                                        s.id,
+                                        !userViewModel.favoriteSongs.contains(s.id)
+                                    )
+                                },
+                                onAddToPlaylist = { ids, targetPid ->
+                                    userViewModel.addSongsToPlaylist(
+                                        targetPid,
+                                        ids,
+                                        null
+                                    )
+                                },
+                                onRemoveFromPlaylist = { },
+                                onBatchDownload = { l -> downloadViewModel.batchDownload(l, null) },
+                                onFetchSourcePlaylistSongs = { sourcePid ->
+                                    userViewModel.getPlaylistSongs(sourcePid)
+                                },
+                                playbackQueue = playbackViewModel.currentQueue,
+                                completedSongs = completedSongs,
+                                currentSongId = playbackViewModel.currentSong?.id,
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
@@ -549,7 +651,8 @@ fun AppMainContent(
                                 onAvatarClick = { u ->
                                     userViewModel.fetchOtherUserProfile(u); navController.navigate("user/$u")
                                 },
-                                onBackPressed = { navController.popBackStack() })
+                                onBackPressed = { navController.popBackStack() },
+                                miniPlayerHeight = bottomBarHeight)
                         }
                         composable("user/{userId}") { backStackEntry ->
                             val uid =
@@ -566,13 +669,17 @@ fun AppMainContent(
                                 onPlaylistClick = { p ->
                                     userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}")
                                 },
+                                onAlbumClick = { a ->
+                                    userViewModel.fetchAlbumSongs(a.id); navController.navigate("album/${a.id}")
+                                },
                                 onSongClick = { s ->
                                     playbackViewModel.playSong(
                                         s,
                                         viewState.songs
-                                    ); onSetPlayerExpanded(true)
+                                    ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 onMessageClick = { u, n -> navController.navigate("chat/$u/$n") },
+                                currentSongId = playbackViewModel.currentSong?.id,
                                 onBackPressed = { navController.popBackStack() })
                         }
                         composable("settings") {
@@ -619,8 +726,6 @@ fun AppMainContent(
                                         it
                                     )
                                 },
-                                useWavyProgress = settingsViewModel.useWavyProgress,
-                                onUseWavyProgressChange = { settingsViewModel.updateUseWavyProgress(it) },
                                 audioFocusMode = settingsViewModel.audioFocusMode,
                                 onAudioFocusModeChange = { settingsViewModel.updateAudioFocusMode(it) },
                                 allowDucking = settingsViewModel.allowDucking,
@@ -639,6 +744,14 @@ fun AppMainContent(
                                 onDapBitPerfectChange = { settingsViewModel.updateDapBitPerfect(it) },
                                 usbExclusive = settingsViewModel.usbExclusive,
                                 onUsbExclusiveChange = { settingsViewModel.updateUsbExclusive(it) },
+                                fontRoundness = settingsViewModel.fontRoundness,
+                                onFontRoundnessChange = { settingsViewModel.updateFontRoundness(it) },
+                                playImmediately = settingsViewModel.playImmediately,
+                                onPlayImmediatelyChange = { settingsViewModel.updatePlayImmediately(it) },
+                                lyricsSource = settingsViewModel.lyricsSource,
+                                onLyricsSourceChange = { settingsViewModel.updateLyricsSource(it) },
+                                amllPlatform = settingsViewModel.amllPlatform,
+                                onAmllPlatformChange = { settingsViewModel.updateAmllPlatform(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(
@@ -653,7 +766,7 @@ fun AppMainContent(
             } // Close Main Row
 
             // PLAYER OVERLAY (Replaces NavHost routing for "player")
-            if (loginViewModel.isLogged && playbackViewModel.currentSong != null && !isLyricsExpanded) {
+            if (playbackViewModel.currentSong != null) {
                 AppPlayerOverlay(
                     playbackViewModel = playbackViewModel,
                     userViewModel = userViewModel,
@@ -663,31 +776,11 @@ fun AppMainContent(
                     navController = navController,
                     isPlayerExpanded = isPlayerExpanded,
                     onSetPlayerExpanded = onSetPlayerExpanded,
-                    onSetLyricsExpanded = onSetLyricsExpanded,
                     useSideNav = useSideNav,
                     hasBottomBar = hasBottomBar,
                     bottomBarOffsetHeightPx = bottomBarOffsetHeightPx,
                     sharedTransitionScope = this@SharedTransitionLayout
                 )
-            }
-
-            // LYRICS OVERLAY
-            AnimatedVisibility(
-                visible = isLyricsExpanded,
-                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(400)) + fadeIn(animationSpec = tween(400)),
-                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(400)) + fadeOut(animationSpec = tween(400)),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-                    LyricsScreen(
-                        lyrics = playbackViewModel.currentLyrics,
-                        songName = playbackViewModel.currentSong?.name ?: "Lyrics",
-                        currentPosition = playbackViewModel.currentPosition,
-                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
-                        coverColor = playbackViewModel.extractedColor,
-                        onBackPressed = { onSetLyricsExpanded(false) }
-                    )
-                }
             }
 
             downloadViewModel.showCellularDownloadDialog?.let { song ->
@@ -711,10 +804,7 @@ fun AppMainContent(
         }
     }
 
-    BackHandler(enabled = isPlayerExpanded && !isLyricsExpanded) {
+    BackHandler(enabled = isPlayerExpanded) {
         onSetPlayerExpanded(false)
-    }
-    BackHandler(enabled = isLyricsExpanded) {
-        onSetLyricsExpanded(false)
     }
 }

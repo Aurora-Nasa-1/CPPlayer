@@ -17,10 +17,15 @@ class CPApplication : Application(), SingletonImageLoader.Factory {
 
         android.util.Log.i("CPApplication", "Application onCreate")
         cp.player.manager.DownloadRegistry.init(this)
-        // Init module manager
+        cp.player.manager.LocalMusicManager.init(this)
+        // Init module manager (loads provider modules and auto-switches to first provider)
         cp.player.provider.ModuleManager.init(this)
-        // Start current provider if available
+        // Start the active provider's server
         cp.player.provider.ProviderManager.startServer(this)
+        // Init unified Music API service (must be after ProviderManager)
+        cp.player.api.MusicApiServiceFactory.init(this)
+
+        android.util.Log.i("CPApplication", "Active provider: ${cp.player.provider.ProviderManager.getCurrentProviderName()} (${cp.player.provider.ProviderManager.getCurrentProviderId()})")
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

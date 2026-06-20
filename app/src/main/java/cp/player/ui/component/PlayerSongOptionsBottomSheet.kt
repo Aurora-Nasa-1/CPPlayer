@@ -31,22 +31,16 @@ import android.content.ContextWrapper
 import coil3.compose.AsyncImage
 import cp.player.model.Song
 import cp.player.util.ImageUtils
-import cp.player.viewmodel.PlaybackViewModel
 import cp.player.viewmodel.UserViewModel
-import cp.player.provider.ProviderManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSongOptionsBottomSheet(
     song: Song,
     isDownloaded: Boolean = false,
-    qualityWifi: String = "Unknown",
-    qualityCellular: String = "Unknown",
     sampleRate: Int = 0,
     bitrate: Int = 0,
+    lyricsInfo: cp.player.model.LyricsInfo? = null,
     onDismissRequest: () -> Unit,
     onPlaylistClick: (() -> Unit)? = null,
     onDownloadClick: (() -> Unit)? = null,
@@ -67,8 +61,6 @@ fun PlayerSongOptionsBottomSheet(
     val userViewModel: UserViewModel = viewModel(viewModelStoreOwner = owner)
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
-    var infoText by remember { mutableStateOf<String?>(null) }
-
     val handleShare = onShareClick ?: {
         val shareIntent = android.content.Intent().apply {
             action = android.content.Intent.ACTION_SEND
@@ -81,20 +73,6 @@ fun PlayerSongOptionsBottomSheet(
 
     val showToast = { msg: String ->
         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-    }
-
-    LaunchedEffect(song.id) {
-        try {
-            val result = ProviderManager.callApi("song/detail", mapOf("ids" to song.id))
-            val json = org.json.JSONObject(result)
-            if (json.has("songs")) {
-                infoText = json.getJSONArray("songs").optJSONObject(0)?.toString(4)
-            } else {
-                infoText = json.toString(4)
-            }
-        } catch (e: Exception) {
-            infoText = "No additional info."
-        }
     }
 
     val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -258,11 +236,55 @@ fun PlayerSongOptionsBottomSheet(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        // 歌词信息
+                        if (lyricsInfo != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "歌词信息",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "来源: ${lyricsInfo.source}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "格式: ${lyricsInfo.format}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "逐字歌词: ${if (lyricsInfo.hasWordLevel) "支持 ✓" else "不支持 ✗"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (lyricsInfo.hasWordLevel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (lyricsInfo.hasTranslation) {
+                                Text(
+                                    text = "翻译: 有",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (lyricsInfo.hasPhonetic) {
+                                Text(
+                                    text = "音译: 有",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
-                        
+
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(12.dp))
-                        
+
                         Text(
                             text = "Audio Quality",
                             style = MaterialTheme.typography.titleMedium,
@@ -270,16 +292,6 @@ fun PlayerSongOptionsBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "WiFi Quality: $qualityWifi",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Cellular Quality: $qualityCellular",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                         if (sampleRate > 0) {
                             Text(
                                 text = "Sample Rate: ${sampleRate}Hz",
@@ -321,28 +333,6 @@ fun PlayerSongOptionsBottomSheet(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Text(
-                            text = "Additional Info",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (infoText != null) {
-                            Text(
-                                text = infoText ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                maxLines = 10,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        } else {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
-                        }
                     }
                 }
             }
@@ -350,33 +340,14 @@ fun PlayerSongOptionsBottomSheet(
     }
 
     if (showPlaylistDialog) {
-        AlertDialog(
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = userViewModel.userPlaylists,
             onDismissRequest = { showPlaylistDialog = false },
-            title = { Text("Add to Playlist") },
-            text = {
-                val playlists = userViewModel.userPlaylists
-                if (playlists.isEmpty()) {
-                    Text("No playlists found.")
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                        items(playlists) { playlist ->
-                            ListItem(
-                                headlineContent = { Text(playlist.name) },
-                                modifier = Modifier.clickable {
-                                    userViewModel.addSongsToPlaylist(playlist.id, listOf(song.id), null)
-                                    showToast("Added to ${playlist.name}")
-                                    showPlaylistDialog = false
-                                    onDismissRequest()
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPlaylistDialog = false }) {
-                    Text("Cancel")
-                }
+            onPlaylistSelected = { playlist ->
+                userViewModel.addSongsToPlaylist(playlist.id, listOf(song.id), null)
+                showToast("Added to ${playlist.name}")
+                showPlaylistDialog = false
+                onDismissRequest()
             }
         )
     }

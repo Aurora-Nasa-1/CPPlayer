@@ -2,14 +2,9 @@ package cp.player.ui.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -17,12 +12,7 @@ import androidx.compose.ui.unit.dp
 import cp.player.R
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
-import cp.player.ui.component.AppScaffold
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.shape.RoundedCornerShape
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import cp.player.viewmodel.PlaybackViewModel
 
 @Composable
 fun CloudMusicContent(
@@ -31,9 +21,10 @@ fun CloudMusicContent(
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onLikeClick: (Song) -> Unit,
+    playbackViewModel: PlaybackViewModel? = null,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    var selectedSongForOptions by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Song?>(null) }
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading && songs.isEmpty()) {
@@ -54,18 +45,19 @@ fun CloudMusicContent(
                     top = 16.dp,
                     bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                     SongItem(
                         song = song,
-                        isFavorite = favoriteSongs.contains(song.id),
+                        isFavorite = false, // 云盘歌曲不显示收藏状态
+                        isCurrentlyPlaying = song.id == playbackViewModel?.currentSong?.id,
                         onClick = { onSongClick(song) },
                         onOptionsClick = { selectedSongForOptions = song },
                         index = index,
                         total = songs.size,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                        containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -73,18 +65,28 @@ fun CloudMusicContent(
     }
 
     selectedSongForOptions?.let { song ->
+        // 云盘歌曲的更多选项 - 不包含收藏、分享、添加歌单、INFO
         cp.player.ui.component.SongOptionsBottomSheet(
             song = song,
-            isFavorite = favoriteSongs.contains(song.id),
+            isFavorite = false,
             onDismissRequest = { selectedSongForOptions = null },
             onPlayClick = {
                 onSongClick(song)
                 selectedSongForOptions = null
             },
-            onFavoriteClick = {
-                onLikeClick(song)
+            onFavoriteClick = { /* 云盘歌曲无法收藏 */ },
+            onAddToQueueClick = {
+                playbackViewModel?.addToQueue(song)
                 selectedSongForOptions = null
-            }
+            },
+            onNextClick = {
+                playbackViewModel?.insertNext(song)
+                selectedSongForOptions = null
+            },
+            showFavorite = false,
+            showShare = false,
+            showPlaylist = false,
+            showInfo = false
         )
     }
 }

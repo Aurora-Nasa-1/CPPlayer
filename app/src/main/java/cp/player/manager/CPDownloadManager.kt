@@ -9,10 +9,14 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
+import cp.player.api.MusicApiMethod
+import cp.player.api.MusicApiService
+import cp.player.api.MusicApiServiceFactory
 import cp.player.model.DownloadStatus
 import cp.player.model.DownloadTask
 import cp.player.model.LocalSongMetadata
 import cp.player.model.Song
+import cp.player.monitor.HealthMonitor
 import cp.player.provider.ProviderManager
 import cp.player.util.JsonUtils
 import cp.player.util.UserPreferences
@@ -29,6 +33,8 @@ import java.io.OutputStream
 class CPDownloadManager(private val application: Application) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val okHttpClient = OkHttpClient()
+    private val api: MusicApiService = MusicApiServiceFactory.instance
+    private val providerId: String get() = cp.player.provider.ProviderManager.currentProvider?.id ?: "default"
 
     private val _tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
     val tasks = _tasks.asStateFlow()
@@ -84,14 +90,20 @@ class CPDownloadManager(private val application: Application) {
                         val path = cursor.getString(dataColumn)
 
                         val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                        val localId = "local_$id"
+
+                        // 尝试从 LocalMusicManager 获取已绑定的云端歌曲 ID
+                        val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
 
                         localList.add(LocalSongMetadata(
-                            songId = "local_$id",
+                            songId = localId,
                             fileName = fileName,
                             songName = title,
                             artist = artist,
                             album = album,
-                            albumArtUrl = uri.toString() // Store URI string here
+                            albumArtUrl = uri.toString(), // 音频 content URI，用于播放
+                            filePath = path, // 实际文件路径，用于封面提取
+                            cloudSongId = cloudSongId
                         ))
                     }
                 }
@@ -133,7 +145,7 @@ class CPDownloadManager(private val application: Application) {
     }
 
     fun downloadSong(song: Song, cookie: String?, quality: String = "standard", allowCellular: Boolean = false) {
-        if (DownloadRegistry.getMetadata(song.id) != null) return
+        if (DownloadRegistry.isDownloaded(song.id, providerId)) return
         if (_tasks.value.containsKey(song.id)) return
         if (downloadMutex.putIfAbsent(song.id, true) != null) return
 
@@ -145,16 +157,24 @@ class CPDownloadManager(private val application: Application) {
 
         val job = scope.launch {
             try {
-                // Get URL
-                val params = mutableMapOf("id" to song.id, "level" to quality)
-                cookie?.let { params["cookie"] = it }
-                val result = ProviderManager.callApi("song/download/url/v1", params)
-                val body = com.google.gson.JsonParser.parseString(result).asJsonObject
-                var url = JsonUtils.findUrl(body)
+                // Get URL via MusicApiService
+                var url: String? = null
+                val downloadBody = api.getSongDownloadUrl(song.id, quality)
+                url = JsonUtils.findUrl(downloadBody)
 
                 if (url == null) {
-                    val fallbackResult = ProviderManager.callApi("song/url/v1", mapOf("id" to song.id, "level" to quality))
-                    val fallbackBody = com.google.gson.JsonParser.parseString(fallbackResult).asJsonObject
+                    // 记录下载 URL 回退
+                    HealthMonitor.recordCall(HealthMonitor.ApiCallRecord(
+                        timestamp = System.currentTimeMillis(),
+                        providerId = ProviderManager.getCurrentProviderId(),
+                        method = "DOWNLOAD_URL_FALLBACK",
+                        durationMs = 0,
+                        success = false,
+                        wasFallback = true,
+                        fallbackFrom = "getSongDownloadUrl",
+                        errorMessage = "下载 URL 解析失败，回退到 getSongUrlFallback"
+                    ))
+                    val fallbackBody = api.getSongUrlFallback(song.id, quality)
                     url = JsonUtils.findUrl(fallbackBody)
                 }
 
@@ -182,9 +202,32 @@ class CPDownloadManager(private val application: Application) {
                     }
                 }
 
-                DownloadRegistry.register(application, song, filePath)
+                DownloadRegistry.register(application, song, filePath, providerId)
                 _completedSongs.update { it + song.id }
                 _tasks.update { it + (song.id to it[song.id]!!.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+
+                // 提取内嵌封面并持久化到 filesDir（cacheDir 可能被系统清理）
+                try {
+                    val actualPath = if (filePath.startsWith("content://")) null else filePath
+                    if (actualPath != null) {
+                        val coverUri = cp.player.util.CoverArtExtractor.getOrExtract(application, song.id, actualPath)
+                        if (coverUri != null) {
+                            // 复制到 filesDir 以持久化
+                            val persistentDir = java.io.File(application.filesDir, "downloaded_covers")
+                            persistentDir.mkdirs()
+                            val normalizedId = song.id.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                            val persistentFile = java.io.File(persistentDir, "$normalizedId.jpg")
+                            val cacheFile = java.io.File(application.cacheDir, "cover_art/$normalizedId.jpg")
+                            if (cacheFile.exists() && (!persistentFile.exists() || persistentFile.length() == 0L)) {
+                                cacheFile.copyTo(persistentFile, overwrite = true)
+                            }
+                            val persistentUri = "file://${persistentFile.absolutePath}"
+                            DownloadRegistry.updateCoverPath(application, song.id, persistentUri, providerId)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("CPDownloadManager", "Failed to extract cover art for downloaded song", e)
+                }
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(application, "Download completed: ${song.name}", Toast.LENGTH_SHORT).show()

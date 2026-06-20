@@ -1,6 +1,7 @@
 package cp.player.engine
 
 import android.util.Log
+import cp.player.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,7 +17,8 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 sealed class AudioEvent {
-    data class StateChanged(val state: String) : AudioEvent()
+    /** @param path 引擎发送的路径（可能为空），用于过滤旧曲目的状态事件 */
+    data class StateChanged(val state: String, val path: String? = null) : AudioEvent()
     data class Progress(
         val positionSecs: Double,
         val durationSecs: Double,
@@ -56,15 +58,15 @@ object RustEngine {
     }
 
     fun initEngine(context: android.content.Context): Boolean {
-        Log.e("CPPlayerDebug", "RustEngine: initEngine() called. isInitialized: $isInitialized")
+        DebugLog.i("RustEngine: initEngine() called. isInitialized: $isInitialized")
         if (!isInitialized) return false
-        
+
         // Initialize Android Context for Rust
         val contextSuccess = nativeInitRustAndroidContext(context)
-        Log.e("CPPlayerDebug", "RustEngine: nativeInitRustAndroidContext() returned: $contextSuccess")
-        
+        DebugLog.i("RustEngine: nativeInitRustAndroidContext() returned: $contextSuccess")
+
         val success = nativeInit()
-        Log.e("CPPlayerDebug", "RustEngine: nativeInit() returned: $success")
+        DebugLog.i("RustEngine: nativeInit() returned: $success")
         if (success) {
             startPolling()
         }
@@ -72,13 +74,13 @@ object RustEngine {
     }
 
     fun play(path: String): Boolean {
-        Log.e("CPPlayerDebug", "RustEngine: play() called with path: $path, isInitialized: $isInitialized")
+        DebugLog.i("RustEngine: play() called with path: $path, isInitialized: $isInitialized")
         if (!isInitialized) {
-            Log.e("CPPlayerDebug", "RustEngine: Cannot play, RustEngine is not initialized")
+            DebugLog.e("RustEngine: Cannot play, RustEngine is not initialized")
             return false
         }
         val result = nativePlay(path)
-        Log.e("CPPlayerDebug", "RustEngine: nativePlay result: $result")
+        DebugLog.i("RustEngine: nativePlay result: $result")
         return result
     }
 
@@ -154,18 +156,12 @@ object RustEngine {
         try {
             val json = JSONObject(jsonStr)
             val type = json.optString("type")
-            if (type == "Progress") {
-                if (System.currentTimeMillis() % 1000 < 50) { // Log occasionally
-                    Log.v("CPPlayerDebug", "RustEngine: Progress: $jsonStr")
-                }
-            } else {
-                Log.e("CPPlayerDebug", "RustEngine: Received event: $jsonStr")
-            }
             when (type) {
                 "StateChanged" -> {
                     val state = json.optString("state", "Idle")
+                    val path = json.optString("path", "").ifEmpty { null }
                     _engineState.value = state
-                    _audioEvents.tryEmit(AudioEvent.StateChanged(state))
+                    _audioEvents.tryEmit(AudioEvent.StateChanged(state, path))
                 }
                 "Progress" -> {
                     val progress = AudioEvent.Progress(

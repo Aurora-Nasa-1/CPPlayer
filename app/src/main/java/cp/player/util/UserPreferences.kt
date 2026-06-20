@@ -2,6 +2,7 @@ package cp.player.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import cp.player.util.CacheManager
 
 object UserPreferences {
     private const val PREFS_NAME = "cp_player_prefs"
@@ -21,9 +22,6 @@ object UserPreferences {
     private const val KEY_FOLLOW_COVER_MINI = "follow_cover_mini"
     private const val KEY_FOLLOW_COVER_PLAYER = "follow_cover_player"
     private const val KEY_USE_FLUID_BACKGROUND = "use_fluid_background"
-    private const val KEY_USE_WAVY_PROGRESS = "use_wavy_progress"
-    private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
-    private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
     private const val KEY_AUDIO_FOCUS_MODE = "audio_focus_mode"
     private const val KEY_ALLOW_DUCKING = "allow_ducking"
     private const val KEY_PAUSE_ON_NOISY = "pause_on_noisy"
@@ -35,6 +33,10 @@ object UserPreferences {
     private const val KEY_DSD_OUTPUT_MODE = "dsd_output_mode"
     private const val KEY_DAP_BIT_PERFECT = "dap_bit_perfect"
     private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
+    private const val KEY_FONT_ROUNDNESS = "font_roundness" // 0: Standard, 1: Expressive
+    private const val KEY_PLAY_IMMEDIATELY = "play_immediately"
+    private const val KEY_LYRICS_SOURCE = "lyrics_source" // 0: Provider API 优先, 1: AMLL 优先, 2: 仅 AMLL
+    private const val KEY_AMLL_PLATFORM = "amll_platform" // "auto", "ncm", "qq", "am", "spotify"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -56,30 +58,66 @@ object UserPreferences {
         val uid: Long,
         val nickname: String,
         val avatarUrl: String,
-        val cookie: String
+        val cookie: String,
+        /** 此账号所属的 Provider ID */
+        val providerId: String = "",
+        /** 此账号所属的 Provider 显示名 */
+        val providerName: String = ""
     )
 
+    /**
+     * 保存账号到当前提供商的账号列表。
+     * 如果 [SavedAccount.providerId] 为空，自动填充当前 Provider 信息。
+     */
     fun saveAccount(context: Context, account: SavedAccount) {
-        val currentList = getSavedAccounts(context).toMutableList()
-        val index = currentList.indexOfFirst { it.uid == account.uid }
+        val enriched = if (account.providerId.isEmpty()) {
+            account.copy(
+                providerId = getProviderPrefix(),
+                providerName = cp.player.provider.ProviderManager.currentProvider?.name ?: "Unknown"
+            )
+        } else account
+
+        // 按 provider 分桶存储
+        val providerKey = enriched.providerId.ifEmpty { getProviderPrefix() }
+        val currentList = getSavedAccountsForProvider(context, providerKey).toMutableList()
+        val index = currentList.indexOfFirst { it.uid == enriched.uid }
         if (index >= 0) {
-            currentList[index] = account
+            currentList[index] = enriched
         } else {
-            currentList.add(account)
+            currentList.add(enriched)
         }
         val json = com.google.gson.Gson().toJson(currentList)
-        getPrefs(context).edit().putString("${KEY_SAVED_ACCOUNTS}_${getProviderPrefix()}", json).apply()
+        getPrefs(context).edit().putString("${KEY_SAVED_ACCOUNTS}_${providerKey}", json).apply()
+
+        // 同步更新全局账号索引（用于跨提供商显示所有账号）
+        syncGlobalAccountIndex(context)
     }
 
-    fun removeAccount(context: Context, uid: Long) {
-        val currentList = getSavedAccounts(context).toMutableList()
+    /**
+     * 移除指定提供商下的账号。如果 [providerId] 为 null，使用当前 Provider。
+     */
+    fun removeAccount(context: Context, uid: Long, providerId: String? = null) {
+        val providerKey = providerId ?: getProviderPrefix()
+        val currentList = getSavedAccountsForProvider(context, providerKey).toMutableList()
         currentList.removeAll { it.uid == uid }
         val json = com.google.gson.Gson().toJson(currentList)
-        getPrefs(context).edit().putString("${KEY_SAVED_ACCOUNTS}_${getProviderPrefix()}", json).apply()
+        getPrefs(context).edit().putString("${KEY_SAVED_ACCOUNTS}_${providerKey}", json).apply()
+
+        syncGlobalAccountIndex(context)
     }
 
+    /**
+     * 获取当前提供商下保存的账号列表（向后兼容）。
+     */
     fun getSavedAccounts(context: Context): List<SavedAccount> {
-        val json = getPrefs(context).getString("${KEY_SAVED_ACCOUNTS}_${getProviderPrefix()}", null)
+        return getSavedAccountsForProvider(context, getProviderPrefix())
+    }
+
+    /**
+     * 获取指定提供商下保存的账号列表。
+     */
+    fun getSavedAccountsForProvider(context: Context, providerId: String): List<SavedAccount> {
+        val json = getPrefs(context).getString("${KEY_SAVED_ACCOUNTS}_${providerId}", null)
         if (json.isNullOrEmpty()) return emptyList()
         return try {
             val type = object : com.google.gson.reflect.TypeToken<List<SavedAccount>>() {}.type
@@ -87,6 +125,41 @@ object UserPreferences {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    /**
+     * 获取所有提供商下的所有账号（全局视图）。
+     * 用于账号管理界面显示跨提供商账号。
+     */
+    fun getAllSavedAccounts(context: Context): List<SavedAccount> {
+        val globalIndexJson = getPrefs(context).getString("${KEY_SAVED_ACCOUNTS}_global_index", null)
+        if (globalIndexJson.isNullOrEmpty()) return emptyList()
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+            val providerIds: List<String> = com.google.gson.Gson().fromJson(globalIndexJson, type)
+            providerIds.flatMap { pid -> getSavedAccountsForProvider(context, pid) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * 同步全局账号索引：扫描所有存储的提供商 ID 列表。
+     */
+    private fun syncGlobalAccountIndex(context: Context) {
+        val prefs = getPrefs(context)
+        val allKeys = prefs.all.keys
+        val providerIds = allKeys
+            .filter { it.startsWith("${KEY_SAVED_ACCOUNTS}_") && !it.endsWith("_global_index") }
+            .map { it.removePrefix("${KEY_SAVED_ACCOUNTS}_") }
+            .filter { it.isNotEmpty() && it != "default" }
+
+        // 包含当前 provider
+        val currentId = getProviderPrefix()
+        val merged = (providerIds + currentId).distinct()
+
+        val json = com.google.gson.Gson().toJson(merged)
+        prefs.edit().putString("${KEY_SAVED_ACCOUNTS}_global_index", json).apply()
     }
 
     fun saveQualityWifi(context: Context, quality: String) {
@@ -165,10 +238,6 @@ object UserPreferences {
         return getPrefs(context).getBoolean(KEY_FIRST_DOWNLOAD, true)
     }
 
-    fun setFirstDownloadComplete(context: Context) {
-        getPrefs(context).edit().putBoolean(KEY_FIRST_DOWNLOAD, false).apply()
-    }
-
     fun saveAllowCellularDownload(context: Context, allow: Boolean) {
         getPrefs(context).edit().putBoolean(KEY_ALLOW_CELLULAR_DOWNLOAD, allow).apply()
     }
@@ -225,44 +294,12 @@ object UserPreferences {
         return getPrefs(context).getBoolean(KEY_USE_FLUID_BACKGROUND, false)
     }
 
-    fun saveUseWavyProgress(context: Context, enabled: Boolean) {
-        getPrefs(context).edit().putBoolean(KEY_USE_WAVY_PROGRESS, enabled).apply()
+    fun saveAudioFeatures(context: Context, json: String) {
+        CacheManager.save(context, CacheManager.CacheType.AUDIO_FEATURES, "", json)
     }
 
-    fun getUseWavyProgress(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_USE_WAVY_PROGRESS, true)
-    }
-
-    fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {
-        getPrefs(context).edit().putString("sort_playlist_$playlistId", sortOrder).apply()
-    }
-
-    fun getPlaylistSort(context: Context, playlistId: Long): String {
-        return getPrefs(context).getString("sort_playlist_$playlistId", "default") ?: "default"
-    }
-
-    fun savePlaylistCache(context: Context, playlistId: Long, json: String) {
-        getPrefs(context).edit().putString("cache_playlist_${playlistId}_${getProviderPrefix()}", json).apply()
-    }
-
-    fun getPlaylistCache(context: Context, playlistId: Long): String? {
-        return getPrefs(context).getString("cache_playlist_${playlistId}_${getProviderPrefix()}", null)
-    }
-
-    fun saveUserPlaylistsCache(context: Context, json: String) {
-        getPrefs(context).edit().putString("cache_user_playlists_${getProviderPrefix()}", json).apply()
-    }
-
-    fun getUserPlaylistsCache(context: Context): String? {
-        return getPrefs(context).getString("cache_user_playlists_${getProviderPrefix()}", null)
-    }
-
-    fun saveRecommendedSongsCache(context: Context, json: String) {
-        getPrefs(context).edit().putString("cache_recommended_songs_${getProviderPrefix()}", json).apply()
-    }
-
-    fun getRecommendedSongsCache(context: Context): String? {
-        return getPrefs(context).getString("cache_recommended_songs_${getProviderPrefix()}", null)
+    fun getAudioFeatures(context: Context): String? {
+        return CacheManager.load(context, CacheManager.CacheType.AUDIO_FEATURES, "")
     }
 
     fun saveSearchHistory(context: Context, history: List<String>) {
@@ -283,30 +320,6 @@ object UserPreferences {
             val set = getPrefs(context).getStringSet("search_history_${getProviderPrefix()}", emptySet()) ?: emptySet()
             set.toList()
         }
-    }
-
-    fun saveUserProfileCache(context: Context, json: String) {
-        getPrefs(context).edit().putString("${KEY_USER_PROFILE_CACHE}_${getProviderPrefix()}", json).apply()
-    }
-
-    fun getUserProfileCache(context: Context): String? {
-        return getPrefs(context).getString("${KEY_USER_PROFILE_CACHE}_${getProviderPrefix()}", null)
-    }
-
-    fun saveLocalSongsCache(context: Context, json: String) {
-        getPrefs(context).edit().putString("cache_local_songs", json).apply()
-    }
-
-    fun getLocalSongsCache(context: Context): String? {
-        return getPrefs(context).getString("cache_local_songs", null)
-    }
-
-    fun saveAudioFeatures(context: Context, json: String) {
-        getPrefs(context).edit().putString(KEY_AUDIO_FEATURES_CACHE, json).apply()
-    }
-
-    fun getAudioFeatures(context: Context): String? {
-        return getPrefs(context).getString(KEY_AUDIO_FEATURES_CACHE, null)
     }
 
     fun saveAudioFocusMode(context: Context, mode: Int) {
@@ -371,5 +384,37 @@ object UserPreferences {
 
     fun getUsbExclusive(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_USB_EXCLUSIVE, false)
+    }
+
+    fun saveFontRoundness(context: Context, mode: Int) {
+        getPrefs(context).edit().putInt(KEY_FONT_ROUNDNESS, mode).apply()
+    }
+
+    fun getFontRoundness(context: Context): Int {
+        return getPrefs(context).getInt(KEY_FONT_ROUNDNESS, 0) // 0: Standard, 1: Expressive
+    }
+
+    fun savePlayImmediately(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_PLAY_IMMEDIATELY, enabled).apply()
+    }
+
+    fun getPlayImmediately(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_PLAY_IMMEDIATELY, false)
+    }
+
+    fun saveLyricsSource(context: Context, source: Int) {
+        getPrefs(context).edit().putInt(KEY_LYRICS_SOURCE, source).apply()
+    }
+
+    fun getLyricsSource(context: Context): Int {
+        return getPrefs(context).getInt(KEY_LYRICS_SOURCE, 0) // 0: Provider API 优先
+    }
+
+    fun saveAmllPlatform(context: Context, platform: String) {
+        getPrefs(context).edit().putString(KEY_AMLL_PLATFORM, platform).apply()
+    }
+
+    fun getAmllPlatform(context: Context): String {
+        return getPrefs(context).getString(KEY_AMLL_PLATFORM, "auto") ?: "auto"
     }
 }

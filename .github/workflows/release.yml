@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取完整 git 历史，用于生成 changelog
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Release APK
+      run: ./gradlew assembleRelease --no-daemon
+
+    - name: Get version info
+      id: version
+      run: |
+        TAG="${GITHUB_REF#refs/tags/v}"
+        echo "version=$TAG" >> $GITHUB_OUTPUT
+        SHA=$(git rev-parse --short HEAD)
+        echo "sha=$SHA" >> $GITHUB_OUTPUT
+        # 生成 changelog（从上一个 tag 到当前 tag 的 commits）
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -n "$PREV_TAG" ]; then
+          CHANGELOG=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+        fi
+        # 写入多行 output
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: "CPPlayer v${{ steps.version.outputs.version }}"
+        body: |
+          ## CPPlayer v${{ steps.version.outputs.version }}
+
+          **Commit:** ${{ steps.version.outputs.sha }}
+
+          ### 更新日志
+          ${{ steps.version.outputs.changelog }}
+
+          ### 下载
+          - `app-release.apk` — Release 签名，R8 优化
+          - `app-release.apk` (unsigned) — 无签名版本
+        files: |
+          app/build/outputs/apk/release/*.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,14 +17,7 @@ object JsonUtils {
 
             // Check for cloud song format first
             if (item.has("songId") && item.has("songName")) {
-                return Song(
-                    id = (item.get("songId") ?: item.get("id")).asString,
-                    name = item.get("songName").asString,
-                    artist = item.get("artist")?.asString ?: "Unknown",
-                    album = item.get("album")?.asString ?: "Cloud Storage",
-                    albumArtUrl = null,
-                    durationMs = item.get("dt")?.asLong ?: item.get("duration")?.asLong ?: 0L
-                )
+                return parseCloudSongItem(item)
             }
 
             val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
@@ -48,6 +41,41 @@ object JsonUtils {
                 album = albumName,
                 albumArtUrl = picUrl,
                 durationMs = obj.get("dt")?.asLong ?: obj.get("duration")?.asLong ?: 0L
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * 解析云盘歌曲条目。
+     *
+     * 云盘 API (`user/cloud`) 返回的歌曲结构与在线歌曲不同，
+     * 字段为 `songId`/`songName`/`artist`/`album` 等。
+     * 优先从嵌套的 `simpleSong` 中提取封面。
+     */
+    fun parseCloudSongItem(item: com.google.gson.JsonObject): Song? {
+        return try {
+            val songId = (item.get("songId") ?: item.get("id"))?.asString ?: return null
+            val songName = item.get("songName")?.asString ?: "Unknown"
+            val artist = item.get("artist")?.asString ?: "Unknown"
+            val album = item.get("album")?.asString ?: "Cloud Storage"
+            // 尝试从 simpleSong 中获取封面
+            val simpleSong = item.get("simpleSong")?.takeIf { it.isJsonObject }?.asJsonObject
+            val picUrl = simpleSong?.let { ss ->
+                ss.get("al")?.asJsonObject?.get("picUrl")?.asString
+                    ?: ss.get("album")?.asJsonObject?.get("picUrl")?.asString
+            }
+            val duration = item.get("dt")?.asLong ?: item.get("duration")?.asLong
+                ?: simpleSong?.get("dt")?.asLong ?: 0L
+
+            Song(
+                id = songId,
+                name = songName,
+                artist = artist,
+                album = album,
+                albumArtUrl = picUrl,
+                durationMs = duration
             )
         } catch (e: Exception) {
             null
@@ -125,6 +153,25 @@ object JsonUtils {
         } catch (e: Exception) {
             null
         }
+    }
+
+    fun parsePlaylist(element: JsonElement): Playlist? {
+        return try {
+            val obj = element.asJsonObject
+            val creatorObj = obj.get("creator")?.takeIf { it.isJsonObject }?.asJsonObject
+            val creatorUserId = creatorObj?.get("userId")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+            val subscribed = obj.get("subscribed")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+            Playlist(
+                id = obj.get("id")?.takeIf { !it.isJsonNull }?.asLong ?: 0L,
+                name = getString(obj, "name") ?: "",
+                coverImgUrl = getString(obj, "coverImgUrl") ?: getString(obj, "picUrl"),
+                trackCount = if (obj.has("trackCount") && !obj.get("trackCount").isJsonNull) obj.get("trackCount").asInt else 0,
+                creatorName = getString(creatorObj, "nickname"),
+                creatorUserId = creatorUserId,
+                subscribed = subscribed,
+                description = getString(obj, "description")
+            )
+        } catch (e: Exception) { null }
     }
 
     fun parseMessage(it: JsonElement, myUserId: Long): Message? {

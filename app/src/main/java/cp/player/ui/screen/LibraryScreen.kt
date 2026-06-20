@@ -1,5 +1,14 @@
 package cp.player.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,8 +40,6 @@ import cp.player.viewmodel.PlaybackViewModel
 
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateDpAsState
 import kotlinx.coroutines.launch
 import cp.player.viewmodel.UserViewModel
 
@@ -56,6 +63,7 @@ fun LibraryScreen(
     isCloudLoading: Boolean = false,
     onCloudSongClick: (Song) -> Unit = {},
     onCloudLikeClick: (Song) -> Unit = {},
+    onFetchCloudSongs: () -> Unit = {},
     // Live Sort Data
     liveSortViewModel: LiveSortViewModel,
     playbackViewModel: PlaybackViewModel,
@@ -73,6 +81,13 @@ fun LibraryScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     
     var showCreateDialog by remember { mutableStateOf(false) }
+
+    // 当 Cloud 标签页被选中时，自动获取云盘歌曲
+    LaunchedEffect(pagerState.currentPage) {
+        if (filters[pagerState.currentPage].first == "Cloud") {
+            onFetchCloudSongs()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -116,7 +131,7 @@ fun LibraryScreen(
                             "Playlists" -> {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp) // Padding for MiniPlayer
+                                    contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
                                 ) {
                                     item {
                                         PlaylistsControlBar(
@@ -129,8 +144,12 @@ fun LibraryScreen(
                                     items(userPlaylists.size) { index ->
                                         PlaylistItem(
                                             playlist = userPlaylists[index],
+                                            isOwner = !userPlaylists[index].subscribed,
                                             onClick = { onPlaylistClick(userPlaylists[index]) },
                                             onDelete = { userViewModel.deletePlaylist(userPlaylists[index].id) },
+                                            onUnsubscribe = if (userPlaylists[index].subscribed) {
+                                                { userViewModel.unsubscribePlaylist(userPlaylists[index].id) }
+                                            } else null,
                                             onAddToQueue = {
                                                 coroutineScope.launch {
                                                     val songs = userViewModel.getPlaylistSongs(userPlaylists[index].id)
@@ -161,6 +180,11 @@ fun LibraryScreen(
                                     onCancelDownload = onCancelDownload,
                                     onDeleteLocalSong = onDeleteLocalSong,
                                     onRefreshLocalMusic = onRefreshLocalMusic,
+                                    favoriteSongs = favoriteSongs,
+                                    onLikeClick = { song ->
+                                        userViewModel.toggleLike(song.id, !favoriteSongs.contains(song.id))
+                                    },
+                                    playbackViewModel = playbackViewModel,
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )
                             }
@@ -171,6 +195,7 @@ fun LibraryScreen(
                                     isLoading = isCloudLoading,
                                     onSongClick = onCloudSongClick,
                                     onLikeClick = onCloudLikeClick,
+                                    playbackViewModel = playbackViewModel,
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )
                             }
@@ -225,9 +250,17 @@ fun LibraryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, onAddToQueue: () -> Unit, onShare: () -> Unit) {
+fun PlaylistItem(
+    playlist: Playlist,
+    isOwner: Boolean = true,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
+    onUnsubscribe: (() -> Unit)? = null,
+    onAddToQueue: () -> Unit,
+    onShare: () -> Unit
+) {
     var showMenu by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier
@@ -235,7 +268,7 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, 
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 4.dp),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Row(
             modifier = Modifier
@@ -261,8 +294,10 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, 
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                val trackCountStr = if (playlist.trackCount > 0) "${playlist.trackCount} 首" else ""
+                val ownerStr = if (isOwner) "创建的歌单" else "收藏 · ${playlist.creatorName ?: "未知"}"
                 Text(
-                    text = "Playlist",
+                    text = listOf(ownerStr, trackCountStr).filter { it.isNotEmpty() }.joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -292,30 +327,38 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit, onDelete: () -> Unit, 
         cp.player.ui.component.PlaylistOptionsBottomSheet(
             playlist = playlist,
             onDismissRequest = { showMenu = false },
+            isOwner = isOwner,
             onPlayClick = { onClick() },
             onAddToQueueClick = { onAddToQueue() },
             onShareClick = { onShare() },
-            onDeleteClick = { showDeleteConfirm = true }
+            onDeleteClick = if (onDelete != null) { { showConfirmDialog = true } } else null,
+            onUnsubscribeClick = if (onUnsubscribe != null) { { showConfirmDialog = true } } else null
         )
     }
 
-    if (showDeleteConfirm) {
+    if (showConfirmDialog) {
+        val actionText = if (isOwner) "Delete Playlist" else "Unsubscribe"
+        val descText = if (isOwner) "Are you sure you want to delete '${playlist.name}'?"
+                       else "Are you sure you want to unsubscribe from '${playlist.name}'?"
         AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Playlist") },
-            text = { Text("Are you sure you want to delete '${playlist.name}'?") },
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text(actionText) },
+            text = { Text(descText) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDelete()
-                        showDeleteConfirm = false
+                        if (isOwner) onDelete?.invoke() else onUnsubscribe?.invoke()
+                        showConfirmDialog = false
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        if (isOwner) "Delete" else "Unsubscribe",
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
+                TextButton(onClick = { showConfirmDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -345,52 +388,58 @@ fun LibraryTopFilters(
                 val filter = filters[index]
                 val isSelected = selectedIndex == index
 
-                // Animated indicator height based on selection
-                val indicatorHeight by animateDpAsState(
-                    targetValue = if (isSelected) 3.dp else 0.dp,
-                    label = "IndicatorHeight"
-                )
-
-                Box(
-                    modifier = Modifier.clickable { onFilterSelected(index) }
+                Surface(
+                    onClick = { onFilterSelected(index) },
+                    shape = RoundedCornerShape(percent = 50),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                    tonalElevation = if (isSelected) 0.dp else 0.dp
                 ) {
-                    // Main Chip Content
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                else Color.Transparent,
+                    Row(
+                        modifier = Modifier.padding(
+                            horizontal = if (isSelected) 20.dp else 14.dp,
+                            vertical = 10.dp
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Icon(
+                            filter.second,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                   else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = fadeIn(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            ) + expandHorizontally(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            ),
+                            exit = fadeOut(
+                                animationSpec = tween(durationMillis = 150)
+                            ) + shrinkHorizontally(
+                                animationSpec = tween(durationMillis = 150)
+                            )
                         ) {
-                            Icon(
-                                filter.second,
-                                contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = filter.first,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = filter.first,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
-
-                    // The dynamic indicator line
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(horizontal = 12.dp)
-                            .fillMaxWidth()
-                            .height(indicatorHeight)
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
                 }
             }
         }
@@ -446,4 +495,3 @@ fun PlaylistsControlBar(
         }
     }
 }
-

@@ -15,6 +15,8 @@
 
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
+    <uses-sdk tools:overrideLibrary="com.mocharealm.accompanist.lyrics.ui,com.mocharealm.accompanist.lyrics.core,com.mocharealm.gaze.capsule" />
+
     <application
         android:name=".CPApplication"
         android:allowBackup="true"
@@ -31,19 +33,27 @@
         android:localeConfig="@xml/locales_config">
 
         <meta-data android:name="lyricon_module" android:value="true" />
-        <meta-data android:name="lyricon_module_author" android:value="CP Player Team" />
-        <meta-data android:name="lyricon_module_description" android:value="NCM Music Player Lyric Provider" />
+        <meta-data android:name="lyricon_module_author" android:value="Aurora-Nasa-1" />
+        <meta-data android:name="lyricon_module_description" android:value="CP Player Lyric Provider" />
         <meta-data android:name="lyricon_module_tags" android:resource="@array/lyricon_module_tags" />
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.CPPlayer">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter" />
         </activity>
 
         <service

@@ -6,19 +6,13 @@ import android.net.Uri
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
-import androidx.media3.common.BasePlayer
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Player.Commands
 import androidx.media3.common.SimpleBasePlayer
-import androidx.media3.common.Timeline
-import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DefaultHttpDataSource
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import cp.player.service.BackendDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,8 +20,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 
@@ -35,8 +27,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
     companion object {
         private const val TAG = "FlickPlayer"
-        private const val CACHE_PREFIX = "stream_cache_"
-        private const val CACHE_EXPIRY_MS = 1800000L // 30 mins
+        private const val TARGET_PRE_BUFFER_SECS = 15
+        private const val MIN_PRE_BUFFER_BYTES = 240 * 1024L
+        private const val MAX_PRE_BUFFER_BYTES = 2600 * 1024L
+        private const val UNDERRUN_POLL_MS = 1000L
     }
 
     private val engineLock = ReentrantLock()
@@ -55,12 +49,22 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var isDownloading = false
     @Volatile private var bytesDownloaded = 0L
     @Volatile private var downloadComplete = false
-    @Volatile private var isTransitioning = false
+
+    @Volatile private var underrunPositionMs = 0L
+    @Volatile private var lastSampleRate = 0
+    @Volatile private var lastBitrate = 0
+    @Volatile private var currentPlayingPath: String? = null
+
+    // Next-track pre-caching
+    @Volatile private var preCachedPath: String? = null
+    @Volatile private var preCachedItemIndex = -1
+    private var preCacheJob: Job? = null
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var engineEventJob: Job? = null
     private var pollJobTimer: Job? = null
     private var streamProxyJob: Job? = null
+    private var underrunWatchJob: Job? = null
 
     private var repeatMode = Player.REPEAT_MODE_OFF
     private var shuffleModeEnabled = false
@@ -71,28 +75,49 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         observeRustEvents()
     }
 
+    fun getFormatInfo(): Pair<Int, Int> = lastSampleRate to lastBitrate
+
+    private fun calculatePreBufferBytes(item: MediaItem): Long {
+        val bitrate = item.mediaMetadata.extras?.getInt("bitrate") ?: 0
+        if (bitrate > 0) {
+            val bytes = (bitrate.toLong() * TARGET_PRE_BUFFER_SECS) / 8
+            return bytes.coerceIn(MIN_PRE_BUFFER_BYTES, MAX_PRE_BUFFER_BYTES)
+        }
+        return MIN_PRE_BUFFER_BYTES
+    }
+
+    // ═══════════════════════════════════════════════
+    // 引擎事件处理
+    // ═══════════════════════════════════════════════
+
     private fun observeRustEvents() {
         engineEventJob = scope.launch {
             RustEngine.audioEvents.collect { event ->
                 if (playlist.isEmpty()) return@collect
-                
                 when (event) {
-                    is AudioEvent.StateChanged -> handleStateChanged(event.state)
+                    is AudioEvent.StateChanged -> handleStateChanged(event.state, event.path)
                     is AudioEvent.Progress -> handleProgress(event)
                     is AudioEvent.TrackEnded -> handleTrackEnded(event.path)
                     is AudioEvent.Error -> handleError(event.message)
+                    is AudioEvent.FormatChanged -> handleFormatChanged(event)
                     else -> {}
                 }
             }
         }
     }
 
-    private fun handleStateChanged(state: String) {
+    private fun handleStateChanged(state: String, eventPath: String? = null) {
+        // 路径过滤：忽略旧曲目的状态事件
+        val currentPath = currentPlayingPath
+        if (eventPath != null && currentPath != null &&
+            !eventPath.equals(currentPath, ignoreCase = true)) {
+            return
+        }
+
         when (state.lowercase()) {
             "playing" -> {
                 isPlaying = true
                 playbackState = Player.STATE_READY
-                isTransitioning = false
                 positionUpdateTimeMs.set(System.currentTimeMillis())
                 startProgressPolling()
                 invalidateState()
@@ -100,21 +125,26 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             "paused" -> {
                 isPlaying = false
                 playbackState = Player.STATE_READY
-                isTransitioning = false
                 stopProgressPolling()
                 invalidateState()
             }
             "stopped", "idle" -> {
-                if (!isTransitioning) {
-                    isPlaying = false
-                    playbackState = Player.STATE_IDLE
-                    stopProgressPolling()
-                    invalidateState()
-                }
+                isPlaying = false
+                playbackState = Player.STATE_IDLE
+                stopProgressPolling()
+                invalidateState()
             }
             "buffering" -> {
-                playbackState = Player.STATE_BUFFERING
-                invalidateState()
+                if (isDownloading && !downloadComplete) {
+                    isPlaying = false
+                    playbackState = Player.STATE_BUFFERING
+                    stopProgressPolling()
+                    invalidateState()
+                    startUnderrunWatch()
+                } else {
+                    playbackState = Player.STATE_BUFFERING
+                    invalidateState()
+                }
             }
         }
     }
@@ -124,67 +154,121 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
         val newPos = (event.positionSecs * 1000).toLong()
         val current = currentPositionMs.get()
-        
-        // Ignore small back-jumps due to buffer refill or decoder jitter
+
         if (newPos < current && current - newPos < 2000 && !downloadComplete) {
             return
         }
-        
+
         updatePosition(newPos)
-        
+
         var newDuration = getRealDuration()
         if (newDuration <= 0) {
             if (!isDownloading || downloadComplete) {
                 newDuration = (event.durationSecs * 1000).toLong()
             }
         }
-        
+
         if (newDuration > 0 && durationMs != newDuration) {
             durationMs = newDuration
             invalidateState()
         }
     }
 
-    private var currentPlayingPath: String? = null
+    private fun handleFormatChanged(event: AudioEvent.FormatChanged) {
+        if (event.sampleRate > 0) lastSampleRate = event.sampleRate
+        if (event.bitrate > 0) lastBitrate = event.bitrate
+    }
 
+    /**
+     * 曲目播放完毕。
+     *
+     * 自动下一首的逻辑和手动点击播放完全一致：
+     * 1. 递增索引
+     * 2. 调用 playCurrentItem()（内部先 stop() 再 play()）
+     *
+     * 不设置 isTransitioning，不阻塞任何事件，不做任何特殊处理。
+     * 引擎的状态事件正常流动。
+     */
     private fun handleTrackEnded(eventPath: String) {
-        // Ignore TrackEnded events from previously playing tracks
+        // 忽略旧曲目的 TrackEnded
         if (currentPlayingPath != null && !currentPlayingPath.equals(eventPath, ignoreCase = true)) {
-            Log.w(TAG, "Ignoring TrackEnded for old path: $eventPath. Current is: $currentPlayingPath")
+            Log.w(TAG, "Ignoring TrackEnded for old path: $eventPath")
             return
         }
 
+        // 流媒体未下载完毕 → 缓冲等待
         if (isDownloading && !downloadComplete) {
-            Log.w(TAG, "Premature track end detected while downloading. Buffering...")
+            underrunPositionMs = currentPositionMs.get()
+            Log.w(TAG, "Underrun at ${underrunPositionMs}ms, waiting for data...")
+            isPlaying = false
             playbackState = Player.STATE_BUFFERING
+            stopProgressPolling()
             invalidateState()
+            startUnderrunWatch()
             return
         }
 
-        Log.i(TAG, "Track ended. Next: ${currentMediaItemIndex < playlist.size - 1}")
         if (currentMediaItemIndex < playlist.size - 1) {
-            isTransitioning = true
+            Log.i(TAG, "Track ended, advancing to next: ${currentMediaItemIndex + 1}")
             currentMediaItemIndex++
             playCurrentItem()
         } else {
-            if (downloadComplete || !isDownloading) {
-                isPlaying = false
-                playbackState = Player.STATE_ENDED
-                stopProgressPolling()
-                invalidateState()
-            } else {
-                Log.w(TAG, "Premature track end detected while downloading. Ignoring.")
-            }
+            Log.i(TAG, "Track ended, no more tracks")
+            isPlaying = false
+            playbackState = Player.STATE_ENDED
+            stopProgressPolling()
+            invalidateState()
         }
     }
 
     private fun handleError(message: String) {
-        Log.e(TAG, "Received Rust AudioEvent.Error: $message")
+        Log.e(TAG, "Rust error: $message")
+
+        if (isDownloading && !downloadComplete) {
+            underrunPositionMs = currentPositionMs.get()
+            isPlaying = false
+            playbackState = Player.STATE_BUFFERING
+            stopProgressPolling()
+            invalidateState()
+            startUnderrunWatch()
+            return
+        }
+
         playbackState = Player.STATE_IDLE
         isPlaying = false
         stopProgressPolling()
         invalidateState()
     }
+
+    // ═══════════════════════════════════════════════
+    // Underrun recovery
+    // ═══════════════════════════════════════════════
+
+    private fun startUnderrunWatch() {
+        underrunWatchJob?.cancel()
+        underrunWatchJob = scope.launch {
+            while (isActive && isDownloading && !downloadComplete) {
+                delay(UNDERRUN_POLL_MS)
+            }
+            if (downloadComplete && playbackState == Player.STATE_BUFFERING && playWhenReady) {
+                val path = currentPlayingPath ?: return@launch
+                engineLock.lock()
+                try {
+                    RustEngine.play(path)
+                    if (underrunPositionMs > 0) {
+                        delay(100)
+                        RustEngine.seek(underrunPositionMs / 1000.0)
+                    }
+                } finally {
+                    engineLock.unlock()
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // Position / Progress
+    // ═══════════════════════════════════════════════
 
     private fun updatePosition(newPos: Long) {
         currentPositionMs.set(newPos)
@@ -200,9 +284,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                     val progress = withContext(Dispatchers.IO) { RustEngine.getProgress() }
                     if (progress != null && System.currentTimeMillis() - lastSeekTimeMs.get() >= 1000) {
                         val newPos = (progress.positionSecs * 1000).toLong()
-                        if (newPos > 0) {
-                            updatePosition(newPos)
-                        }
+                        if (newPos > 0) updatePosition(newPos)
                     }
                 }
                 delay(500)
@@ -220,7 +302,6 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         val item = playlist[currentMediaItemIndex].item
         val extraDuration = item.mediaMetadata.extras?.getLong("duration") ?: 0L
         if (extraDuration > 0) return extraDuration
-        
         val path = item.localConfiguration?.uri?.toString() ?: return 0L
         if (!path.startsWith("cp://") && !path.startsWith("http://") && !path.startsWith("https://")) {
             return extractDuration(Uri.parse(path), false)
@@ -231,18 +312,17 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     private fun extractDuration(uri: Uri, isFile: Boolean): Long {
         return try {
             val retriever = MediaMetadataRetriever()
-            if (isFile) {
-                retriever.setDataSource(uri.path)
-            } else {
-                retriever.setDataSource(context, uri)
-            }
-            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            if (isFile) retriever.setDataSource(uri.path)
+            else retriever.setDataSource(context, uri)
+            val d = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             retriever.release()
-            durationStr?.toLongOrNull() ?: 0L
-        } catch (e: Exception) {
-            0L
-        }
+            d?.toLongOrNull() ?: 0L
+        } catch (e: Exception) { 0L }
     }
+
+    // ═══════════════════════════════════════════════
+    // SimpleBasePlayer overrides
+    // ═══════════════════════════════════════════════
 
     override fun getState(): State {
         val stateBuilder = State.Builder()
@@ -277,7 +357,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             .setPlaybackState(playbackState)
             .setRepeatMode(repeatMode)
             .setShuffleModeEnabled(shuffleModeEnabled)
-            
+
         if (playlist.isNotEmpty()) {
             val mediaItemDataList = playlist.mapIndexed { index, pItem ->
                 val item = pItem.item
@@ -289,7 +369,6 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 } else {
                     C.TIME_UNSET
                 }
-                
                 SimpleBasePlayer.MediaItemData.Builder(pItem.uid)
                     .setMediaItem(item)
                     .setMediaMetadata(item.mediaMetadata)
@@ -313,7 +392,6 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 stateBuilder.setPlaybackState(Player.STATE_IDLE)
             }
         }
-
         return stateBuilder.build()
     }
 
@@ -325,6 +403,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
     override fun handleSetShuffleModeEnabled(shuffleModeEnabled: Boolean): ListenableFuture<*> {
         this.shuffleModeEnabled = shuffleModeEnabled
+        cancelPreCache()
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -339,24 +418,14 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         this.playWhenReady = playWhenReady
         if (playWhenReady) {
             if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_ENDED) {
-                if (playlist.isNotEmpty()) {
-                    playCurrentItem()
-                }
+                if (playlist.isNotEmpty()) playCurrentItem()
             } else {
                 engineLock.lock()
-                try {
-                    RustEngine.resume()
-                } finally {
-                    engineLock.unlock()
-                }
+                try { RustEngine.resume() } finally { engineLock.unlock() }
             }
         } else {
             engineLock.lock()
-            try {
-                RustEngine.pause()
-            } finally {
-                engineLock.unlock()
-            }
+            try { RustEngine.pause() } finally { engineLock.unlock() }
         }
         invalidateState()
         return Futures.immediateVoidFuture()
@@ -369,9 +438,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     ): ListenableFuture<*> {
         playlist = mediaItems.map { PlaylistItem(java.util.UUID.randomUUID(), it) }
         currentMediaItemIndex = if (startIndex in mediaItems.indices) startIndex else 0
-        if (playWhenReady && playlist.isNotEmpty()) {
-            playCurrentItem()
-        }
+        cancelPreCache()
+        if (playWhenReady && playlist.isNotEmpty()) playCurrentItem()
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -382,16 +450,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         val insertIndex = if (index == C.INDEX_UNSET) newList.size else index.coerceIn(0, newList.size)
         newList.addAll(insertIndex, mediaItems.map { PlaylistItem(java.util.UUID.randomUUID(), it) })
         playlist = newList
-        
-        if (wasEmpty) {
-            currentMediaItemIndex = 0
-        } else if (currentMediaItemIndex >= insertIndex) {
-            currentMediaItemIndex += mediaItems.size
-        }
-        
-        // Safety check
+        if (wasEmpty) currentMediaItemIndex = 0
+        else if (currentMediaItemIndex >= insertIndex) currentMediaItemIndex += mediaItems.size
         currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
-        
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -401,17 +462,11 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         val validFrom = fromIndex.coerceAtLeast(0)
         val validTo = toIndex.coerceAtMost(newList.size)
         if (validFrom >= validTo) return Futures.immediateVoidFuture()
-
         val itemsToMove = newList.subList(validFrom, validTo).toList()
         newList.subList(validFrom, validTo).clear()
-        
-        // Calculate insert index based on original list sizing
         val insertIndex = newIndex.coerceIn(0, newList.size)
         newList.addAll(insertIndex, itemsToMove)
-        
         playlist = newList
-        
-        // Adjust currentMediaItemIndex
         if (currentMediaItemIndex in validFrom until validTo) {
             currentMediaItemIndex = insertIndex + (currentMediaItemIndex - validFrom)
         } else if (currentMediaItemIndex >= validTo && currentMediaItemIndex < insertIndex) {
@@ -419,10 +474,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         } else if (currentMediaItemIndex >= insertIndex && currentMediaItemIndex < validFrom) {
             currentMediaItemIndex += (validTo - validFrom)
         }
-        
-        // Safety check
         currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
-        
+        cancelPreCache()
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -431,11 +484,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         val newList = playlist.toMutableList()
         val validFrom = fromIndex.coerceAtLeast(0)
         val validTo = toIndex.coerceAtMost(newList.size)
-        
         if (validFrom < validTo) {
             newList.subList(validFrom, validTo).clear()
             playlist = newList
-            
             if (currentMediaItemIndex >= validTo) {
                 currentMediaItemIndex -= (validTo - validFrom)
             } else if (currentMediaItemIndex >= validFrom) {
@@ -450,9 +501,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                     playCurrentItem()
                 }
             }
-            // Safety check
             currentMediaItemIndex = currentMediaItemIndex.coerceIn(0, (playlist.size - 1).coerceAtLeast(0))
-            
+            cancelPreCache()
             invalidateState()
         }
         return Futures.immediateVoidFuture()
@@ -464,9 +514,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         seekCommand: Int
     ): ListenableFuture<*> {
         val targetPosition = if (positionMs == C.TIME_UNSET) 0L else positionMs
-        
         if (mediaItemIndex != currentMediaItemIndex && mediaItemIndex in playlist.indices) {
             currentMediaItemIndex = mediaItemIndex
+            cancelPreCache()
             playCurrentItem()
         } else {
             engineLock.lock()
@@ -489,6 +539,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         playbackState = Player.STATE_IDLE
         isPlaying = false
         stopProgressPolling()
+        cancelPreCache()
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -498,7 +549,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         try { RustEngine.stopEngine() } finally { engineLock.unlock() }
         engineEventJob?.cancel()
         streamProxyJob?.cancel()
+        underrunWatchJob?.cancel()
         stopProgressPolling()
+        cancelPreCache()
         return Futures.immediateVoidFuture()
     }
 
@@ -508,6 +561,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         return Futures.immediateVoidFuture()
     }
 
+    // ═══════════════════════════════════════════════
+    // 播放核心逻辑
+    // ═══════════════════════════════════════════════
+
     private fun getRealPathFromUri(uriStr: String): String? {
         val uri = Uri.parse(uriStr)
         if ("content".equals(uri.scheme, ignoreCase = true)) {
@@ -515,12 +572,11 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             try {
                 context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                        return cursor.getString(columnIndex)
+                        return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resolve real path for $uriStr", e)
+                Log.e(TAG, "Failed to resolve path for $uriStr", e)
             }
         } else if ("file".equals(uri.scheme, ignoreCase = true)) {
             return uri.path
@@ -528,134 +584,166 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         return null
     }
 
+    /**
+     * 播放当前曲目。
+     *
+     * 无论用户点击播放还是自动下一首，都走这个方法。
+     * 流程：stop() 清理引擎 → play() 开始新曲目。
+     */
     private fun playCurrentItem() {
         if (playlist.isEmpty()) return
-        
+
         val item = playlist[currentMediaItemIndex].item
         updatePosition(0L)
         durationMs = item.mediaMetadata.extras?.getLong("duration") ?: 0L
         isDownloading = false
         downloadComplete = false
         bytesDownloaded = 0L
+        underrunPositionMs = 0L
+        stopProgressPolling()
+        underrunWatchJob?.cancel()
+
+        // 确保引擎处于干净状态
+        engineLock.lock()
+        try { RustEngine.stop() } finally { engineLock.unlock() }
+
         playbackState = Player.STATE_BUFFERING
         invalidateState()
-        
+
         val path = item.localConfiguration?.uri?.toString()
-        if (path != null) {
-            var actualPath = path
-            if (path.startsWith("content://") || path.startsWith("file://")) {
-                actualPath = getRealPathFromUri(path) ?: path
-            }
-
-            if (actualPath.startsWith("cp://") || actualPath.startsWith("http://") || actualPath.startsWith("https://")) {
-                streamToRustEngine(item)
-                return
-            }
-
-            currentPlayingPath = actualPath
-            engineLock.lock()
-            try { RustEngine.play(actualPath) } finally { engineLock.unlock() }
-        } else {
+        if (path == null) {
             Log.e(TAG, "Media URI is null for item: ${item.mediaId}")
+            return
         }
+
+        var actualPath = path
+        if (path.startsWith("content://") || path.startsWith("file://")) {
+            actualPath = getRealPathFromUri(path) ?: path
+        }
+
+        if (actualPath.startsWith("cp://") || actualPath.startsWith("http://") || actualPath.startsWith("https://")) {
+            if (preCachedPath != null && preCachedItemIndex == currentMediaItemIndex) {
+                currentPlayingPath = preCachedPath
+                isDownloading = false
+                downloadComplete = true
+                preCachedPath = null
+                preCachedItemIndex = -1
+                engineLock.lock()
+                try { RustEngine.play(currentPlayingPath!!) } finally { engineLock.unlock() }
+                startPreCacheNextTrack()
+            } else {
+                streamToRustEngine(item)
+            }
+            return
+        }
+
+        currentPlayingPath = actualPath
+        engineLock.lock()
+        try { RustEngine.play(actualPath) } finally { engineLock.unlock() }
+        startPreCacheNextTrack()
     }
+
+    // ═══════════════════════════════════════════════
+    // 流媒体下载
+    // ═══════════════════════════════════════════════
 
     private fun streamToRustEngine(item: MediaItem) {
         streamProxyJob?.cancel()
+        underrunWatchJob?.cancel()
         val uri = item.localConfiguration?.uri ?: return
-        
+
         playbackState = Player.STATE_BUFFERING
         invalidateState()
-        
-        streamProxyJob = scope.launch(Dispatchers.IO) {
+
+        val preBufferBytes = calculatePreBufferBytes(item)
+
+        streamProxyJob = scope.launch(Dispatchers.Main) {
             isDownloading = true
             downloadComplete = false
             bytesDownloaded = 0
-            var dataSource: androidx.media3.datasource.DataSource? = null
-            
+            underrunPositionMs = 0L
+
             try {
-                val cacheDir = context.cacheDir
-                var ext = "media"
-                
-                val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-                    .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
-                    .setAllowCrossProtocolRedirects(true)
-                    .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
-                
-                val cpDataSourceFactory = BackendDataSource.Factory(context, httpDataSourceFactory)
-                
-                val cacheDataSourceFactory = androidx.media3.datasource.cache.CacheDataSource.Factory()
-                    .setCache(cp.player.service.MusicService.getCache(context))
-                    .setUpstreamDataSourceFactory(cpDataSourceFactory)
-                    .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                val tempFile = StreamProxy.streamToCache(
+                    context = context,
+                    uri = uri,
+                    preBufferBytes = preBufferBytes,
+                    onPreBufferReady = { readyFile ->
+                        if (currentPlayingPath == null || currentPlayingPath != readyFile.absolutePath) {
+                            currentPlayingPath = readyFile.absolutePath
+                            Log.i(TAG, "Pre-buffer ready, starting playback: ${readyFile.name}")
+                            engineLock.lock()
+                            try { RustEngine.play(readyFile.absolutePath) } finally { engineLock.unlock() }
+                            startPreCacheNextTrack()
+                        }
+                    },
+                    onProgress = { bytes -> bytesDownloaded = bytes }
+                )
 
-                dataSource = cacheDataSourceFactory.createDataSource()
-                
-                val dataSpec = DataSpec.Builder().setUri(uri).build()
-                dataSource.open(dataSpec)
-                
-                val resolvedUri = dataSource.uri
-                if (resolvedUri?.path != null) {
-                    val path = resolvedUri.path!!.lowercase()
-                    ext = when {
-                        path.endsWith(".flac") -> "flac"
-                        path.endsWith(".mp3") -> "mp3"
-                        path.endsWith(".m4a") -> "m4a"
-                        path.endsWith(".wav") -> "wav"
-                        else -> "media"
+                if (tempFile != null) {
+                    downloadComplete = true
+                    if (playbackState == Player.STATE_BUFFERING && playWhenReady) {
+                        engineLock.lock()
+                        try {
+                            RustEngine.play(tempFile.absolutePath)
+                            if (underrunPositionMs > 0) {
+                                RustEngine.seek(underrunPositionMs / 1000.0)
+                            }
+                        } finally {
+                            engineLock.unlock()
+                        }
                     }
+                } else {
+                    throw Exception("StreamProxy returned null")
                 }
-                
-                val tempFile = File(cacheDir, "${CACHE_PREFIX}${System.currentTimeMillis()}.${ext}")
-                val outputStream = FileOutputStream(tempFile)
-                val buffer = ByteArray(128 * 1024)
-                var hasTriggeredPlay = false
-                val startThreshold = if (ext == "flac" || ext == "wav") 512 * 1024 else 256 * 1024
-                
-                currentPlayingPath = tempFile.absolutePath
-
-                while (isActive) {
-                    val bytesRead = dataSource.read(buffer, 0, buffer.size)
-                    if (bytesRead == C.RESULT_END_OF_INPUT || bytesRead < 0) break
-                    
-                    outputStream.write(buffer, 0, bytesRead)
-                    bytesDownloaded += bytesRead
-                }
-                outputStream.flush()
-                outputStream.close()
-                downloadComplete = true
-                
-                withContext(Dispatchers.Main) {
-                    engineLock.lock()
-                    try { RustEngine.play(tempFile.absolutePath) } finally { engineLock.unlock() }
-                }
-                
-                cleanupCache(cacheDir, tempFile)
-                
             } catch (e: Exception) {
-                Log.e(TAG, "Stream processing failed", e)
-                withContext(Dispatchers.Main) {
-                    playbackState = Player.STATE_IDLE
-                    isPlaying = false
-                    stopProgressPolling()
-                    invalidateState()
-                }
-            } finally {
-                try { dataSource?.close() } catch (e: Exception) {}
+                Log.e(TAG, "Stream failed", e)
+                playbackState = Player.STATE_IDLE
+                isPlaying = false
+                stopProgressPolling()
+                invalidateState()
             }
         }
     }
 
-    private fun cleanupCache(cacheDir: File, currentFile: File) {
-        scope.launch(Dispatchers.IO) {
+    // ═══════════════════════════════════════════════
+    // Pre-caching
+    // ═══════════════════════════════════════════════
+
+    private fun cancelPreCache() {
+        preCacheJob?.cancel()
+        preCacheJob = null
+        preCachedPath = null
+        preCachedItemIndex = -1
+    }
+
+    private fun startPreCacheNextTrack() {
+        cancelPreCache()
+        val nextIndex = currentMediaItemIndex + 1
+        if (nextIndex >= playlist.size) return
+        if (repeatMode == Player.REPEAT_MODE_ONE) return
+
+        val nextItem = playlist[nextIndex].item
+        val uri = nextItem.localConfiguration?.uri ?: return
+        val uriStr = uri.toString()
+        if (!uriStr.startsWith("cp://") && !uriStr.startsWith("http://") && !uriStr.startsWith("https://")) return
+
+        preCacheJob = scope.launch(Dispatchers.IO) {
             try {
-                cacheDir.listFiles { _, name -> name.startsWith(CACHE_PREFIX) }?.forEach { file ->
-                    if (file.absolutePath != currentFile.absolutePath && 
-                        System.currentTimeMillis() - file.lastModified() > CACHE_EXPIRY_MS) {
-                        file.delete()
-                    }
+                val file = StreamProxy.streamToCache(
+                    context = context,
+                    uri = uri,
+                    preBufferBytes = 0,
+                    onPreBufferReady = null,
+                    onProgress = { _ -> }
+                )
+                if (file != null && isActive) {
+                    preCachedPath = file.absolutePath
+                    preCachedItemIndex = nextIndex
                 }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "Pre-cache failed: ${e.message}")
+            }
         }
     }
 }

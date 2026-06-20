@@ -5,6 +5,28 @@ plugins {
     alias libs.plugins.jetbrains.kotlin.plugin.compose
 }
 
+// 动态版本号：基于 git tag 和 commit count（兼容 configuration cache）
+def gitShaProvider = providers.exec {
+    commandLine 'git', 'rev-parse', '--short', 'HEAD'
+    workingDir = rootDir
+}.standardOutput.asText.map { it.trim() }
+
+def gitVersionCodeProvider = providers.exec {
+    commandLine 'git', 'rev-list', '--count', 'HEAD'
+    workingDir = rootDir
+}.standardOutput.asText.map { it.trim().toInteger() }
+
+def gitDescribeProvider = providers.exec {
+    commandLine 'git', 'describe', '--tags', '--always'
+    workingDir = rootDir
+}.standardOutput.asText.map { it.trim() }
+
+// 在 defaultConfig 中使用这些 provider 值
+def resolvedSha = gitShaProvider.getOrElse('unknown')
+def resolvedVersionCode = gitVersionCodeProvider.getOrElse(1)
+def resolvedDescribe = gitDescribeProvider.getOrElse('')
+def resolvedVersionName = resolvedDescribe.matches('^v?\\d+.*') ? resolvedDescribe.replaceFirst(/^v/, '') : "1.0.${resolvedVersionCode}"
+
 android {
     namespace 'cp.player'
     compileSdk 37
@@ -24,8 +46,9 @@ android {
         applicationId "cp.player"
         minSdk 28
         targetSdk 36
-        versionCode 1
-        versionName "1.0"
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
+        buildConfigField "String", "GIT_SHA", "\"${resolvedSha}\""
 
         ndk {
             abiFilters 'arm64-v8a'
@@ -125,6 +148,11 @@ dependencies {
 
     // Lyricon
     implementation(libs.provider)
+
+    // Accompanist Lyrics UI (Apple Music-like karaoke lyrics)
+    implementation(libs.accompanist.lyrics.ui)
+    implementation(libs.accompanist.lyrics.core)
+    implementation(libs.gaze.capsule)
 
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit

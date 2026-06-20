@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import cp.player.model.PlayerCallbacks
+import cp.player.model.PlayerUiState
 import cp.player.ui.component.BottomPlaybackBar
 import cp.player.viewmodel.*
 
@@ -25,12 +27,118 @@ fun BoxScope.AppPlayerOverlay(
     navController: NavController,
     isPlayerExpanded: Boolean,
     onSetPlayerExpanded: (Boolean) -> Unit,
-    onSetLyricsExpanded: (Boolean) -> Unit,
     useSideNav: Boolean,
     hasBottomBar: Boolean,
     bottomBarOffsetHeightPx: MutableState<Float>,
     sharedTransitionScope: SharedTransitionScope
 ) {
+    val s = playbackViewModel.currentSong
+    val completedSongs by downloadViewModel.completedSongs.collectAsState()
+    val isFav = s?.let { userViewModel.favoriteSongs.contains(it.id) } ?: false
+
+    // 直接从 LyricsManager 读取歌词状态，避免 ViewModel 中间层的竞态问题
+    val lyricsState by cp.player.lyrics.LyricsManager.state.collectAsState()
+    val currentSyncedLyrics = (lyricsState as? cp.player.lyrics.LyricsState.Success)?.syncedLyrics
+    val currentLyricsInfo = (lyricsState as? cp.player.lyrics.LyricsState.Success)?.lyricsInfo
+    // 构造聚合的 UI 状态
+    val uiState = PlayerUiState(
+        song = s,
+        isPlaying = playbackViewModel.isPlaying,
+        isBuffering = playbackViewModel.isBuffering,
+        currentPosition = playbackViewModel.currentPosition,
+        duration = playbackViewModel.duration,
+        repeatMode = playbackViewModel.repeatMode,
+        shuffleMode = playbackViewModel.shuffleMode,
+        sampleRate = playbackViewModel.currentSampleRate,
+        bitrate = playbackViewModel.currentBitrate,
+        isFavorite = isFav,
+        isDownloaded = s?.let { completedSongs.contains(it.id) } ?: false,
+        syncedLyrics = currentSyncedLyrics,
+        lyricsInfo = currentLyricsInfo,
+        queue = playbackViewModel.currentQueue,
+        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
+        useFluidBackground = settingsViewModel.useFluidBackground,
+        coverColor = playbackViewModel.extractedColor,
+        pureBlack = settingsViewModel.pureBlackMode,
+        sleepTimerRemaining = playbackViewModel.sleepTimerRemaining,
+        hotComments = socialViewModel.hotComments,
+        newestComments = socialViewModel.newestComments,
+        commentTotal = socialViewModel.commentTotal,
+        isCommentsLoading = socialViewModel.isCommentsLoading,
+        hasMoreComments = socialViewModel.hasMoreComments,
+        commentSortType = socialViewModel.commentSortType,
+        floorComments = socialViewModel.floorComments,
+        floorCommentTotal = socialViewModel.floorCommentTotal,
+        floorHasMore = socialViewModel.floorHasMore,
+        activeParentComment = socialViewModel.activeParentComment,
+        allPlaylists = userViewModel.userPlaylists
+    )
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // 构造聚合的回调集合
+    val callbacks = remember(playbackViewModel, userViewModel, socialViewModel, downloadViewModel, navController) {
+        PlayerCallbacks(
+            onPlayPause = { playbackViewModel.togglePlayPause() },
+            onSkipNext = { playbackViewModel.skipNext() },
+            onSkipPrevious = { playbackViewModel.skipPrevious() },
+            onSeek = { playbackViewModel.seekTo(it) },
+            onRepeatClick = { playbackViewModel.toggleRepeatMode() },
+            onShuffleClick = { playbackViewModel.toggleShuffleMode() },
+            onLikeClick = {
+                playbackViewModel.currentSong?.let { song ->
+                    val fav = userViewModel.favoriteSongs.contains(song.id)
+                    userViewModel.toggleLike(song.id, !fav)
+                }
+            },
+            onArtistClick = { id ->
+                onSetPlayerExpanded(false)
+                userViewModel.fetchOtherUserProfile(id.toLong())
+                navController.navigate("user/$id")
+            },
+            onDownloadClick = { playbackViewModel.currentSong?.let { downloadViewModel.downloadSong(it) } },
+            onCommentClick = { playbackViewModel.currentSong?.let { socialViewModel.fetchComments(it.id) } },
+            onLyricClick = { /* 歌词已集成到播放器 HorizontalPager 中，自动加载 */ },
+            onDislikeClick = { playbackViewModel.currentSong?.let { userViewModel.dislikeSong(it.id); playbackViewModel.skipNext() } },
+            onAddToPlaylist = { id, pid -> userViewModel.addSongsToPlaylist(pid, listOf(id), null) },
+            onPlayAtQueueIndex = { i -> playbackViewModel.playAt(i) },
+            onMoveQueueItem = { f, t -> playbackViewModel.moveQueueItem(f, t) },
+            onRemoveQueueItem = { i -> playbackViewModel.removeQueueItem(i) },
+            onClearQueue = { playbackViewModel.clearQueue() },
+            onLoadMoreComments = {
+                playbackViewModel.currentSong?.let {
+                    socialViewModel.fetchComments(
+                        it.id, "music", socialViewModel.commentSortType, socialViewModel.currentCommentPage + 1
+                    )
+                }
+            },
+            onLikeComment = { c ->
+                playbackViewModel.currentSong?.let { socialViewModel.toggleCommentLike(it.id, c.id, "music", !c.liked) }
+            },
+            onPostComment = { t ->
+                playbackViewModel.currentSong?.let { socialViewModel.postComment(it.id, "music", t) }
+            },
+            onAvatarClick = { u ->
+                onSetPlayerExpanded(false)
+                userViewModel.fetchOtherUserProfile(u)
+                navController.navigate("user/$u")
+            },
+            onCommentSortChange = { sort ->
+                playbackViewModel.currentSong?.let { socialViewModel.fetchComments(it.id, "music", sort, 1) }
+            },
+            onViewFloorClick = { c ->
+                playbackViewModel.currentSong?.let { socialViewModel.fetchFloorComments(it.id, c.id) }
+                socialViewModel.activeParentComment = c
+            },
+            onLoadMoreFloor = { c ->
+                playbackViewModel.currentSong?.let { socialViewModel.fetchFloorComments(it.id, c.id, time = socialViewModel.floorCursor) }
+            },
+            onDismissFloor = { socialViewModel.activeParentComment = null },
+            onSetSleepTimer = { playbackViewModel.startSleepTimer(it) },
+            onBackPressed = { onSetPlayerExpanded(false) }
+        )
+    }
+
     AnimatedContent(
         targetState = isPlayerExpanded,
         transitionSpec = {
@@ -41,102 +149,11 @@ fun BoxScope.AppPlayerOverlay(
     ) { expanded ->
         if (expanded) {
             Box(modifier = Modifier.fillMaxSize()) {
-                val s = playbackViewModel.currentSong
-                val completedSongs by downloadViewModel.completedSongs.collectAsState()
-                val isFav = s?.let { userViewModel.favoriteSongs.contains(it.id) } ?: false
-                
                 PlayerScreen(
+                    uiState = uiState,
+                    callbacks = callbacks,
                     sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = this@AnimatedContent,
-                    song = s,
-                    lyrics = playbackViewModel.currentLyrics,
-                    isPlaying = playbackViewModel.isPlaying,
-                    currentPosition = playbackViewModel.currentPosition,
-                    duration = playbackViewModel.duration,
-                    onPlayPause = { playbackViewModel.togglePlayPause() },
-                    onSkipNext = { playbackViewModel.skipNext() },
-                    onSkipPrevious = { playbackViewModel.skipPrevious() },
-                    onSeek = { playbackViewModel.seekTo(it) },
-                    onRepeatClick = { playbackViewModel.toggleRepeatMode() },
-                    onShuffleClick = { playbackViewModel.toggleShuffleMode() },
-                    repeatMode = playbackViewModel.repeatMode,
-                    shuffleMode = playbackViewModel.shuffleMode,
-                    isFavorite = isFav,
-                    onLikeClick = { s?.let { userViewModel.toggleLike(it.id, !isFav) } },
-                    onArtistClick = { id ->
-                        onSetPlayerExpanded(false)
-                        userViewModel.fetchOtherUserProfile(id.toLong())
-                        navController.navigate("user/$id")
-                    },
-                    onDownloadClick = { s?.let { downloadViewModel.downloadSong(it) } },
-                    isDownloaded = s?.let { completedSongs.contains(it.id) } ?: false,
-                    isBuffering = playbackViewModel.isBuffering,
-                    hotComments = socialViewModel.hotComments,
-                    newestComments = socialViewModel.newestComments,
-                    commentTotal = socialViewModel.commentTotal,
-                    isCommentsLoading = socialViewModel.isLoading,
-                    hasMoreComments = socialViewModel.hasMoreComments,
-                    commentSortType = socialViewModel.commentSortType,
-                    onLoadMoreComments = {
-                        s?.let {
-                            socialViewModel.fetchComments(
-                                it.id, "music", socialViewModel.commentSortType, socialViewModel.currentCommentPage + 1
-                            )
-                        }
-                    },
-                    onLikeComment = { c ->
-                        s?.let { socialViewModel.toggleCommentLike(it.id, c.id, "music", !c.liked) }
-                    },
-                    onPostComment = { t ->
-                        s?.let { socialViewModel.postComment(it.id, "music", t) }
-                    },
-                    onCommentClick = { s?.let { socialViewModel.fetchComments(it.id) } },
-                    onCommentSortChange = { sort ->
-                        s?.let { socialViewModel.fetchComments(it.id, "music", sort, 1) }
-                    },
-                    onAvatarClick = { u ->
-                        onSetPlayerExpanded(false)
-                        userViewModel.fetchOtherUserProfile(u)
-                        navController.navigate("user/$u")
-                    },
-                    onDislikeClick = { s?.let { userViewModel.dislikeSong(it.id); playbackViewModel.skipNext() } },
-                    sleepTimerRemaining = playbackViewModel.sleepTimerRemaining,
-                    onSetSleepTimer = { playbackViewModel.startSleepTimer(it) },
-                    onLyricClick = {
-                        s?.let {
-                            playbackViewModel.fetchLyrics(it.id)
-                            onSetLyricsExpanded(true)
-                        }
-                    },
-                    allPlaylists = userViewModel.userPlaylists,
-                    onAddToPlaylist = { id, pid ->
-                        userViewModel.addSongsToPlaylist(pid, listOf(id), null)
-                    },
-                    queue = playbackViewModel.currentQueue,
-                    onMoveQueueItem = { f, t -> playbackViewModel.moveQueueItem(f, t) },
-                    onRemoveQueueItem = { i -> playbackViewModel.removeQueueItem(i) },
-                    onClearQueue = { playbackViewModel.clearQueue() },
-                    qualityWifi = settingsViewModel.qualityWifi,
-                    qualityCellular = settingsViewModel.qualityCellular,
-                    sampleRate = playbackViewModel.currentSampleRate,
-                    bitrate = playbackViewModel.currentBitrate,
-                    onViewFloorClick = { c ->
-                        s?.let { socialViewModel.fetchFloorComments(it.id, c.id) }
-                        socialViewModel.activeParentComment = c
-                    },
-                    floorComments = socialViewModel.floorComments,
-                    floorCommentTotal = socialViewModel.floorCommentTotal,
-                    floorHasMore = socialViewModel.floorHasMore,
-                    onLoadMoreFloor = { c ->
-                        s?.let { socialViewModel.fetchFloorComments(it.id, c.id, time = socialViewModel.floorCursor) }
-                    },
-                    activeParentComment = socialViewModel.activeParentComment,
-                    onDismissFloor = { socialViewModel.activeParentComment = null },
-                    useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
-                    useFluidBackground = settingsViewModel.useFluidBackground,
-                    useWavyProgress = settingsViewModel.useWavyProgress,
-                    coverColor = playbackViewModel.extractedColor,
-                    onBackPressed = { onSetPlayerExpanded(false) }
+                    animatedVisibilityScope = this@AnimatedContent
                 )
             }
         } else {
@@ -154,15 +171,15 @@ fun BoxScope.AppPlayerOverlay(
                 BottomPlaybackBar(
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = this@AnimatedContent,
-                    song = playbackViewModel.currentSong,
-                    isPlaying = playbackViewModel.isPlaying,
-                    isBuffering = playbackViewModel.isBuffering,
-                    onPlayPause = { playbackViewModel.togglePlayPause() },
-                    onSkipNext = { playbackViewModel.skipNext() },
-                    onSkipPrevious = { playbackViewModel.skipPrevious() },
+                    song = uiState.song,
+                    isPlaying = uiState.isPlaying,
+                    isBuffering = uiState.isBuffering,
+                    onPlayPause = callbacks.onPlayPause,
+                    onSkipNext = callbacks.onSkipNext,
+                    onSkipPrevious = callbacks.onSkipPrevious,
                     onClick = { onSetPlayerExpanded(true) },
                     useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                    coverColor = playbackViewModel.extractedColor,
+                    coverColor = uiState.coverColor,
                     modifier = if (useSideNav) Modifier.widthIn(max = 500.dp) else Modifier
                 )
             }

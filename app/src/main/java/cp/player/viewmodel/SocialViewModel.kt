@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.viewModelScope
 import cp.player.model.*
+import cp.player.provider.ProviderManager
 import cp.player.util.JsonUtils
 import kotlinx.coroutines.*
 
@@ -16,7 +17,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
     var commentTotal by mutableIntStateOf(0)
     var hasMoreComments by mutableStateOf(true)
     var currentCommentPage by mutableIntStateOf(0)
-    var commentSortType by mutableIntStateOf(1) // 1: Recommend, 2: Hot, 3: Time
+    var commentSortType by mutableIntStateOf(1) // 0: Recommend, 1: Hot, 2: Time
     var commentCursor by mutableStateOf("")
 
     var floorComments by mutableStateOf<List<Comment>>(emptyList())
@@ -28,29 +29,35 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var chatMessages by mutableStateOf<List<Message>>(emptyList())
     var unreadCount by mutableIntStateOf(0)
+    var isCommentsLoading by mutableStateOf(false)
+    var isFloorCommentsLoading by mutableStateOf(false)
+    var isContactsLoading by mutableStateOf(false)
+    var isMessagesLoading by mutableStateOf(false)
+
+    init {
+        // 监听提供商变更：切换时清空社交数据
+        viewModelScope.launch {
+            var isFirst = true
+            ProviderManager.currentProviderFlow.collect { provider ->
+                if (isFirst) { isFirst = false; return@collect }
+                if (provider != null) {
+                    android.util.Log.i("SocialViewModel", "Provider changed to ${provider.id}, resetting social data")
+                    contacts = emptyList()
+                    chatMessages = emptyList()
+                    unreadCount = 0
+                    hotComments = emptyList()
+                    newestComments = emptyList()
+                    commentTotal = 0
+                }
+            }
+        }
+    }
 
     fun fetchComments(id: String, type: String = "music", sortType: Int = 1, page: Int = 1) {
         viewModelScope.launch {
-            isLoading = true
+            isCommentsLoading = true
             try {
-                // Try legacy API if comment/new is not working well or as a fallback
-                val legacyApi = when (type) {
-                    "music" -> "comment/music"
-                    "playlist" -> "comment/playlist"
-                    "album" -> "comment/album"
-                    "mv" -> "comment/mv"
-                    "dj" -> "comment/dj"
-                    "video" -> "comment/video"
-                    else -> "comment/music"
-                }
-
-                val params = mutableMapOf(
-                    "id" to id,
-                    "limit" to "20",
-                    "offset" to ((page - 1) * 20).toString()
-                )
-
-                val body = withContext(Dispatchers.IO) { callApi(legacyApi, params) }
+                val body = withContext(Dispatchers.IO) { api.getComments(id, type, 20, (page - 1) * 20, sortType) }
                 android.util.Log.d("SocialViewModel", "Comments result: $body")
 
                 val commentsArr = JsonUtils.findJsonArray(body, "comments")
@@ -63,26 +70,26 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                     val hotArr = body.get("hotComments")?.asJsonArray
                     hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
                 } else {
-                    newestComments = newestComments + newComments
+                    if (sortType == 1) {
+                        hotComments = hotComments + newComments
+                    } else {
+                        newestComments = newestComments + newComments
+                    }
                 }
 
                 commentTotal = (body.get("totalCount") ?: body.get("total"))?.asInt ?: 0
                 hasMoreComments = (body.get("hasMore") ?: body.get("more"))?.asBoolean ?: true
                 currentCommentPage = page
                 commentSortType = sortType
-            } finally { isLoading = false }
+            } finally { isCommentsLoading = false }
         }
     }
 
     fun fetchFloorComments(id: String, parentCommentId: Long, type: String = "music", time: Long = 0L) {
         viewModelScope.launch {
-            isLoading = true
+            isFloorCommentsLoading = true
             try {
-                val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
-                val params = mutableMapOf("id" to id, "parentCommentId" to parentCommentId.toString(), "type" to t, "limit" to "20")
-                if (time > 0) params["time"] = time.toString()
-
-                val body = withContext(Dispatchers.IO) { callApi("comment/floor", params) }
+                val body = withContext(Dispatchers.IO) { api.getFloorComments(id, parentCommentId, type, 20, time) }
                 val data = body.get("data")?.asJsonObject
                 val commentsArr = data?.get("comments")?.asJsonArray
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
@@ -91,7 +98,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 floorCommentTotal = data?.get("totalCount")?.asInt ?: 0
                 floorHasMore = data?.get("hasMore")?.asBoolean ?: false
                 floorCursor = data?.get("time")?.asLong ?: 0L
-            } finally { isLoading = false }
+            } finally { isFloorCommentsLoading = false }
         }
     }
 
@@ -99,7 +106,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
         if (cookie == null) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val body = callApi("pl/count")
+                val body = api.getUnreadCount()
                 val count = body.get("msg")?.asInt ?: body.get("data")?.asJsonObject?.get("msg")?.asInt ?: 0
                 withContext(Dispatchers.Main) { unreadCount = count }
             } catch (e: Exception) { }
@@ -108,10 +115,10 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
 
     fun fetchContacts() {
         viewModelScope.launch {
-            isLoading = true
+            isContactsLoading = true
             try {
                 // Try both msg/recentcontact and msg/private for compatibility
-                val body = withContext(Dispatchers.IO) { callApi("msg/recentcontact") }
+                val body = withContext(Dispatchers.IO) { api.getRecentContacts() }
                 val recent = body.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
                     ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
 
@@ -119,29 +126,28 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                     contacts = recent
                 } else {
                     // Fallback to msg/private (notifications/private messages)
-                    val privateBody = withContext(Dispatchers.IO) { callApi("msg/private", mapOf("limit" to "50")) }
+                    val privateBody = withContext(Dispatchers.IO) { api.getPrivateMessages() }
                     val privateMsgs = privateBody.get("msgs")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
                     contacts = privateMsgs ?: emptyList()
                 }
-            } finally { isLoading = false }
+            } finally { isContactsLoading = false }
         }
     }
 
     fun fetchMessages(uid: Long) {
         if (cookie == null) return
         viewModelScope.launch {
-            isLoading = true
+            isMessagesLoading = true
             try {
-                val body = withContext(Dispatchers.IO) { callApi("msg/private/history", mapOf("uid" to uid.toString())) }
+                val body = withContext(Dispatchers.IO) { api.getMessageHistory(uid) }
                 chatMessages = body.get("msgs")?.asJsonArray?.mapNotNull { JsonUtils.parseMessage(it, 0L) }?.reversed() ?: emptyList()
-            } finally { isLoading = false }
+            } finally { isMessagesLoading = false }
         }
     }
 
     fun toggleCommentLike(id: String, cid: Long, type: String, liked: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
-            callApi("comment/like", mapOf("id" to id, "cid" to cid.toString(), "t" to t, "type" to if (liked) "1" else "0"))
+            api.likeComment(id, cid, type, liked)
             withContext(Dispatchers.Main) {
                 val update: (Comment) -> Comment = { if (it.id == cid) it.copy(liked = liked, likedCount = it.likedCount + if (liked) 1 else -1) else it }
                 hotComments = hotComments.map(update)
@@ -152,11 +158,8 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
 
     fun postComment(id: String, type: String, content: String, replyId: Long? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
-            val params = mutableMapOf("id" to id, "type" to t, "content" to content, "op" to if (replyId != null) "reply" else "add")
-            if (replyId != null) params["commentId"] = replyId.toString()
-            val body = callApi("comment", params)
-            if (body.get("code")?.asInt == 200) fetchComments(id, type, 0)
+            val body = api.postComment(id, type, content, replyId)
+            if (body.get("code")?.asInt == 200) fetchComments(id, type, commentSortType)
         }
     }
 
@@ -164,7 +167,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
         if (cookie == null) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                callApi("msg/private/mark/read", mapOf("uid" to uid.toString()))
+                api.markMessageAsRead(uid)
             } catch (e: Exception) { }
         }
     }
@@ -172,7 +175,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
     fun sendMessage(uid: Long, text: String) {
         if (cookie == null || text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val body = callApi("send/text", mapOf("user_ids" to uid.toString(), "msg" to text))
+            val body = api.sendMessage(uid, text)
             if (body.get("code")?.asInt == 200) {
                 fetchMessages(uid)
             }

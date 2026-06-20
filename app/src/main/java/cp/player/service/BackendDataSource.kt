@@ -8,17 +8,29 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.ContentDataSource
+import cp.player.api.MusicApiServiceImpl
+import cp.player.api.MusicApiServiceFactory
 import cp.player.manager.DownloadRegistry
+import cp.player.monitor.HealthMonitor
 import cp.player.provider.ProviderManager
 import cp.player.util.JsonUtils
 import cp.player.util.DebugLog
 import cp.player.util.UserPreferences
-import com.google.gson.JsonParser
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 
+/**
+ * 自定义 DataSource，用于解析 `cp://` 协议的音乐 URI。
+ *
+ * 解析优先级：
+ * 1. 本地已下载文件（DownloadRegistry）
+ * 2. URL 缓存（15分钟有效）
+ * 3. 通过 [MusicApiService] 解析远程 URL（多 Provider 容灾）
+ *
+ * @see cp.player.api.MusicApiService
+ */
 @OptIn(UnstableApi::class)
 class BackendDataSource(
     private val context: Context,
@@ -79,40 +91,37 @@ class BackendDataSource(
             val cacheKey = "${songId}_$quality"
             var cdnUrl = urlCache[cacheKey]?.takeIf { (cacheExpiry[cacheKey] ?: 0L) > System.currentTimeMillis() }
 
-            // 3. Resolve URL
+            // 3. Resolve URL via MusicApiService (multi-provider failover)
             if (cdnUrl == null) {
-                val providers = cp.player.provider.ModuleManager.getAvailableProviders().toMutableList()
-                val current = cp.player.provider.ProviderManager.currentProvider
-                if (current != null) {
-                    providers.remove(current)
-                    providers.add(0, current) // Try current provider first
-                }
-                
+                val api = MusicApiServiceFactory.instance
                 val cookie = UserPreferences.getCookie(context)
                 val params = mutableMapOf("id" to songId, "level" to quality)
                 if (!cookie.isNullOrEmpty()) params["cookie"] = cookie
 
-                for (provider in providers) {
-                    for (attempt in 1..2) {
-                        try {
-                            val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
-                            val result = provider.callApi(method, params)
-                            val body = JsonParser.parseString(result).asJsonObject
+                val resolveStartTime = System.currentTimeMillis()
+                // 使用 callWithAllProviders 进行多 Provider 容灾
+                val resolvedUrl = api.callWithAllProviders(
+                    cp.player.api.MusicApiMethod.SONG_URL_V1,
+                    params
+                ) { body ->
+                    val url = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
+                    if (!url.isNullOrEmpty() && url.startsWith("http")) url else null
+                }
 
-                            val fallbackUrl = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
-
-                            if (!fallbackUrl.isNullOrEmpty() && fallbackUrl.startsWith("http")) {
-                                cdnUrl = fallbackUrl
-                                urlCache[cacheKey] = cdnUrl
-                                cacheExpiry[cacheKey] = System.currentTimeMillis() + CACHE_DURATION
-                                break
-                            }
-                        } catch (e: Exception) {
-                            DebugLog.e("CPDS: API Call attempt $attempt failed on provider ${provider.name}", e)
-                        }
-                        if (attempt < 2) Thread.sleep(200L)
-                    }
-                    if (cdnUrl != null) break
+                if (resolvedUrl != null) {
+                    cdnUrl = resolvedUrl
+                    urlCache[cacheKey] = cdnUrl
+                    cacheExpiry[cacheKey] = System.currentTimeMillis() + CACHE_DURATION
+                } else {
+                    // 所有 Provider 均失败
+                    HealthMonitor.recordCall(HealthMonitor.ApiCallRecord(
+                        timestamp = resolveStartTime,
+                        providerId = ProviderManager.getCurrentProviderId(),
+                        method = "URL_RESOLUTION",
+                        durationMs = System.currentTimeMillis() - resolveStartTime,
+                        success = false,
+                        errorMessage = "所有 Provider 均无法解析歌曲 $songId 的播放 URL"
+                    ))
                 }
             }
 

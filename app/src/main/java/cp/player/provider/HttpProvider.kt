@@ -11,7 +11,8 @@ class HttpProvider(
     override val name: String,
     override val version: String,
     private val baseUrl: String,
-    override val apiMap: Map<String, String>? = null
+    override val apiMap: Map<String, String>? = null,
+    override val updateUrl: String? = null
 ) : BackendProvider {
     override val type = ProviderType.HTTP
     private val client = OkHttpClient()

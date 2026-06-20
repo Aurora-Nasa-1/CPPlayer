@@ -36,6 +36,7 @@ import cp.player.R
 import androidx.compose.material3.ListItemDefaults
 import cp.player.ui.component.AppScaffold
 import cp.player.util.LogManager
+import cp.player.viewmodel.LoginViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -72,8 +73,6 @@ fun SettingsScreen(
     onFollowCoverPlayerChange: (Boolean) -> Unit,
     useFluidBackground: Boolean,
     onUseFluidBackgroundChange: (Boolean) -> Unit,
-    useWavyProgress: Boolean,
-    onUseWavyProgressChange: (Boolean) -> Unit,
     audioFocusMode: Int,
     onAudioFocusModeChange: (Int) -> Unit,
     allowDucking: Boolean,
@@ -92,6 +91,14 @@ fun SettingsScreen(
     onDapBitPerfectChange: (Boolean) -> Unit,
     usbExclusive: Boolean,
     onUsbExclusiveChange: (Boolean) -> Unit,
+    fontRoundness: Int,
+    onFontRoundnessChange: (Int) -> Unit,
+    playImmediately: Boolean,
+    onPlayImmediatelyChange: (Boolean) -> Unit,
+    lyricsSource: Int,
+    onLyricsSourceChange: (Int) -> Unit,
+    amllPlatform: String,
+    onAmllPlatformChange: (String) -> Unit,
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
@@ -100,6 +107,8 @@ fun SettingsScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var currentScreen by rememberSaveable { mutableStateOf("main") }
+    // 子页面的父页面映射（debug 的子页面返回到 debug，其他返回到 main）
+    val parentScreen = mapOf("health" to "debug", "logViewer" to "debug", "providerTest" to "debug", "about" to "main")
 
     val dirPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -114,7 +123,7 @@ fun SettingsScreen(
     }
 
     BackHandler(enabled = currentScreen != "main") {
-        currentScreen = "main"
+        currentScreen = parentScreen[currentScreen] ?: "main"
     }
 
     val titleRes = when (currentScreen) {
@@ -123,13 +132,16 @@ fun SettingsScreen(
         "storage_download" -> R.string.storage_cache
         "debug" -> R.string.debug
         "provider" -> R.string.provider_management
+        "about" -> R.string.about
+        "health" -> R.string.health_status
+        "logViewer" -> R.string.app_logs
         else -> R.string.settings
     }
 
     AppScaffold(
         title = stringResource(titleRes),
         onBackPressed = {
-            if (currentScreen == "main") onBackPressed() else currentScreen = "main"
+            if (currentScreen == "main") onBackPressed() else currentScreen = parentScreen[currentScreen] ?: "main"
         },
         scrollBehavior = scrollBehavior,
         containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -165,35 +177,42 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_appearance_desc),
                                 icon = { MonetIcon(Icons.Default.Palette, Color(0xFFE8F5E9), Color(0xFF2E7D32)) },
                                 onClick = { currentScreen = "appearance" },
-                                shapes = ListItemDefaults.segmentedShapes(0, 5)
+                                shapes = ListItemDefaults.segmentedShapes(0, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.playback_quality_cat),
                                 subtitle = stringResource(R.string.settings_audio_desc),
                                 icon = { MonetIcon(Icons.Default.Audiotrack, Color(0xFFE3F2FD), Color(0xFF1565C0)) },
                                 onClick = { currentScreen = "audio" },
-                                shapes = ListItemDefaults.segmentedShapes(1, 5)
+                                shapes = ListItemDefaults.segmentedShapes(1, 6)
                             )
                             ExpressiveClickItem(
                                 title = "${stringResource(R.string.storage_cache)} & ${stringResource(R.string.download_settings)}",
                                 subtitle = stringResource(R.string.settings_storage_desc) + " " + stringResource(R.string.settings_download_desc),
                                 icon = { MonetIcon(Icons.Default.Storage, Color(0xFFFFF3E0), Color(0xFFEF6C00)) },
                                 onClick = { currentScreen = "storage_download" },
-                                shapes = ListItemDefaults.segmentedShapes(2, 5)
+                                shapes = ListItemDefaults.segmentedShapes(2, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.debug),
                                 subtitle = stringResource(R.string.settings_debug_desc),
                                 icon = { MonetIcon(Icons.Default.BugReport, Color(0xFFFCE4EC), Color(0xFFC2185B)) },
                                 onClick = { currentScreen = "debug" },
-                                shapes = ListItemDefaults.segmentedShapes(3, 5)
+                                shapes = ListItemDefaults.segmentedShapes(3, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.provider_management),
                                 subtitle = "Manage music source modules",
                                 icon = { MonetIcon(Icons.Default.Extension, Color(0xFFFFFDE7), Color(0xFFF57F17)) },
                                 onClick = { currentScreen = "provider" },
-                                shapes = ListItemDefaults.segmentedShapes(4, 5)
+                                shapes = ListItemDefaults.segmentedShapes(4, 6)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.about),
+                                subtitle = stringResource(R.string.settings_about_desc),
+                                icon = { MonetIcon(Icons.Default.HelpOutline, Color(0xFFEFEBE9), Color(0xFF4E342E)) },
+                                onClick = { currentScreen = "about" },
+                                shapes = ListItemDefaults.segmentedShapes(5, 6)
                             )
                         }
                     }
@@ -255,11 +274,18 @@ fun SettingsScreen(
                                 onCheckedChange = onPureBlackModeChange,
                                 shapes = ListItemDefaults.segmentedShapes(if (themeMode == 1) 5 else 1, appearanceItemsCount)
                             )
-                            ExpressiveSwitchItem(
-                                title = stringResource(R.string.wavy_progress_bar),
-                                subtitle = stringResource(R.string.wavy_progress_bar_desc),
-                                checked = useWavyProgress,
-                                onCheckedChange = onUseWavyProgressChange,
+
+                            // Font Roundness Setting (Android 16 QPR2 style)
+                            val fontRoundnessOptions = listOf(
+                                stringResource(R.string.font_roundness_standard),
+                                stringResource(R.string.font_roundness_expressive)
+                            )
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.font_roundness),
+                                subtitle = fontRoundnessOptions.getOrElse(fontRoundness) { fontRoundnessOptions[0] },
+                                options = fontRoundnessOptions,
+                                selectedIndex = fontRoundness,
+                                onSelect = onFontRoundnessChange,
                                 shapes = ListItemDefaults.segmentedShapes(if (themeMode == 1) 6 else 2, appearanceItemsCount)
                             )
                         }
@@ -276,61 +302,70 @@ fun SettingsScreen(
                                 subtitle = engines.getOrElse(audioEngine) { engines[0] },
                                 options = engines,
                                 selectedIndex = audioEngine,
-                                onSelect = {
-                                    onAudioEngineChange(it)
-                                    android.widget.Toast.makeText(context, "Please restart the app to apply the new audio engine.", android.widget.Toast.LENGTH_LONG).show()
-                                },
+                                onSelect = { onAudioEngineChange(it) },
                                 shapes = ListItemDefaults.segmentedShapes(0, 1)
                             )
                         }
 
-                        // 引擎专属设置
-                        if (audioEngine == 0) {
-                            SettingsSection(title = "ExoPlayer Settings") {
-                                val focusItemsCount = if (autoAudioFocus) 2 else 5
-                                
-                                ExpressiveSwitchItem(
-                                    title = stringResource(R.string.auto_audio_focus),
-                                    subtitle = stringResource(R.string.auto_audio_focus_desc),
-                                    checked = autoAudioFocus,
-                                    onCheckedChange = onAutoAudioFocusChange,
-                                    shapes = ListItemDefaults.segmentedShapes(0, focusItemsCount)
+                        // 播放行为
+                        SettingsSection(title = stringResource(R.string.playback_behavior)) {
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.play_immediately),
+                                subtitle = stringResource(R.string.play_immediately_desc),
+                                checked = playImmediately,
+                                onCheckedChange = onPlayImmediatelyChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                            )
+                        }
+
+                        // 音频焦点设置（两个引擎共享）
+                        SettingsSection(title = stringResource(R.string.auto_audio_focus).replaceFirstChar { it.uppercase() }) {
+                            val focusItemsCount = if (autoAudioFocus) 1 else 4
+
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.auto_audio_focus),
+                                subtitle = stringResource(R.string.auto_audio_focus_desc),
+                                checked = autoAudioFocus,
+                                onCheckedChange = onAutoAudioFocusChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, focusItemsCount)
+                            )
+
+                            if (!autoAudioFocus) {
+                                val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause))
+                                ExpressiveDropdownItem(
+                                    title = stringResource(R.string.transient_focus_loss_behavior),
+                                    subtitle = focusModes.getOrElse(audioFocusMode) { focusModes[0] },
+                                    options = focusModes,
+                                    selectedIndex = audioFocusMode,
+                                    onSelect = onAudioFocusModeChange,
+                                    shapes = ListItemDefaults.segmentedShapes(1, focusItemsCount)
                                 )
-                                
-                                if (!autoAudioFocus) {
-                                    val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause))
-                                    ExpressiveDropdownItem(
-                                        title = stringResource(R.string.transient_focus_loss_behavior),
-                                        subtitle = focusModes.getOrElse(audioFocusMode) { focusModes[0] },
-                                        options = focusModes,
-                                        selectedIndex = audioFocusMode,
-                                        onSelect = onAudioFocusModeChange,
-                                        shapes = ListItemDefaults.segmentedShapes(1, focusItemsCount)
-                                    )
-                                    ExpressiveSwitchItem(
-                                        title = stringResource(R.string.allow_ducking),
-                                        subtitle = stringResource(R.string.allow_ducking_desc),
-                                        checked = allowDucking,
-                                        onCheckedChange = onAllowDuckingChange,
-                                        shapes = ListItemDefaults.segmentedShapes(2, focusItemsCount)
-                                    )
-                                    ExpressiveSwitchItem(
-                                        title = stringResource(R.string.pause_on_noisy),
-                                        subtitle = stringResource(R.string.pause_on_noisy_desc),
-                                        checked = pauseOnNoisy,
-                                        onCheckedChange = onPauseOnNoisyChange,
-                                        shapes = ListItemDefaults.segmentedShapes(3, focusItemsCount)
-                                    )
-                                }
-                                
-                                // 音效 (Crossfade) 主要也是由播放器引擎支持的情况
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.allow_ducking),
+                                    subtitle = stringResource(R.string.allow_ducking_desc),
+                                    checked = allowDucking,
+                                    onCheckedChange = onAllowDuckingChange,
+                                    shapes = ListItemDefaults.segmentedShapes(2, focusItemsCount)
+                                )
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.pause_on_noisy),
+                                    subtitle = stringResource(R.string.pause_on_noisy_desc),
+                                    checked = pauseOnNoisy,
+                                    onCheckedChange = onPauseOnNoisyChange,
+                                    shapes = ListItemDefaults.segmentedShapes(3, focusItemsCount)
+                                )
+                            }
+                        }
+
+                        // 淡入淡出设置（仅 ExoPlayer 支持，Flick 引擎不支持）
+                        if (audioEngine != 1) {
+                            SettingsSection(title = stringResource(R.string.fade_mode)) {
                                 val fadeModes = listOf(
                                     stringResource(R.string.fade_mode_crossfade),
                                     stringResource(R.string.fade_mode_single),
                                     stringResource(R.string.fade_mode_off)
                                 )
-                                val fadeItemsCount = if (fadeMode == 2) 1 else 2
-                                val startIdx = if (!autoAudioFocus) 4 else 1
+                                val fadeItemCount = if (fadeMode == 2) 1 else 2
 
                                 ExpressiveDropdownItem(
                                     title = stringResource(R.string.fade_mode),
@@ -338,9 +373,9 @@ fun SettingsScreen(
                                     options = fadeModes,
                                     selectedIndex = fadeMode,
                                     onSelect = onFadeModeChange,
-                                    shapes = ListItemDefaults.segmentedShapes(startIdx, focusItemsCount + fadeItemsCount - 1)
+                                    shapes = ListItemDefaults.segmentedShapes(0, fadeItemCount)
                                 )
-                                
+
                                 if (fadeMode != 2) {
                                     ExpressiveSliderItem(
                                         title = stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
@@ -348,12 +383,15 @@ fun SettingsScreen(
                                         onValueChange = onFadeChange,
                                         valueRange = 0f..10f,
                                         steps = 10,
-                                        shapes = ListItemDefaults.segmentedShapes(startIdx + 1, focusItemsCount + fadeItemsCount - 1)
+                                        shapes = ListItemDefaults.segmentedShapes(1, fadeItemCount)
                                     )
                                 }
                             }
-                        } else {
-                            SettingsSection(title = "Flick (Rust) Settings") {
+                        }
+
+                        // Flick 引擎专属设置
+                        if (audioEngine == 1) {
+                            SettingsSection(title = stringResource(R.string.engine_flick)) {
                                 val dsdModes = listOf("PCM Decimation", "DoP", "Native DSD", "Auto")
                                 ExpressiveDropdownItem(
                                     title = "DSD Output Mode",
@@ -379,7 +417,7 @@ fun SettingsScreen(
                                     onCheckedChange = onUsbExclusiveChange,
                                     shapes = ListItemDefaults.segmentedShapes(2, 5)
                                 )
-                                
+
                                 ExpressiveSwitchItem(
                                     title = "USB Audio Auto-resume",
                                     subtitle = "Auto-resume playback if USB audio is reconnected within 2 seconds",
@@ -424,6 +462,43 @@ fun SettingsScreen(
                                 onSelect = { onQualityCellularChange(qualities[it]) },
                                 shapes = ListItemDefaults.segmentedShapes(1, 2)
                             )
+                        }
+
+                        // 歌词来源设置
+                        SettingsSection(title = "Lyrics") {
+                            val lyricsSourceOptions = listOf(
+                                "Provider API 优先",
+                                "AMLL TTML 优先",
+                                "仅 AMLL TTML"
+                            )
+                            val amllPlatformOptions = listOf(
+                                "auto" to "自动检测",
+                                "ncm" to "网易云音乐",
+                                "qq" to "QQ 音乐",
+                                "am" to "Apple Music",
+                                "spotify" to "Spotify"
+                            )
+                            val lyricsItemCount = if (lyricsSource == 0) 1 else 2
+
+                            ExpressiveDropdownItem(
+                                title = "歌词来源",
+                                subtitle = lyricsSourceOptions.getOrElse(lyricsSource) { lyricsSourceOptions[0] },
+                                options = lyricsSourceOptions,
+                                selectedIndex = lyricsSource,
+                                onSelect = onLyricsSourceChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, lyricsItemCount)
+                            )
+
+                            if (lyricsSource != 0) {
+                                ExpressiveDropdownItem(
+                                    title = "AMLL 歌词平台",
+                                    subtitle = amllPlatformOptions.find { it.first == amllPlatform }?.second ?: "自动检测",
+                                    options = amllPlatformOptions.map { it.second },
+                                    selectedIndex = amllPlatformOptions.indexOfFirst { it.first == amllPlatform }.coerceAtLeast(0),
+                                    onSelect = { onAmllPlatformChange(amllPlatformOptions[it].first) },
+                                    shapes = ListItemDefaults.segmentedShapes(1, lyricsItemCount)
+                                )
+                            }
                         }
                     }
                     "storage_download" -> {
@@ -485,7 +560,8 @@ fun SettingsScreen(
                         SettingsSection(title = stringResource(R.string.provider_management)) {
                             val providers = cp.player.provider.ModuleManager.getAvailableProviders()
                             val coroutineScope = rememberCoroutineScope()
-                            val launcher = rememberLauncherForActivityResult(
+                            // 导入模块的 launcher
+                            val importLauncher = rememberLauncherForActivityResult(
                                 contract = ActivityResultContracts.GetContent()
                             ) { uri ->
                                 uri?.let {
@@ -514,36 +590,200 @@ fun SettingsScreen(
                                     }
                                 }
                             }
-                            
-                            providers.forEachIndexed { index, provider ->
+                            // 手动更新模块的 launcher
+                            var updatingProviderId by remember { mutableStateOf<String?>(null) }
+                            val updateLauncher = rememberLauncherForActivityResult(
+                                contract = ActivityResultContracts.GetContent()
+                            ) { uri ->
+                                uri?.let { selectedUri ->
+                                    val targetId = updatingProviderId ?: return@let
+                                    coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        try {
+                                            context.contentResolver.openInputStream(selectedUri)?.use { input ->
+                                                val tempFile = java.io.File(context.cacheDir, "temp_update.zip")
+                                                java.io.FileOutputStream(tempFile).use { output ->
+                                                    input.copyTo(output)
+                                                }
+                                                val success = cp.player.provider.ModuleManager.updateModule(context, targetId, tempFile)
+                                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                    if (success) {
+                                                        cp.player.provider.ProviderManager.startServer(context)
+                                                        android.widget.Toast.makeText(context, "模块更新成功", android.widget.Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        android.widget.Toast.makeText(context, "模块更新失败", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        } catch(e: Exception) {
+                                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                android.widget.Toast.makeText(context, "更新出错: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 提供者更多操作底部面板状态
+                            var selectedProvider by remember { mutableStateOf<cp.player.provider.BackendProvider?>(null) }
+                            // 刷新列表用的计数器
+                            var refreshTrigger by remember { mutableIntStateOf(0) }
+                            // 自动更新检查结果（provider id → UpdateInfo）
+                            var updateResults by remember { mutableStateOf<Map<String, cp.player.provider.ProviderUpdateChecker.UpdateInfo>>(emptyMap()) }
+
+                            val loginViewModel: LoginViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                            // 强制刷新时重新读取列表
+                            val currentProviders = remember(refreshTrigger) {
+                                cp.player.provider.ModuleManager.getAvailableProviders()
+                            }
+
+                            // 进入 provider 页面时自动后台检查所有有 updateUrl 的模块更新
+                            LaunchedEffect(currentProviders) {
+                                val toCheck = currentProviders.filter { !it.updateUrl.isNullOrBlank() }
+                                toCheck.forEach { provider ->
+                                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        val info = cp.player.provider.ProviderUpdateChecker.checkUpdate(
+                                            provider.updateUrl!!, provider.version
+                                        )
+                                        if (info != null) {
+                                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                updateResults = updateResults + (provider.id to info)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            currentProviders.forEachIndexed { index, provider ->
                                 val isCurrent = cp.player.provider.ProviderManager.currentProvider?.id == provider.id
                                 val activeStr = if (isCurrent) stringResource(R.string.provider_active) else ""
-                                ExpressiveClickItem(
-                                    title = provider.name + activeStr,
-                                    subtitle = stringResource(R.string.provider_info, provider.type, provider.version),
-                                    onClick = { 
-                                        cp.player.provider.ProviderManager.stopServer()
-                                        cp.player.provider.ProviderManager.currentProvider = provider
-                                        cp.player.provider.ProviderManager.startServer(context)
+                                val hasUpdate = updateResults.containsKey(provider.id)
+
+                                cp.player.ui.component.UnifiedListItem(
+                                    onClick = {
+                                        loginViewModel.switchProvider(provider)
                                         android.widget.Toast.makeText(context, context.getString(R.string.provider_switched, provider.name), android.widget.Toast.LENGTH_SHORT).show()
                                     },
-                                    shapes = ListItemDefaults.segmentedShapes(index, providers.size + 1)
+                                    shapes = ListItemDefaults.segmentedShapes(index, currentProviders.size + 1),
+                                    headlineContent = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                provider.name + activeStr,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 16.sp
+                                            )
+                                            if (hasUpdate) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = MaterialTheme.colorScheme.primary
+                                                ) {
+                                                    Text(
+                                                        "有更新",
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    },
+                                    supportingContent = {
+                                        if (hasUpdate) {
+                                            val updateInfo = updateResults[provider.id]!!
+                                            Text(
+                                                "${stringResource(R.string.provider_info, provider.type, provider.version)}  →  v${updateInfo.version}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Normal
+                                            )
+                                        } else {
+                                            Text(
+                                                stringResource(R.string.provider_info, provider.type, provider.version),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = FontWeight.Normal
+                                            )
+                                        }
+                                    },
+                                    trailingContent = {
+                                        // 更多按钮（参考 SongItem 的 MoreVert 按钮样式）
+                                        Surface(
+                                            shape = androidx.compose.foundation.shape.CircleShape,
+                                            color = if (hasUpdate) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clickable { selectedProvider = provider }
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    Icons.Default.MoreVert,
+                                                    contentDescription = "更多操作",
+                                                    tint = if (hasUpdate) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 68.dp),
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+                                    )
                                 )
                             }
-                            
+
                             ExpressiveButtonItem(
                                 text = stringResource(R.string.import_new_module),
-                                onClick = { launcher.launch("application/zip") },
+                                onClick = { importLauncher.launch("application/zip") },
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                shapes = ListItemDefaults.segmentedShapes(providers.size, providers.size + 1)
+                                shapes = ListItemDefaults.segmentedShapes(currentProviders.size, currentProviders.size + 1)
                             )
+
+                            // 提供者操作底部面板
+                            selectedProvider?.let { provider ->
+                                cp.player.ui.component.ProviderOptionsBottomSheet(
+                                    provider = provider,
+                                    onDismissRequest = { selectedProvider = null },
+                                    onDeleted = {
+                                        selectedProvider = null
+                                        updateResults = updateResults - provider.id
+                                        refreshTrigger++
+                                    },
+                                    onUpdated = {
+                                        selectedProvider = null
+                                        updateResults = updateResults - provider.id
+                                        refreshTrigger++
+                                    },
+                                    onUpdateZipSelected = {
+                                        updatingProviderId = provider.id
+                                        updateLauncher.launch("application/zip")
+                                    },
+                                    preCheckedUpdate = updateResults[provider.id]
+                                )
+                            }
                         }
+                    }
+                    "about" -> {
+                        // 关于
+                        AboutScreenInline()
                     }
                     "debug" -> {
                         // Debug
                         SettingsSection(title = stringResource(R.string.debug)) {
                             val logsCopiedMsg = stringResource(R.string.logs_copied)
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.app_logs),
+                                subtitle = "查看应用日志和系统日志",
+                                onClick = { currentScreen = "logViewer" },
+                                shapes = ListItemDefaults.segmentedShapes(0, 3)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.health_status),
+                                subtitle = "API 调用监控、兼容性检查、Provider 测试",
+                                onClick = { currentScreen = "health" },
+                                shapes = ListItemDefaults.segmentedShapes(1, 3)
+                            )
                             ExpressiveButtonItem(
                                 text = stringResource(R.string.copy_debug_logs),
                                 onClick = {
@@ -552,9 +792,17 @@ fun SettingsScreen(
                                     clipboard.setPrimaryClip(clip)
                                     android.widget.Toast.makeText(context, logsCopiedMsg, android.widget.Toast.LENGTH_SHORT).show()
                                 },
-                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                                shapes = ListItemDefaults.segmentedShapes(2, 3)
                             )
                         }
+                    }
+                    "health" -> {
+                        // 健康状态 & 调试界面 - 内嵌在设置中
+                        cp.player.ui.screen.HealthScreenInline()
+                    }
+                    "logViewer" -> {
+                        // 日志查看器 - 内嵌在设置中
+                        cp.player.ui.screen.LogViewerInline()
                     }
                 }
                 Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))

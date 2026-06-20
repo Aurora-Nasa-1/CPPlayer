@@ -3,29 +3,35 @@ package cp.player.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import cp.player.R
 import cp.player.model.Message
 import cp.player.util.ImageUtils
 import cp.player.ui.component.AppScaffold
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     recipientUid: Long,
@@ -33,38 +39,62 @@ fun ChatScreen(
     messages: List<Message>,
     onSendMessage: (String) -> Unit,
     onAvatarClick: (Long) -> Unit,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    miniPlayerHeight: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     var textState by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val isKeyboardOpen = WindowInsets.isImeVisible
+
+    // 发送消息后自动滚动到底部
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    // 键盘弹出时隐藏 miniPlayer 的额外高度，避免输入栏跳动
+    val effectiveMiniPlayerHeight = if (isKeyboardOpen) 0.dp else miniPlayerHeight
 
     AppScaffold(
         title = recipientName,
         onBackPressed = onBackPressed,
         bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.ime),
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            // Scaffold 的 bottomBar 已自动处理 IME 上移，无需额外 windowInsetsPadding
+            Surface(
+                tonalElevation = 2.dp,
+                modifier = Modifier.padding(bottom = effectiveMiniPlayerHeight),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextField(
                         value = textState,
                         onValueChange = { textState = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Type a message...") },
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.type_message),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
+                        shape = MaterialTheme.shapes.large,
+                        textStyle = MaterialTheme.typography.bodyMedium,
                         maxLines = 4
                     )
-                    IconButton(
+                    FilledTonalIconButton(
                         onClick = {
                             if (textState.isNotBlank()) {
                                 onSendMessage(textState)
@@ -73,21 +103,33 @@ fun ChatScreen(
                         },
                         enabled = textState.isNotBlank()
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.send)
+                        )
                     }
                 }
             }
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             reverseLayout = false,
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                end = 12.dp,
+                top = 12.dp,
+                bottom = 12.dp + effectiveMiniPlayerHeight
+            ),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(messages) { message ->
+            items(
+                items = messages,
+                key = { it.hashCode() }
+            ) { message ->
                 MessageBubble(
                     message = message,
                     onAvatarClick = { onAvatarClick(message.fromUserId) }
@@ -102,26 +144,31 @@ fun MessageBubble(
     message: Message,
     onAvatarClick: () -> Unit
 ) {
-    val alignment = if (message.isMe) Alignment.End else Alignment.Start
-    val bubbleColor = if (message.isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-    val bubbleShape = if (message.isMe) {
-        RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
+    val isMe = message.isMe
+    val alignment = if (isMe) Alignment.End else Alignment.Start
+    val bubbleColor = if (isMe) MaterialTheme.colorScheme.primaryContainer
+    else MaterialTheme.colorScheme.surfaceContainerHigh
+    val bubbleShape = if (isMe) {
+        RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp)
     } else {
-        RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
+        RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
+    }
+    val timeStr = remember(message.time) {
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.time))
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         horizontalAlignment = alignment
     ) {
         Row(
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = if (message.isMe) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,
             modifier = Modifier.fillMaxWidth(0.85f)
         ) {
-            if (!message.isMe) {
+            if (!isMe) {
                 AsyncImage(
                     model = ImageUtils.getResizedImageUrl(message.fromAvatarUrl, 100),
                     contentDescription = null,
@@ -136,23 +183,27 @@ fun MessageBubble(
 
             Column(horizontalAlignment = alignment) {
                 Surface(
-                    color = bubbleColor
+                    color = bubbleColor,
+                    shape = bubbleShape,
+                    modifier = Modifier.clip(bubbleShape)
                 ) {
                     Text(
                         text = message.text,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.bodyLarge
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurface
                     )
                 }
                 Text(
-                    text = SimpleDateFormat("HH:mm", androidx.compose.ui.platform.LocalConfiguration.current.locales[0]).format(Date(message.time)),
+                    text = timeStr,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
                 )
             }
 
-            if (message.isMe) {
+            if (isMe) {
                 Spacer(modifier = Modifier.width(8.dp))
                 AsyncImage(
                     model = ImageUtils.getResizedImageUrl(message.fromAvatarUrl, 100),

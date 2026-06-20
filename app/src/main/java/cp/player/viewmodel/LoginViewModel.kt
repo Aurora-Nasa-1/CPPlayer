@@ -11,16 +11,30 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import cp.player.util.UserPreferences
+import com.google.gson.JsonObject
+import cp.player.api.MusicApiService
+import cp.player.api.MusicApiServiceFactory
+import cp.player.provider.BackendProvider
+import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
+import cp.player.util.UserPreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.google.gson.JsonParser
 
+/**
+ * 登录 ViewModel。
+ *
+ * 管理登录流程（扫码/邮箱/手机/游客）以及账号切换。
+ * 提供商感知：所有操作都绑定到当前活跃的 [ProviderManager.currentProvider]。
+ */
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val api: MusicApiService = MusicApiServiceFactory.instance
+
+    // ======================== UI 状态 ========================
 
     var qrCodeBitmap by mutableStateOf<Bitmap?>(null)
     var qrUrl by mutableStateOf<String?>(null)
@@ -28,6 +42,22 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var isLogged by mutableStateOf(false)
     var cookie by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
+
+    /** 当前 Provider 的显示名称（用于 LoginScreen 显示） */
+    var currentProviderName by mutableStateOf(ProviderManager.getCurrentProviderName())
+        private set
+
+    /** 当前 Provider 的 ID */
+    var currentProviderId by mutableStateOf(ProviderManager.getCurrentProviderId())
+        private set
+
+    /** 当前 Provider 的版本号 */
+    var currentProviderVersion by mutableStateOf(ProviderManager.currentProvider?.version ?: "")
+        private set
+
+    /** 所有已加载的 Provider 列表 */
+    var availableProviders by mutableStateOf(ModuleManager.getAvailableProviders())
+        private set
 
     private var checkJob: Job? = null
     private var fetchJob: Job? = null
@@ -38,20 +68,63 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             isLogged = true
             loginStatus = "Already logged in"
         }
+        refreshProviderState()
     }
 
-    fun fetchQrCode() {
-        if (fetchJob?.isActive == true) return
+    // ======================== Provider 管理 ========================
 
-        loginStatus = "Fetching QR Code..."
+    /**
+     * 切换当前 Provider。
+     * 切换后刷新 UI 状态、cookie 和 Provider 信息。
+     */
+    fun switchProvider(provider: BackendProvider) {
+        val context = getApplication<Application>()
+        ProviderManager.switchProvider(provider, context)
+        refreshProviderState()
+
+        // 切换 Provider 后，加载该 Provider 的 cookie
+        cookie = UserPreferences.getCookie(context)
+        if (cookie != null) {
+            isLogged = true
+            loginStatus = "已切换到 ${provider.name}"
+        } else {
+            isLogged = false
+            cookie = null
+            loginStatus = "请登录 ${provider.name}"
+        }
+
+        // 清除旧的 QR 码状态，准备为新提供商获取
+        qrCodeBitmap = null
+        qrUrl = null
+        checkJob?.cancel()
+        fetchJob?.cancel()
+    }
+
+    /**
+     * 刷新 Provider 相关状态。
+     */
+    private fun refreshProviderState() {
+        currentProviderName = ProviderManager.getCurrentProviderName()
+        currentProviderId = ProviderManager.getCurrentProviderId()
+        currentProviderVersion = ProviderManager.currentProvider?.version ?: ""
+        availableProviders = ModuleManager.getAvailableProviders()
+    }
+
+    // ======================== 扫码登录 ========================
+
+    fun fetchQrCode() {
+        // 取消之前的请求，确保新请求能执行
+        fetchJob?.cancel()
+        checkJob?.cancel()
+
+        loginStatus = "获取二维码中..."
         qrCodeBitmap = null
         qrUrl = null
 
         fetchJob = viewModelScope.launch {
             try {
                 Log.d("LoginVM", "Fetching QR key...")
-                val keyResult = withContext(Dispatchers.IO) { ProviderManager.callApi("login/qr/key", emptyMap()) }
-                val keyBody = JsonParser.parseString(keyResult).asJsonObject
+                val keyBody = withContext(Dispatchers.IO) { api.getQrKey() }
                 val key = keyBody?.get("data")?.asJsonObject?.get("unikey")?.asString
                     ?: keyBody?.get("unikey")?.asString
                     ?: run {
@@ -61,8 +134,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                 Log.d("LoginVM", "Creating QR image for key: $key")
-                val qrResult = withContext(Dispatchers.IO) { ProviderManager.callApi("login/qr/create", mapOf("key" to key, "qrimg" to "true")) }
-                val qrBody = JsonParser.parseString(qrResult).asJsonObject
+                val qrBody = withContext(Dispatchers.IO) { api.createQrCode(key) }
                 val qrData = qrBody?.get("data")?.asJsonObject
                 val qrImg = qrData?.get("qrimg")?.asString
                 val qrUrlFromApi = qrData?.get("qrurl")?.asString
@@ -101,16 +173,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ======================== 邮箱/手机登录 ========================
+
     fun loginWithEmail(email: String, pass: String, isMd5: Boolean = false) {
         isLoading = true
         loginStatus = "Logging in..."
         viewModelScope.launch {
             try {
-                val params = mutableMapOf("email" to email)
-                if (isMd5) params["md5_password"] = pass else params["password"] = pass
-                
-                val result = withContext(Dispatchers.IO) { ProviderManager.callApi("login", params) }
-                handleLoginResult(result)
+                val body = withContext(Dispatchers.IO) { api.login(email, pass, isMd5) }
+                handleLoginResult(body)
             } catch (e: Exception) {
                 loginStatus = "Error: ${e.message}"
             } finally {
@@ -124,15 +195,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         loginStatus = "Logging in..."
         viewModelScope.launch {
             try {
-                val params = mutableMapOf("phone" to phone)
-                when {
-                    isCaptcha -> params["captcha"] = passOrCaptcha
-                    isMd5 -> params["md5_password"] = passOrCaptcha
-                    else -> params["password"] = passOrCaptcha
-                }
-                
-                val result = withContext(Dispatchers.IO) { ProviderManager.callApi("login/cellphone", params) }
-                handleLoginResult(result)
+                val body = withContext(Dispatchers.IO) { api.loginWithPhone(phone, passOrCaptcha, isCaptcha, isMd5) }
+                handleLoginResult(body)
             } catch (e: Exception) {
                 loginStatus = "Error: ${e.message}"
             } finally {
@@ -146,8 +210,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         loginStatus = "Sending captcha..."
         viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { ProviderManager.callApi("captcha/sent", mapOf("phone" to phone)) }
-                val body = JsonParser.parseString(result).asJsonObject
+                val body = withContext(Dispatchers.IO) { api.sendCaptcha(phone) }
                 if (body?.get("code")?.asInt == 200) {
                     loginStatus = "Captcha sent"
                 } else {
@@ -161,13 +224,32 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ======================== 游客登录 ========================
+
+    fun loginAnonymous() {
+        isLoading = true
+        loginStatus = "Logging in as guest..."
+        viewModelScope.launch {
+            try {
+                val body = withContext(Dispatchers.IO) { api.loginAnonymous() }
+                handleLoginResult(body)
+            } catch (e: Exception) {
+                loginStatus = "Error: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // ======================== 登出 ========================
+
     fun logout() {
         isLoading = true
         loginStatus = "Logging out..."
         val currentCookie = cookie
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { ProviderManager.callApi("logout", emptyMap()) }
+                withContext(Dispatchers.IO) { api.logout() }
             } catch (e: Exception) {
                 Log.e("LoginVM", "Logout API error", e)
             } finally {
@@ -185,35 +267,83 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
+    // ======================== 账号切换 ========================
+
+    /** 是否正在切换账号（用于 UI 显示加载状态） */
+    var isSwitchingAccount by mutableStateOf(false)
+        private set
+
+    /**
+     * 切换到已保存的账号。
+     * 如果账号属于不同的 Provider，会自动切换 Provider。
+     * 切换成功后自动关闭登录弹窗。
+     */
+    fun switchAccount(account: UserPreferences.SavedAccount) {
+        val context = getApplication<Application>()
+        isSwitchingAccount = true
+
+        // 如果账号属于不同的 Provider，先切换 Provider
+        if (account.providerId.isNotEmpty() && account.providerId != currentProviderId) {
+            ProviderManager.switchProviderById(account.providerId, context)
+            refreshProviderState()
+        }
+
+        cookie = account.cookie
+        UserPreferences.saveCookie(context, account.cookie)
+        isLogged = true
+        loginStatus = "已切换到 ${account.nickname}"
+        isSwitchingAccount = false
+    }
+
+    fun removeSavedAccount(uid: Long, providerId: String? = null) {
+        UserPreferences.removeAccount(getApplication(), uid, providerId)
+    }
+
+    /**
+     * 获取所有已保存的账号（跨提供商）。
+     */
+    fun getAllSavedAccounts(): List<UserPreferences.SavedAccount> {
+        return UserPreferences.getAllSavedAccounts(getApplication())
+    }
+
+    /**
+     * 获取当前提供商下保存的账号。
+     */
+    fun getCurrentProviderAccounts(): List<UserPreferences.SavedAccount> {
+        return UserPreferences.getSavedAccounts(getApplication())
+    }
+
+    /**
+     * 当前提供商是否有已保存的账号。
+     */
+    fun hasCurrentProviderAccounts(): Boolean {
+        return UserPreferences.getSavedAccounts(getApplication()).isNotEmpty()
+    }
+
+    /**
+     * 准备添加新账号。
+     * 清除当前登录状态，但保留提供商上下文。
+     * 调用后 UI 应切换到扫码 Tab 并自动获取 QR 码。
+     */
     fun prepareForNewAccount() {
-        // Clear active session locally without logging out from API
-        // This allows LoginScreen to stay open without auto-navigating away
         isLogged = false
         cookie = null
         UserPreferences.saveCookie(getApplication(), "")
-        loginStatus = "Please log in"
+        qrCodeBitmap = null
+        qrUrl = null
+        checkJob?.cancel()
+        fetchJob?.cancel()
+        loginStatus = "请登录 $currentProviderName"
+        // 自动获取新 QR 码
+        fetchQrCode()
     }
 
-    fun loginAnonymous() {
-        isLoading = true
-        loginStatus = "Logging in as guest..."
-        viewModelScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) { ProviderManager.callApi("register/anonimous", emptyMap()) }
-                handleLoginResult(result)
-            } catch (e: Exception) {
-                loginStatus = "Error: ${e.message}"
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-    
-    private fun handleLoginResult(jsonResult: String) {
+    // ======================== 登录结果处理 ========================
+
+    private fun handleLoginResult(body: JsonObject) {
         try {
-            val body = JsonParser.parseString(jsonResult).asJsonObject
-            if (body?.get("code")?.asInt == 200) {
+            if (body.get("code")?.asInt == 200) {
                 val rawCookie = if (body.has("cookie") && !body.get("cookie").isJsonNull) body.get("cookie").asString else null
                 val newCookie = if (rawCookie.isNullOrEmpty()) "guest_cookie_${System.currentTimeMillis()}" else rawCookie
                 onLoginSuccess(newCookie)
@@ -224,72 +354,69 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             loginStatus = "Parse error"
         }
     }
-    
+
     private fun onLoginSuccess(newCookie: String) {
         cookie = newCookie
         UserPreferences.saveCookie(getApplication(), newCookie)
-        
-        // Fetch user info to save account
+
         viewModelScope.launch {
             try {
-                val statusRes = withContext(Dispatchers.IO) { 
-                    ProviderManager.callApi("login/status", mapOf("cookie" to newCookie)) 
+                val statusBody = withContext(Dispatchers.IO) {
+                    api.getLoginStatus(newCookie)
                 }
-                val statusBody = JsonParser.parseString(statusRes).asJsonObject
                 val profileJson = statusBody.get("data")?.asJsonObject?.get("profile")?.asJsonObject
                     ?: statusBody.get("profile")?.asJsonObject
-                    
+
                 if (profileJson != null) {
                     val uid = profileJson.get("userId")?.asLong ?: 0L
                     val nickname = profileJson.get("nickname")?.asString ?: "User"
                     val avatar = profileJson.get("avatarUrl")?.asString ?: ""
-                    
-                    UserPreferences.saveAccount(
-                        getApplication(),
-                        UserPreferences.SavedAccount(uid, nickname, avatar, newCookie)
-                    )
-                } else {
-                    // If it's a guest login and has no profile
+
                     UserPreferences.saveAccount(
                         getApplication(),
                         UserPreferences.SavedAccount(
-                            uid = System.currentTimeMillis() % 100000, 
-                            nickname = "Guest", 
-                            avatarUrl = "", 
-                            cookie = newCookie
+                            uid = uid,
+                            nickname = nickname,
+                            avatarUrl = avatar,
+                            cookie = newCookie,
+                            providerId = currentProviderId,
+                            providerName = currentProviderName
+                        )
+                    )
+                } else {
+                    UserPreferences.saveAccount(
+                        getApplication(),
+                        UserPreferences.SavedAccount(
+                            uid = System.currentTimeMillis() % 100000,
+                            nickname = "Guest",
+                            avatarUrl = "",
+                            cookie = newCookie,
+                            providerId = currentProviderId,
+                            providerName = currentProviderName
                         )
                     )
                 }
             } catch (e: Exception) {
                 Log.e("LoginVM", "Failed to fetch profile for saved account", e)
-                // Save fallback guest account if network fails
                 UserPreferences.saveAccount(
                     getApplication(),
                     UserPreferences.SavedAccount(
-                        uid = System.currentTimeMillis() % 100000, 
-                        nickname = "Guest", 
-                        avatarUrl = "", 
-                        cookie = newCookie
+                        uid = System.currentTimeMillis() % 100000,
+                        nickname = "Guest",
+                        avatarUrl = "",
+                        cookie = newCookie,
+                        providerId = currentProviderId,
+                        providerName = currentProviderName
                     )
                 )
             }
-            
+
             isLogged = true
             loginStatus = "Login success!"
         }
     }
-    
-    fun switchAccount(account: UserPreferences.SavedAccount) {
-        cookie = account.cookie
-        UserPreferences.saveCookie(getApplication(), account.cookie)
-        isLogged = true
-        loginStatus = "Switched to ${account.nickname}"
-    }
 
-    fun removeSavedAccount(uid: Long) {
-        UserPreferences.removeAccount(getApplication(), uid)
-        // Note: You can trigger a UI refresh by exposing savedAccounts as a state if needed
-    }
+    // ======================== 扫码状态检查 ========================
 
     private fun startChecking(key: String) {
         checkJob?.cancel()
@@ -298,8 +425,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(3000)
                 try {
-                    val statusResult = withContext(Dispatchers.IO) { ProviderManager.callApi("login/qr/check", mapOf("key" to key)) }
-                    val body = JsonParser.parseString(statusResult).asJsonObject
+                    val body = withContext(Dispatchers.IO) { api.checkQrStatus(key) }
                     val code = body?.get("code")?.asInt ?: 0
                     Log.d("LoginVM", "QR status code: $code")
                     when (code) {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.List
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -31,6 +32,10 @@ fun PlaylistOptionsBottomSheet(
     onAddToQueueClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onDeleteClick: (() -> Unit)? = null,
+    onUnsubscribeClick: (() -> Unit)? = null,
+    isOwner: Boolean = true,
+    currentSortType: String = "default",
+    onSortDefaultClick: (() -> Unit)? = null,
     onSortByNameClick: (() -> Unit)? = null,
     onSortByArtistClick: (() -> Unit)? = null
 ) {
@@ -82,7 +87,7 @@ fun PlaylistOptionsBottomSheet(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Icon(Icons.Rounded.QueueMusic, null, modifier = Modifier.padding(16.dp))
+                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, null, modifier = Modifier.padding(16.dp))
                     }
                 }
 
@@ -157,8 +162,30 @@ fun PlaylistOptionsBottomSheet(
                     }
                 }
                 
-                // Delete (optional)
-                if (onDeleteClick != null) {
+                // Delete / Unsubscribe (optional)
+                if (!isOwner && onUnsubscribeClick != null) {
+                    // 收藏的歌单 → 取消收藏
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clickable {
+                                onUnsubscribeClick()
+                                onDismissRequest()
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.BookmarkRemove,
+                                contentDescription = "Unsubscribe",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                } else if (isOwner && onDeleteClick != null) {
+                    // 自己创建的歌单 → 删除
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.errorContainer,
@@ -210,18 +237,61 @@ fun PlaylistOptionsBottomSheet(
             }
             
             // Optional Sort Row
-            if (onSortByNameClick != null || onSortByArtistClick != null) {
+            if (onSortDefaultClick != null || onSortByNameClick != null || onSortByArtistClick != null) {
+                // 标题
+                Text(
+                    text = "排序方式",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (onSortByNameClick != null) {
+                    // 默认排序
+                    if (onSortDefaultClick != null) {
+                        val isSelected = currentSortType == "default"
                         Surface(
                             shape = RoundedCornerShape(32.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
+                                .height(56.dp)
+                                .clickable {
+                                    onSortDefaultClick()
+                                    onDismissRequest()
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.List,
+                                    contentDescription = "Default sort",
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "默认",
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                    // 按名称排序
+                    if (onSortByNameClick != null) {
+                        val isSelected = currentSortType == "name"
+                        Surface(
+                            shape = RoundedCornerShape(32.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
                                 .clickable {
                                     onSortByNameClick()
                                     onDismissRequest()
@@ -232,19 +302,30 @@ fun PlaylistOptionsBottomSheet(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Rounded.SortByAlpha, contentDescription = "Sort by name", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("By Name", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Icon(
+                                    Icons.Rounded.SortByAlpha,
+                                    contentDescription = "Sort by name",
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "按名称",
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
                             }
                         }
                     }
+                    // 按艺术家排序
                     if (onSortByArtistClick != null) {
+                        val isSelected = currentSortType == "artist"
                         Surface(
                             shape = RoundedCornerShape(32.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(64.dp)
+                                .height(56.dp)
                                 .clickable {
                                     onSortByArtistClick()
                                     onDismissRequest()
@@ -255,9 +336,18 @@ fun PlaylistOptionsBottomSheet(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Rounded.Person, contentDescription = "Sort by artist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("By Artist", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Icon(
+                                    Icons.Rounded.Person,
+                                    contentDescription = "Sort by artist",
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "按歌手",
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
                             }
                         }
                     }

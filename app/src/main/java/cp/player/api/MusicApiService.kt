@@ -1,0 +1,275 @@
+package cp.player.api
+
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import cp.player.provider.ProviderManager
+import cp.player.util.UserPreferences
+
+/**
+ * 统一的音乐 API 服务。
+ *
+ * **这是应用内所有音乐 API 调用的唯一入口。**
+ *
+ * ### 设计原则
+ * 1. 所有 API 调用都通过此接口进行，禁止直接调用 [ProviderManager]
+ * 2. 方法签名返回 [JsonObject]，由调用方（Repository 层）解析为领域模型
+ * 3. 内部自动注入 cookie，调用方无需手动传递
+ * 4. 错误统一返回 `{"code": 500, "msg": "..."}` 格式的 JSON
+ *
+ * ### 调用链路
+ * ```
+ * ViewModel → Repository → MusicApiService → ProviderManager → BackendProvider
+ * ```
+ *
+ * @see MusicApiMethod 所有 API 方法名常量
+ */
+interface MusicApiService {
+
+    // ======================== 通用 ========================
+
+    /**
+     * 通用 API 调用。当需要调用 [MusicApiMethod] 中未覆盖的新增接口时使用。
+     *
+     * @param method API 方法名（应来自 [MusicApiMethod] 或与后端约定的路径）
+     * @param params 请求参数
+     * @param cookie 认证 cookie，null 时使用默认 cookie
+     * @return JSON 响应
+     */
+    fun callApi(
+        method: String,
+        params: Map<String, String> = emptyMap(),
+        cookie: String? = null
+    ): JsonObject
+
+    // ======================== 认证 Auth ========================
+
+    /** 获取扫码登录的二维码 key */
+    fun getQrKey(): JsonObject
+
+    /** 创建二维码图片 */
+    fun createQrCode(key: String): JsonObject
+
+    /** 检查扫码登录状态 */
+    fun checkQrStatus(key: String): JsonObject
+
+    /** 邮箱登录 */
+    fun login(email: String, password: String, md5: Boolean = false): JsonObject
+
+    /** 手机号登录 */
+    fun loginWithPhone(
+        phone: String,
+        password: String,
+        captcha: Boolean = false,
+        md5: Boolean = false
+    ): JsonObject
+
+    /** 发送验证码 */
+    fun sendCaptcha(phone: String): JsonObject
+
+    /** 登出 */
+    fun logout(): JsonObject
+
+    /** 游客登录 */
+    fun loginAnonymous(): JsonObject
+
+    /** 获取当前登录状态 */
+    fun getLoginStatus(cookie: String? = null): JsonObject
+
+    // ======================== 用户 User ========================
+
+    /** 获取用户歌单列表（包含创建的和收藏的） */
+    fun getUserPlaylists(uid: Long): JsonObject
+
+    /** 获取用户创建的歌单列表 */
+    fun getUserCreatedPlaylists(uid: Long): JsonObject
+
+    /** 获取用户收藏的歌单列表 */
+    fun getUserCollectedPlaylists(uid: Long): JsonObject
+
+    /** 获取用户详情 */
+    fun getUserDetail(uid: Long): JsonObject
+
+    /** 获取用户云盘歌曲 */
+    fun getUserCloud(limit: Int = 100): JsonObject
+
+    /** 获取喜欢的音乐 ID 列表 */
+    fun getLikeList(uid: Long): JsonObject
+
+    /** 喜欢/取消喜欢歌曲 */
+    fun likeSong(id: String, like: Boolean): JsonObject
+
+    /** 获取每日推荐歌曲 */
+    fun getRecommendedSongs(): JsonObject
+
+    /** 获取推荐歌单 */
+    fun getRecommendedPlaylists(): JsonObject
+
+    /** 不喜欢推荐歌曲 */
+    fun dislikeSong(id: String): JsonObject
+
+    // ======================== 歌单 Playlist ========================
+
+    /** 获取歌单详情 */
+    fun getPlaylistDetail(id: Long): JsonObject
+
+    /** 获取歌单全部歌曲 */
+    fun getPlaylistTracks(id: Long, limit: Int = 1000, offset: Int = 0): JsonObject
+
+    /** 添加歌曲到歌单 */
+    fun addTracksToPlaylist(pid: Long, trackIds: List<String>): JsonObject
+
+    /** 从歌单删除歌曲 */
+    fun removeTracksFromPlaylist(pid: Long, trackIds: List<String>): JsonObject
+
+    /** 创建歌单 */
+    fun createPlaylist(name: String, privacy: Int = 0): JsonObject
+
+    /** 删除歌单 */
+    fun deletePlaylist(id: Long): JsonObject
+
+    /**
+     * 收藏/取消收藏歌单。
+     * @param t 1=收藏, 2=取消收藏
+     */
+    fun subscribePlaylist(id: Long, t: Int): JsonObject
+
+    // ======================== 专辑 Album ========================
+
+    /** 获取专辑详情（含歌曲列表） */
+    fun getAlbumDetail(id: Long): JsonObject
+
+    // ======================== 歌手 Artist ========================
+
+    /** 获取歌手详情 */
+    fun getArtistDetail(id: Long): JsonObject
+
+    /** 获取歌手歌曲列表 */
+    fun getArtistSongs(id: Long, limit: Int = 50): JsonObject
+
+    /** 获取歌手专辑列表 */
+    fun getArtistAlbums(id: Long, limit: Int = 20): JsonObject
+
+    // ======================== 搜索 Search ========================
+
+    /**
+     * 云搜索
+     * @param type 1=单曲, 1000=歌单, 100=歌手, 10=专辑, 1014=视频
+     */
+    fun search(keywords: String, type: Int = 1): JsonObject
+
+    /** 获取热搜详情 */
+    fun getHotSearches(): JsonObject
+
+    /** 获取搜索建议 */
+    fun getSearchSuggestions(keywords: String): JsonObject
+
+    // ======================== 播放 Playback ========================
+
+    /**
+     * 获取歌曲播放 URL（302 重定向版本，优先使用）
+     *
+     * @param songId 歌曲 ID
+     * @param level 音质等级: standard / higher / exhigh / lossless / hires / jyeffect / jymaster / sky / immersive / dolby
+     */
+    fun getSongUrl(songId: String, level: String = "standard"): JsonObject
+
+    /**
+     * 获取歌曲播放 URL（直接返回版本，302 失败时降级使用）
+     */
+    fun getSongUrlFallback(songId: String, level: String = "standard"): JsonObject
+
+    /**
+     * 获取歌曲下载 URL
+     */
+    fun getSongDownloadUrl(songId: String, level: String = "standard"): JsonObject
+
+    /** 获取歌曲详情（可批量） */
+    fun getSongDetail(ids: List<String>): JsonObject
+
+    /** 获取私人 FM 歌曲 */
+    fun getPersonalFm(): JsonObject
+
+    /** 获取心动模式/智能播放列表 */
+    fun getIntelligenceList(songId: String, playlistId: Long): JsonObject
+
+    /** 获取歌词 */
+    fun getLyric(songId: String): JsonObject
+
+    // ======================== 社交 Social ========================
+
+    /**
+     * 根据类型获取对应的评论 API 方法名
+     */
+    fun getCommentMethod(type: String): String {
+        return when (type) {
+            "music" -> MusicApiMethod.COMMENT_MUSIC
+            "playlist" -> MusicApiMethod.COMMENT_PLAYLIST
+            "album" -> MusicApiMethod.COMMENT_ALBUM
+            "mv" -> MusicApiMethod.COMMENT_MV
+            "dj" -> MusicApiMethod.COMMENT_DJ
+            "video" -> MusicApiMethod.COMMENT_VIDEO
+            else -> MusicApiMethod.COMMENT_MUSIC
+        }
+    }
+
+    /**
+     * 获取评论列表
+     * @param id 资源 ID
+     * @param type 资源类型: music / playlist / album / mv / dj / video
+     * @param limit 每页数量
+     * @param offset 偏移量
+     */
+    fun getComments(id: String, type: String = "music", limit: Int = 20, offset: Int = 0, sortType: Int = 1): JsonObject
+
+    /**
+     * 获取楼层评论
+     * @param id 资源 ID
+     * @param parentCommentId 父评论 ID
+     * @param type 资源类型
+     * @param limit 每页数量
+     * @param time 翻页游标
+     */
+    fun getFloorComments(
+        id: String,
+        parentCommentId: Long,
+        type: String = "music",
+        limit: Int = 20,
+        time: Long = 0
+    ): JsonObject
+
+    /**
+     * 点赞评论
+     * @param id 资源 ID
+     * @param cid 评论 ID
+     * @param type 资源类型
+     * @param liked true=点赞, false=取消点赞
+     */
+    fun likeComment(id: String, cid: Long, type: String, liked: Boolean): JsonObject
+
+    /**
+     * 发表/回复评论
+     * @param id 资源 ID
+     * @param type 资源类型
+     * @param content 评论内容
+     * @param replyId 回复的评论 ID，null 表示发表新评论
+     */
+    fun postComment(id: String, type: String, content: String, replyId: Long? = null): JsonObject
+
+    /** 获取未读消息数 */
+    fun getUnreadCount(): JsonObject
+
+    /** 获取最近联系人 */
+    fun getRecentContacts(): JsonObject
+
+    /** 获取私信列表 */
+    fun getPrivateMessages(): JsonObject
+
+    /** 获取与某人的私信历史 */
+    fun getMessageHistory(uid: Long): JsonObject
+
+    /** 标记私信已读 */
+    fun markMessageAsRead(uid: Long): JsonObject
+
+    /** 发送文本消息 */
+    fun sendMessage(uid: Long, text: String): JsonObject
+}

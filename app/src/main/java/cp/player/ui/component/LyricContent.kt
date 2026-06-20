@@ -1,152 +1,111 @@
 package cp.player.ui.component
 
-import cp.player.model.LyricLine
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
+import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.res.stringResource
-import cp.player.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cp.player.R
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+/**
+ * 歌词显示组件。
+ *
+ * 直接接收 [SyncedLyrics] 格式，无需内部转换。
+ * 由 [cp.player.lyrics.LyricsManager] 统一提供数据。
+ */
 @Composable
 fun LyricContent(
-    lyrics: List<LyricLine>,
+    syncedLyrics: SyncedLyrics?,
     currentPosition: Long,
     modifier: Modifier = Modifier,
-    textAlign: TextAlign = TextAlign.Start,
+    showTranslation: Boolean = true,
+    showPhonetic: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(top = 100.dp, bottom = 600.dp, start = 24.dp, end = 24.dp)
 ) {
-    val listState = rememberLazyListState()
-
-    val activeIndex = remember(currentPosition, lyrics) {
-        val index = lyrics.indexOfLast { it.time <= currentPosition }
-        if (index == -1) 0 else index
-    }
-
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-
-    LaunchedEffect(activeIndex) {
-        if (lyrics.isNotEmpty() && activeIndex >= 0) {
-            // Move active lyric to the upper part of the screen (around 1/5 from top for better visibility)
-            listState.animateScrollToItem(
-                index = activeIndex,
-                scrollOffset = -(screenHeightPx / 5.0).toInt()
+    if (syncedLyrics == null || syncedLyrics.lines.isEmpty()) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.no_lyrics),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
+        return
     }
 
-    val textColor = MaterialTheme.colorScheme.onSurface
+    val listState = rememberLazyListState()
 
-    if (lyrics.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_lyrics), color = textColor.copy(alpha = 0.5f))
-        }
-    } else {
-        LazyColumn(
-            state = listState,
-            modifier = modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
-        ) {
-            itemsIndexed(lyrics) { index, line ->
-                val isActive = index == activeIndex
-                val alpha by animateFloatAsState(
-                    targetValue = if (isActive) 1f else 0.4f,
-                    animationSpec = tween(500)
-                )
-                val scale by animateFloatAsState(
-                    targetValue = if (isActive) 1.05f else 1.0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
-                )
+    // 使用 rememberUpdatedState 确保 lambda 始终读取最新的 currentPosition
+    val latestPosition by rememberUpdatedState(currentPosition)
+    val currentPositionProvider = remember {
+        { latestPosition.toInt() }
+    }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            this.alpha = alpha
-                        },
-                    horizontalAlignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
-                ) {
-                    if (line.words != null && isActive) {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (textAlign == TextAlign.Center) Arrangement.Center else Arrangement.Start
-                        ) {
-                            line.words.forEach { word ->
-                                val isWordActive = currentPosition >= word.beginTime
-                                val wordAlpha by animateFloatAsState(
-                                    targetValue = if (isWordActive) 1f else 0.3f,
-                                    animationSpec = tween(200)
-                                )
-                                Text(
-                                    text = word.text,
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        lineHeight = 36.sp,
-                                        fontSize = 28.sp
-                                    ),
-                                    color = textColor.copy(alpha = wordAlpha),
-                                    textAlign = textAlign
-                                )
-                            }
-                        }
-                    } else {
-                        Text(
-                            text = line.text,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                lineHeight = 36.sp,
-                                fontSize = 28.sp
-                            ),
-                            color = textColor,
-                            textAlign = textAlign
-                        )
-                    }
-                    if (!line.romanization.isNullOrEmpty()) {
-                        Text(
-                            text = line.romanization,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                lineHeight = 20.sp,
-                                fontSize = 14.sp
-                            ),
-                            color = textColor.copy(alpha = 0.6f),
-                            textAlign = textAlign,
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
-                    }
-                    if (!line.translation.isNullOrEmpty()) {
-                        Text(
-                            text = line.translation,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                lineHeight = 28.sp,
-                                fontSize = 20.sp
-                            ),
-                            color = textColor.copy(alpha = 0.7f),
-                            textAlign = textAlign,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
+    val currentTextStyle = MaterialTheme.typography.headlineMedium
+    val normalStyle = remember(currentTextStyle) {
+        currentTextStyle.copy(
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 36.sp,
+            textMotion = TextMotion.Animated,
+        )
+    }
+
+    val accompanimentStyle = remember(currentTextStyle) {
+        currentTextStyle.copy(
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            textMotion = TextMotion.Animated,
+        )
+    }
+
+    val phoneticTextStyle = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+    )
+
+    KaraokeLyricsView(
+        listState = listState,
+        lyrics = syncedLyrics,
+        currentPosition = currentPositionProvider,
+        onLineClicked = { /* 点击歌词行可扩展为跳转 */ },
+        onLinePressed = { /* 长按歌词行可扩展为分享 */ },
+        normalLineTextStyle = normalStyle,
+        accompanimentLineTextStyle = accompanimentStyle,
+        phoneticTextStyle = phoneticTextStyle,
+        textColor = MaterialTheme.colorScheme.onSurface,
+        showTranslation = showTranslation,
+        showPhonetic = showPhonetic,
+        useBlurEffect = false,
+        modifier = modifier.fillMaxSize(),
+        offset = contentPadding.calculateTopPadding()
+    )
+}
+
+/**
+ * 从 SyncedLyrics 中提取当前歌词行文本。
+ * 用于扩展封面模式下显示当前歌词。
+ */
+fun SyncedLyrics?.getCurrentLineText(positionMs: Long): String? {
+    this ?: return null
+    val pos = positionMs.toInt()
+    var active: com.mocharealm.accompanist.lyrics.core.model.ISyncedLine? = null
+    for (line in lines) {
+        if (line.start <= pos) active = line else break
+    }
+    return when (active) {
+        is com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine ->
+            active.syllables.joinToString("") { it.content }
+        is com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine ->
+            active.content
+        else -> null
     }
 }

@@ -2,27 +2,22 @@ package cp.player.ui.screen
 
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -30,17 +25,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cp.player.R
 import coil3.compose.AsyncImage
+import cp.player.util.FormatUtils
 import cp.player.util.ImageUtils
 import cp.player.model.Playlist
 import cp.player.model.Song
-import androidx.compose.foundation.shape.CircleShape
 import cp.player.ui.component.SongItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
@@ -51,6 +46,9 @@ import cp.player.ui.component.AppScaffold
 fun PlaylistDetailScreen(
     playlist: Playlist,
     songs: List<Song>,
+    hasMoreSongs: Boolean = false,
+    isFetchingMore: Boolean = false,
+    onLoadMore: () -> Unit = {},
     favoriteSongs: List<String>,
     allPlaylists: List<Playlist>,
     isLoading: Boolean,
@@ -61,7 +59,10 @@ fun PlaylistDetailScreen(
     onAddToPlaylist: (List<String>, Long) -> Unit,
     onRemoveFromPlaylist: (List<String>) -> Unit,
     onBatchDownload: (List<Song>) -> Unit,
+    onFetchSourcePlaylistSongs: (suspend (Long) -> List<Song>)? = null,
+    playbackQueue: List<Song> = emptyList(),
     completedSongs: Set<String> = emptySet(),
+    currentSongId: String? = null,
     isFirstDownload: Boolean = false,
     onDownloadQualityChange: (String) -> Unit = {},
     onSortChange: (String) -> Unit = {},
@@ -72,10 +73,29 @@ fun PlaylistDetailScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(scrollState)
     var selectedSongs by remember { mutableStateOf(setOf<String>()) }
     var isSelectionMode by remember { mutableStateOf(false) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showImportSourcePicker by remember { mutableStateOf(false) }
+    var showImportSourceOptions by remember { mutableStateOf(false) }
+    var showMultiSelectAddToPlaylist by remember { mutableStateOf(false) }
+    var sourcePlaylistForImport by remember { mutableStateOf<Playlist?>(null) }
+    var showQueueSongSelection by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var pendingDownloadSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    // 排序类型: "default"(默认顺序), "name"(按名称), "artist"(按艺术家)
+    var currentSortType by remember { mutableStateOf("default") }
+
+    // 根据排序类型对歌曲进行排序
+    val sortedSongs = remember(songs, currentSortType) {
+        when (currentSortType) {
+            "name" -> songs.sortedBy { it.name.lowercase() }
+            "artist" -> songs.sortedBy { it.artist.lowercase() }
+            else -> songs  // default: 保持原序
+        }
+    }
+
+    val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
+    val durationStr = FormatUtils.formatTime(totalDurationMs)
+    val favoriteSongsSet = remember(favoriteSongs) { favoriteSongs.toSet() }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
@@ -83,6 +103,7 @@ fun PlaylistDetailScreen(
     }
 
     if (isSelectionMode) {
+        val context = androidx.compose.ui.platform.LocalContext.current
         AppScaffold(
             title = stringResource(R.string.selected_count, selectedSongs.size),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -96,14 +117,23 @@ fun PlaylistDetailScreen(
             },
             actions = {
                 IconButton(onClick = {
-                    val selectedList = songs.filter { selectedSongs.contains(it.id) }
+                    val selectedList = sortedSongs.filter { selectedSongs.contains(it.id) }
+                    onBatchDownload(selectedList)
+                    isSelectionMode = false
+                    selectedSongs = emptySet()
+                }) {
+                    Icon(Icons.Default.Download, contentDescription = "Download")
+                }
+                IconButton(onClick = {
+                    val selectedList = sortedSongs.filter { selectedSongs.contains(it.id) }
                     onQueueAllClick(selectedList)
+                    android.widget.Toast.makeText(context, context.getString(R.string.added_to_queue, selectedList.size), android.widget.Toast.LENGTH_SHORT).show()
                     isSelectionMode = false
                     selectedSongs = emptySet()
                 }) {
                     Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Queue")
                 }
-                IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                IconButton(onClick = { showMultiSelectAddToPlaylist = true }) {
                     Icon(Icons.Default.Add, contentDescription = "Add to Playlist")
                 }
                 IconButton(onClick = {
@@ -119,12 +149,17 @@ fun PlaylistDetailScreen(
                 innerPadding = innerPadding,
                 bottomContentPadding = bottomContentPadding,
                 isLoading = isLoading,
-                songs = songs,
+                songs = sortedSongs,
+                hasMoreSongs = hasMoreSongs,
+                isFetchingMore = isFetchingMore,
+                onLoadMore = onLoadMore,
                 playlist = playlist,
                 isSelectionMode = isSelectionMode,
                 selectedSongs = selectedSongs,
-                favoriteSongs = favoriteSongs,
+                favoriteSongs = favoriteSongsSet,
                 completedSongs = completedSongs,
+                currentSongId = currentSongId,
+                durationStr = durationStr,
                 onPlayAllClick = onPlayAllClick,
                 onLikeClick = onLikeClick,
                 onSongClick = onSongClick,
@@ -134,16 +169,64 @@ fun PlaylistDetailScreen(
                 onToggleSelectionMode = {
                     isSelectionMode = it
                     if (!it) selectedSongs = emptySet()
-                }
+                },
+                onAddToPlaylistClick = { showImportSourceOptions = true },
+                onBatchDownload = onBatchDownload
             )
         }
     } else {
         AppScaffold(
-            title = stringResource(R.string.playlist),
+            title = {
+                val collapsedFraction = scrollBehavior.state.collapsedFraction
+                val isCollapsed = collapsedFraction > 0.5f
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!isCollapsed) {
+                        Surface(
+                            modifier = Modifier.size(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shadowElevation = 2.dp
+                        ) {
+                            if (playlist.coverImgUrl != null) {
+                                AsyncImage(
+                                    model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 200),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                    }
+                    Column {
+                        Text(
+                            text = playlist.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val displayCount = if (playlist.trackCount > 0) playlist.trackCount else songs.size
+                        Text(
+                            text = "$displayCount Song${if (displayCount != 1) "s" else ""} • $durationStr",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
             onBackPressed = onBackPressed,
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             actions = {
-                IconButton(onClick = { showSortMenu = true }) {
+                FilledIconButton(
+                    onClick = { showSortMenu = true },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More")
                 }
                 val context = androidx.compose.ui.platform.LocalContext.current
@@ -151,8 +234,8 @@ fun PlaylistDetailScreen(
                     cp.player.ui.component.PlaylistOptionsBottomSheet(
                         playlist = playlist,
                         onDismissRequest = { showSortMenu = false },
-                        onPlayClick = { onPlayAllClick(songs) },
-                        onAddToQueueClick = { onQueueAllClick(songs) },
+                        onPlayClick = { onPlayAllClick(sortedSongs) },
+                        onAddToQueueClick = { onQueueAllClick(sortedSongs) },
                         onShareClick = {
                             val shareIntent = android.content.Intent().apply {
                                 action = android.content.Intent.ACTION_SEND
@@ -161,8 +244,19 @@ fun PlaylistDetailScreen(
                             }
                             context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
                         },
-                        onSortByNameClick = { onSortChange("name") },
-                        onSortByArtistClick = { onSortChange("artist") }
+                        currentSortType = currentSortType,
+                        onSortDefaultClick = {
+                            currentSortType = "default"
+                            onSortChange("default")
+                        },
+                        onSortByNameClick = {
+                            currentSortType = "name"
+                            onSortChange("name")
+                        },
+                        onSortByArtistClick = {
+                            currentSortType = "artist"
+                            onSortChange("artist")
+                        }
                     )
                 }
             },
@@ -172,12 +266,17 @@ fun PlaylistDetailScreen(
                 innerPadding = innerPadding,
                 bottomContentPadding = bottomContentPadding,
                 isLoading = isLoading,
-                songs = songs,
+                songs = sortedSongs,
+                hasMoreSongs = hasMoreSongs,
+                isFetchingMore = isFetchingMore,
+                onLoadMore = onLoadMore,
                 playlist = playlist,
                 isSelectionMode = isSelectionMode,
                 selectedSongs = selectedSongs,
-                favoriteSongs = favoriteSongs,
+                favoriteSongs = favoriteSongsSet,
                 completedSongs = completedSongs,
+                currentSongId = currentSongId,
+                durationStr = durationStr,
                 onPlayAllClick = onPlayAllClick,
                 onLikeClick = onLikeClick,
                 onSongClick = onSongClick,
@@ -187,9 +286,127 @@ fun PlaylistDetailScreen(
                 onToggleSelectionMode = {
                     isSelectionMode = it
                     if (!it) selectedSongs = emptySet()
-                }
+                },
+                onAddToPlaylistClick = { showImportSourceOptions = true },
+                onBatchDownload = onBatchDownload
             )
         }
+    }
+
+    // Header "Add" - Import source options
+    if (showImportSourceOptions) {
+        ModalBottomSheet(
+            onDismissRequest = { showImportSourceOptions = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp).padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.add_songs),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                // From other playlists
+                Surface(
+                    onClick = {
+                        showImportSourceOptions = false
+                        showImportSourcePicker = true
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.import_from_playlist), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                // From current queue
+                Surface(
+                    onClick = {
+                        showImportSourceOptions = false
+                        showQueueSongSelection = true
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.add_from_queue), color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+
+    // Multi-select: Add to other playlist
+    if (showMultiSelectAddToPlaylist) {
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = allPlaylists,
+            onDismissRequest = { showMultiSelectAddToPlaylist = false },
+            onPlaylistSelected = { p ->
+                onAddToPlaylist(selectedSongs.toList(), p.id)
+                showMultiSelectAddToPlaylist = false
+                isSelectionMode = false
+                selectedSongs = emptySet()
+            }
+        )
+    }
+
+    // Import from queue: song selection
+    if (showQueueSongSelection) {
+        cp.player.ui.component.SourceSongsSelectionBottomSheet(
+            sourceName = stringResource(R.string.now_playing),
+            initialSongs = playbackQueue,
+            onDismissRequest = { showQueueSongSelection = false },
+            onAddSelected = { selectedIds ->
+                onAddToPlaylist(selectedIds, playlist.id)
+                showQueueSongSelection = false
+            }
+        )
+    }
+
+    // Import from playlist: source picker
+    if (showImportSourcePicker) {
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = allPlaylists,
+            onDismissRequest = { showImportSourcePicker = false },
+            excludePlaylistId = playlist.id,
+            title = stringResource(R.string.import_from_playlist),
+            onPlaylistSelected = { p ->
+                showImportSourcePicker = false
+                sourcePlaylistForImport = p
+            }
+        )
+    }
+
+    // Import from playlist: song selection
+    val currentSourcePlaylist = sourcePlaylistForImport
+    if (currentSourcePlaylist != null && onFetchSourcePlaylistSongs != null) {
+        cp.player.ui.component.SourceSongsSelectionBottomSheet(
+            sourceName = currentSourcePlaylist.name,
+            fetchSongs = { onFetchSourcePlaylistSongs(currentSourcePlaylist.id) },
+            onDismissRequest = { sourcePlaylistForImport = null },
+            onAddSelected = { selectedIds ->
+                onAddToPlaylist(selectedIds, playlist.id)
+                sourcePlaylistForImport = null
+            }
+        )
     }
 }
 
@@ -200,16 +417,23 @@ private fun PlaylistDetailContent(
     bottomContentPadding: PaddingValues,
     isLoading: Boolean,
     songs: List<Song>,
+    hasMoreSongs: Boolean = false,
+    isFetchingMore: Boolean = false,
+    onLoadMore: () -> Unit = {},
     playlist: Playlist,
     isSelectionMode: Boolean,
     selectedSongs: Set<String>,
-    favoriteSongs: List<String>,
+    favoriteSongs: Set<String>,
     completedSongs: Set<String>,
+    currentSongId: String? = null,
+    durationStr: String,
     onPlayAllClick: (List<Song>) -> Unit,
     onLikeClick: (Song) -> Unit,
     onSongClick: (Song) -> Unit,
     onSelectionChange: (String, Boolean) -> Unit,
-    onToggleSelectionMode: (Boolean) -> Unit
+    onToggleSelectionMode: (Boolean) -> Unit,
+    onAddToPlaylistClick: () -> Unit = {},
+    onBatchDownload: (List<Song>) -> Unit = {}
 ) {
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
@@ -229,15 +453,34 @@ private fun PlaylistDetailContent(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             if (!isSelectionMode) {
-                item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
+                item { 
+                    PlaylistHeader(
+                        playlist = playlist,
+                        songs = songs,
+                        durationStr = durationStr,
+                        onPlayAllClick = { onPlayAllClick(songs) },
+                        onShuffleClick = { onPlayAllClick(songs.shuffled()) },
+                        onAddClick = onAddToPlaylistClick,
+                        onReorderClick = { onToggleSelectionMode(true) } // For now, just selection mode for reorder too
+                    ) 
+                }
             }
 
             itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
+                if (index >= songs.size - 5 && hasMoreSongs && !isFetchingMore) {
+                    LaunchedEffect(index) {
+                        onLoadMore()
+                    }
+                }
+                
                 val isSelected = selectedSongs.contains(song.id)
-                                SongItem(
+                SongItem(
                     song = song,
+                    index = index,
+                    total = songs.size,
                     isFavorite = favoriteSongs.contains(song.id),
                     isDownloaded = completedSongs.contains(song.id),
+                    isCurrentlyPlaying = song.id == currentSongId,
                     onOptionsClick = if (!isSelectionMode) { { selectedSongForOptions = song } } else null,
                     onClick = {
                         if (isSelectionMode) {
@@ -262,6 +505,19 @@ private fun PlaylistDetailContent(
                     containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                 )
             }
+            
+            if (isFetchingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
+                }
+            }
         }
     }
 
@@ -269,6 +525,7 @@ private fun PlaylistDetailContent(
         cp.player.ui.component.SongOptionsBottomSheet(
             song = song,
             isFavorite = favoriteSongs.contains(song.id),
+            isDownloaded = completedSongs.contains(song.id),
             onDismissRequest = { selectedSongForOptions = null },
             onPlayClick = {
                 onSongClick(song)
@@ -277,58 +534,129 @@ private fun PlaylistDetailContent(
             onFavoriteClick = {
                 onLikeClick(song)
                 selectedSongForOptions = null
+            },
+            onDownloadClick = {
+                onBatchDownload(listOf(song))
+                selectedSongForOptions = null
             }
         )
     }
 }
 
 @Composable
-fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
+fun PlaylistHeader(
+    playlist: Playlist,
+    songs: List<Song>,
+    durationStr: String,
+    onPlayAllClick: () -> Unit,
+    onShuffleClick: () -> Unit = {},
+    onAddClick: () -> Unit = {},
+    onReorderClick: () -> Unit = {}
+) {
     Column(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        Surface(modifier = Modifier.size(200.dp), shape = MaterialTheme.shapes.medium, shadowElevation = 8.dp) {
-            if (playlist.coverImgUrl != null) {
-                AsyncImage(model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 400), contentDescription = null, contentScale = ContentScale.Crop)
-            } else {
-                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(64.dp))
+        // Buttons Row 1: Play and Shuffle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Play Button
+            Surface(
+                onClick = onPlayAllClick,
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.weight(1f).height(56.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Play",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Play it",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            
+            // Shuffle Button
+            Surface(
+                onClick = onShuffleClick,
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.weight(1f).height(56.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Shuffle",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = playlist.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // MD3E Containment for main actions
-        Surface(shape = MaterialTheme.shapes.extraLarge, // Rounded Container
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth().height(64.dp)
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Buttons Row 2: Add, Reorder
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                onClick = onAddClick,
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.weight(1.2f).height(48.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.songs_count, playlist.trackCount),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
-                    }
-                    Button(
-                        onClick = onPlayAllClick, shape = MaterialTheme.shapes.extraLarge,
-                        contentPadding = PaddingValues(horizontal = 24.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Play All") // Sentence case
-                    }
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                }
+            }
+            
+            Surface(
+                onClick = onReorderClick,
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.weight(1.2f).height(48.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Reorder", tint = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reorder", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                 }
             }
         }

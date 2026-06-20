@@ -25,6 +25,10 @@
     <string name="bitrate">ビットレート: %1$d kbps</string>
     <string name="bitrate_na">ビットレート: なし</string>
     <string name="add_to_playlist">プレイリストに追加</string>
+    <string name="import_from_playlist">プレイリストからインポート</string>
+    <string name="add_songs">曲を追加</string>
+    <string name="add_from_queue">キューから追加</string>
+    <string name="added_to_queue">%1$d 曲をキューに追加しました</string>
     <string name="sleep_timer">スリープタイマー</string>
     <string name="playing">再生中</string>
     <string name="app_logs">アプリログ</string>
@@ -88,6 +92,7 @@
     <string name="cellular_caching_desc">モバイルデータ再生中に曲をキャッシュする</string>
     <string name="max_cache_size">最大キャッシュサイズ: %1$dMB</string>
     <string name="debug">デバッグ</string>
+    <string name="health_status">ヘルスステータス</string>
     <string name="comments_count">コメント (%1$d)</string>
     <string name="hot_comments">人気コメント</string>
     <string name="newest_comments">最新のコメント</string>
@@ -99,8 +104,8 @@
     <string name="cloud_music">クラウド音楽</string>
     <string name="no_cloud_songs">クラウドは空です</string>
     <string name="not_interested">興味なし</string>
-    <string name="fluid_background">Fluid Background</string>
-    <string name="fluid_background_desc">Enable fluid background effect</string>
+    <string name="fluid_background">流体背景</string>
+    <string name="fluid_background_desc">プレーヤー画面と全体に流体背景エフェクトを適用する</string>
     <string name="reply">返信</string>
     <string name="now_playing">再生中</string>
     <string name="settings_appearance_desc">テーマ、外観、ピュアブラック...</string>
@@ -156,4 +161,74 @@
     <string name="engine_flick">Flick エンジン (ローカル, USB排他) [BETA]</string>
     <string name="usb_exclusive_title">USB排他モード [BETA]</string>
     <string name="usb_exclusive_subtitle">外付けUSB DACを排他的に制御する</string>
+    <string name="font_roundness">フォントの丸み</string>
+    <string name="font_roundness_desc">Google Sans Flex のフォント丸みモードを切り替えます（Android 16 QPR2 と同等）</string>
+    <string name="font_roundness_standard">スタンダード</string>
+    <string name="font_roundness_expressive">エクスプレッシブ</string>
+    <string name="play_immediately">タップで即再生</string>
+    <string name="play_immediately_desc">曲をタップした際、再生画面に遷移せずに直接再生を開始します</string>
+    <string name="playback_behavior">再生動作</string>
+
+    <!-- UI翻新新增字符串 -->
+    <string name="quick_access">クイックアクセス</string>
+    <string name="recommended_playlists">おすすめプレイリスト</string>
+    <string name="greeting_morning">おはようございます</string>
+    <string name="greeting_afternoon">こんにちは</string>
+    <string name="greeting_evening">こんばんは</string>
+    <string name="greeting_late_night">夜更けです</string>
+    <string name="daily_mix_title">デイリーミックス</string>
+    <string name="daily_mix_subtitle">履歴ベース</string>
+    <string name="check_all_daily_mix">すべて表示 →</string>
+    <string name="all_replies">すべての返信</string>
+    <string name="sort_comments">並べ替え</string>
+    <string name="send">送信</string>
+    <string name="view_all">すべて表示</string>
+    <string name="no_comments_yet">コメントはまだありません</string>
+    <string name="no_messages_yet">メッセージはありません</string>
+    <string name="current_provider_label">現在の音楽ソース</string>
+    <string name="switch_provider_label">音楽ソースの切り替え</string>
+    <string name="provider_accounts_label">%1$s のアカウント</string>
+    <string name="all_accounts_label">保存されたアカウント</string>
+    <string name="account_provider_badge">%1$s</string>
+
+    <!-- Module Management -->
+    <string name="module_import_success">モジュールのインポートに成功しました</string>
+    <string name="module_import_failed">モジュールのインポートに失敗しました</string>
+    <string name="module_import_error">モジュールのインポート中にエラーが発生しました</string>
+    <string name="provider_active">（アクティブ）</string>
+    <string name="provider_info">種類: %1$s | バージョン: %2$s</string>
+    <string name="provider_switched">%1$s に切り替えました</string>
+    <string name="import_new_module">新しいモジュールをインポート (.zip)</string>
+    <string name="setup_title">初期セットアップ</string>
+    <string name="setup_welcome">CPPlayer へようこそ</string>
+    <string name="setup_desc">アプリを使用するには、プロバイダー定義を含むバックエンドモジュール（.zipファイル）をインポートしてください。</string>
+    <string name="importing_module">モジュールをインポート中...</string>
+
+    <!-- ローカル音楽クラウド連携 -->
+    <string name="bind_cloud_song">クラウド曲を関連付け</string>
+    <string name="bind_cloud_search">検索</string>
+    <string name="bind_cloud_no_results">一致するクラウド曲が見つかりません</string>
+    <string name="bind_cloud_success">クラウド曲を関連付けました</string>
+    <string name="unbind_cloud_song">関連付けを解除</string>
+
+    <!-- バージョン情報 -->
+    <string name="about">バージョン情報</string>
+    <string name="settings_about_desc">プロジェクト情報、バージョン、メンテナー</string>
+    <string name="about_version_info">バージョン情報</string>
+    <string name="about_project">プロジェクト</string>
+    <string name="about_maintainers">メンテナー</string>
+    <string name="about_contributors">貢献者</string>
+    <string name="about_main_developer">作成者 &amp; メインメンテナー</string>
+    <string name="current_version">現在のバージョン</string>
+    <string name="commit_hash">コミットハッシュ</string>
+    <string name="check_for_updates">アップデートを確認</string>
+    <string name="checking_update">アップデートを確認中…</string>
+    <string name="update_available">アップデートがあります</string>
+    <string name="already_latest">最新バージョンです</string>
+    <string name="project_address">プロジェクトリポジトリ</string>
+    <string name="qq_group">QQグループ</string>
+    <string name="qq_group_placeholder">リンクを追加予定</string>
+    <string name="update_changelog">変更履歴</string>
+    <string name="update_download">アップデートをダウンロード</string>
+    <string name="copied">コピーしました</string>
 </resources>

@@ -7,8 +7,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.toArgb
@@ -26,6 +29,88 @@ val GoogleSansFlex = FontFamily(
     Font(R.font.google_sans_flex, weight = FontWeight.Bold)
 )
 
+/**
+ * Creates [FontVariation.Settings] with wght and ROND axes using reflection.
+ * Uses different internal Setting types for int (weight) and float (ROND) axes.
+ * Compatible with Android 16 QPR2's ROND (roundness) axis for Google Sans Flex.
+ * Falls back to weight-only settings if reflection fails.
+ */
+private fun createFontVariationSettings(wght: Int, rondValue: Float): FontVariation.Settings {
+    return try {
+        val weightSetting = FontVariation.weight(wght)
+        // FontVariation.italic() returns a SettingFloat - same type needed for ROND
+        val floatSample = FontVariation.italic(0f)
+        val floatSettingClass = floatSample.javaClass
+
+        // Create ROND axis via SettingFloat(String, float) constructor
+        val floatCtor = floatSettingClass.getDeclaredConstructor(String::class.java, Float::class.javaPrimitiveType)
+        floatCtor.isAccessible = true
+        val rondSetting = floatCtor.newInstance("ROND", rondValue)
+
+        // Find the Settings constructor that takes an array
+        // The constructor takes the base Setting supertype array
+        val settingsClass = FontVariation.Settings::class.java
+        // Try constructors until we find one that takes an array parameter
+        val settingsCtor = settingsClass.declaredConstructors.firstOrNull { ctor ->
+            ctor.parameterCount == 1 && ctor.parameterTypes[0].isArray
+        } ?: throw NoSuchMethodException("No array constructor found for Settings")
+
+        settingsCtor.isAccessible = true
+        val arrayParamType = settingsCtor.parameterTypes[0].componentType
+            ?: throw NoSuchMethodException("Settings constructor parameter is not an array type")
+
+        // Build typed array with both settings
+        val axisArray = java.lang.reflect.Array.newInstance(arrayParamType, 2)
+        java.lang.reflect.Array.set(axisArray, 0, weightSetting)
+        java.lang.reflect.Array.set(axisArray, 1, rondSetting)
+
+        @Suppress("UNCHECKED_CAST")
+        settingsCtor.newInstance(axisArray) as FontVariation.Settings
+    } catch (e: Exception) {
+        // Fallback: use weight-only settings if reflection fails
+        android.util.Log.w("CPPlayerTheme", "FontVariation ROND reflection failed, using default", e)
+        FontVariation.Settings(FontVariation.weight(wght))
+    }
+}
+
+/**
+ * Creates a [FontFamily] for Google Sans Flex with the specified roundness mode.
+ *
+ * @param roundnessMode 0 = Standard (default ROND), 1 = Expressive (ROND = 100)
+ * Matches Android 16 QPR2's font roundness behavior.
+ */
+@OptIn(ExperimentalTextApi::class)
+fun createGoogleSansFlex(roundnessMode: Int): FontFamily {
+    return try {
+        val rondValue = when (roundnessMode) {
+            1 -> 100f  // Expressive mode: maximum roundness (squircle-like)
+            else -> 0f  // Standard mode: default roundness
+        }
+
+        // Standard mode uses the default font file without ROND axis modification
+        if (rondValue == 0f) return GoogleSansFlex
+
+        val weightValues = listOf(300, 400, 500, 600, 700)
+        val fontWeights = listOf(
+            FontWeight.Light, FontWeight.Normal, FontWeight.Medium,
+            FontWeight.SemiBold, FontWeight.Bold
+        )
+
+        FontFamily(
+            weightValues.zip(fontWeights).map { (w, fw) ->
+                Font(
+                    resId = R.font.google_sans_flex,
+                    weight = fw,
+                    variationSettings = createFontVariationSettings(w, rondValue)
+                )
+            }
+        )
+    } catch (e: Exception) {
+        android.util.Log.w("CPPlayerTheme", "Failed to create expressive font, using default", e)
+        GoogleSansFlex
+    }
+}
+
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
@@ -42,14 +127,19 @@ fun createCustomColorScheme(seedColor: Int, isDark: Boolean, pureBlack: Boolean 
             onPrimaryContainer = Color.White,
             secondary = color.copy(alpha = 0.5f),
             onSecondary = Color.White,
-            secondaryContainer = color.copy(alpha = 0.2f),
+            secondaryContainer = if (pureBlack) Color(0xFF121212) else color.copy(alpha = 0.2f),
             onSecondaryContainer = Color.White,
             surface = if (pureBlack) Color.Black else Color(0xFF121212),
             onSurface = Color.White,
             background = if (pureBlack) Color.Black else Color(0xFF121212),
             onBackground = Color.White,
-            surfaceVariant = color.copy(alpha = 0.1f),
-            onSurfaceVariant = Color.White
+            surfaceVariant = if (pureBlack) Color.Black else color.copy(alpha = 0.1f),
+            onSurfaceVariant = Color.White,
+            surfaceContainerLowest = if (pureBlack) Color.Black else Color(0xFF0D0D0D),
+            surfaceContainerLow = if (pureBlack) Color.Black else Color(0xFF1A1A1A),
+            surfaceContainer = if (pureBlack) Color.Black else Color(0xFF1F1F1F),
+            surfaceContainerHigh = if (pureBlack) Color.Black else Color(0xFF232323),
+            surfaceContainerHighest = if (pureBlack) Color.Black else Color(0xFF282828)
         )
     } else {
         lightColorScheme(
@@ -79,6 +169,7 @@ fun CPPlayerTheme(
     themeMode: Int = 0, // 0: System, 1: Follow Cover, 2: Fixed
     followCoverApp: Boolean = false,
     seedColor: Int? = null,
+    fontRoundness: Int = 0, // 0: Standard, 1: Expressive
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -99,7 +190,7 @@ fun CPPlayerTheme(
 
     var finalColorScheme = colorScheme
 
-    if (darkTheme && pureBlack && themeMode == 0) {
+    if (darkTheme && pureBlack) {
         finalColorScheme = finalColorScheme.copy(
             surface = Color.Black,
             background = Color.Black,
@@ -128,23 +219,25 @@ fun CPPlayerTheme(
     // Extra extra large (48dp)
     // Fully Rounded (full token)
 
+    val activeFontFamily = remember(fontRoundness) { createGoogleSansFlex(fontRoundness) }
+
     val defaultTypography = Typography()
     val expressiveTypography = Typography(
-        displayLarge = defaultTypography.displayLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        displayMedium = defaultTypography.displayMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        displaySmall = defaultTypography.displaySmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        titleLarge = defaultTypography.titleLarge.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        titleMedium = defaultTypography.titleMedium.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        titleSmall = defaultTypography.titleSmall.copy(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal),
-        bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = GoogleSansFlex),
-        bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = GoogleSansFlex),
-        bodySmall = defaultTypography.bodySmall.copy(fontFamily = GoogleSansFlex),
-        labelLarge = defaultTypography.labelLarge.copy(fontFamily = GoogleSansFlex),
-        labelMedium = defaultTypography.labelMedium.copy(fontFamily = GoogleSansFlex),
-        labelSmall = defaultTypography.labelSmall.copy(fontFamily = GoogleSansFlex)
+        displayLarge = defaultTypography.displayLarge.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        displayMedium = defaultTypography.displayMedium.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        displaySmall = defaultTypography.displaySmall.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        titleLarge = defaultTypography.titleLarge.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        titleMedium = defaultTypography.titleMedium.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        titleSmall = defaultTypography.titleSmall.copy(fontFamily = activeFontFamily, fontWeight = FontWeight.Normal),
+        bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = activeFontFamily),
+        bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = activeFontFamily),
+        bodySmall = defaultTypography.bodySmall.copy(fontFamily = activeFontFamily),
+        labelLarge = defaultTypography.labelLarge.copy(fontFamily = activeFontFamily),
+        labelMedium = defaultTypography.labelMedium.copy(fontFamily = activeFontFamily),
+        labelSmall = defaultTypography.labelSmall.copy(fontFamily = activeFontFamily)
         // All labels and buttons should be Sentence case by default in the UI layer
     )
     val view = LocalView.current

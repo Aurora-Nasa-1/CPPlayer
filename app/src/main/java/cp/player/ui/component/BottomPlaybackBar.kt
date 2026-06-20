@@ -22,10 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import androidx.compose.foundation.isSystemInDarkTheme
 import cp.player.util.ImageUtils
 import cp.player.model.Song
-import cp.player.ui.theme.createCustomColorScheme
 import androidx.compose.foundation.shape.CircleShape
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -46,13 +44,7 @@ fun BottomPlaybackBar(
 ) {
     if (song == null) return
 
-    val barColorScheme = if (useCoverColor && coverColor != null) {
-        createCustomColorScheme(coverColor, isSystemInDarkTheme())
-    } else {
-        MaterialTheme.colorScheme
-    }
-
-    MaterialTheme(colorScheme = barColorScheme) {
+    CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor) {
         // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
             shape = CircleShape,

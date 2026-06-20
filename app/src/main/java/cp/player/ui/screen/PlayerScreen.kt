@@ -35,27 +35,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import cp.player.R
-import cp.player.model.Comment
-import cp.player.model.LyricLine
-import cp.player.model.Playlist
-import cp.player.model.Song
+import cp.player.model.*
 import cp.player.ui.component.*
-import cp.player.ui.theme.createCustomColorScheme
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
 import cp.player.util.ImageUtils
-import cp.player.viewmodel.PlaybackViewModel
-import cp.player.ui.component.AppScaffold
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.IntOffset
@@ -67,67 +56,70 @@ import androidx.compose.ui.unit.IntOffset
 )
 @Composable
 fun PlayerScreen(
-    song: Song?,
-    lyrics: List<LyricLine> = emptyList(),
-    isPlaying: Boolean,
-    isBuffering: Boolean = false,
-    currentPosition: Long = 0L,
-    duration: Long = 0L,
-    onPlayPause: () -> Unit,
-    onSkipNext: () -> Unit,
-    onSkipPrevious: () -> Unit,
-    onSeek: (Long) -> Unit = {},
-    onRepeatClick: () -> Unit = {},
-    onShuffleClick: () -> Unit = {},
-    repeatMode: Int = Player.REPEAT_MODE_OFF,
-    shuffleMode: Boolean = false,
-    isFavorite: Boolean = false,
-    isDownloaded: Boolean = false,
-    allPlaylists: List<Playlist> = emptyList(),
-    onLikeClick: () -> Unit = {},
-    onArtistClick: (String) -> Unit = {},
-    onDownloadClick: () -> Unit = {},
-    onCommentClick: () -> Unit = {},
-    onLyricClick: () -> Unit = {},
-    onAddToPlaylist: (String, Long) -> Unit = { _, _ -> },
-    queue: List<Song> = emptyList(),
-    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
-    onRemoveQueueItem: (Int) -> Unit = { _ -> },
-    onClearQueue: () -> Unit = {},
-    qualityWifi: String = "Unknown",
-    qualityCellular: String = "Unknown",
-    sampleRate: Int = 0,
-    bitrate: Int = 0,
-    hotComments: List<Comment> = emptyList(),
-    newestComments: List<Comment> = emptyList(),
-    commentTotal: Int = 0,
-    isCommentsLoading: Boolean = false,
-    hasMoreComments: Boolean = true,
-    commentSortType: Int = 1,
-    onLoadMoreComments: () -> Unit = {},
-    onLikeComment: (Comment) -> Unit = {},
-    onReplyComment: (Comment) -> Unit = {},
-    onPostComment: (String) -> Unit = {},
-    onAvatarClick: (Long) -> Unit = {},
-    onDislikeClick: () -> Unit = {},
-    onCommentSortChange: (Int) -> Unit = {},
-    onViewFloorClick: (Comment) -> Unit = {},
-    floorComments: List<Comment> = emptyList(),
-    floorCommentTotal: Int = 0,
-    floorHasMore: Boolean = false,
-    onLoadMoreFloor: (Comment) -> Unit = {},
-    onDismissFloor: () -> Unit = {},
-    activeParentComment: Comment? = null,
-    sleepTimerRemaining: Long = 0L,
-    onSetSleepTimer: (Int) -> Unit = {},
-    useCoverColor: Boolean = false,
-    useFluidBackground: Boolean = false,
-    useWavyProgress: Boolean = true,
-    coverColor: Int? = null,
+    uiState: PlayerUiState,
+    callbacks: PlayerCallbacks,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
-    onBackPressed: () -> Unit
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    // 从聚合状态中解构常用字段
+    val song = uiState.song
+    val isPlaying = uiState.isPlaying
+    val isBuffering = uiState.isBuffering
+    val currentPosition = uiState.currentPosition
+    val duration = uiState.duration
+    val repeatMode = uiState.repeatMode
+    val shuffleMode = uiState.shuffleMode
+    val isFavorite = uiState.isFavorite
+    val isDownloaded = uiState.isDownloaded
+    val syncedLyrics = uiState.syncedLyrics
+    val lyricsInfo = uiState.lyricsInfo
+    val queue = uiState.queue
+    val sampleRate = uiState.sampleRate
+    val bitrate = uiState.bitrate
+    val useCoverColor = uiState.useCoverColor
+    val useFluidBackground = uiState.useFluidBackground
+    val coverColor = uiState.coverColor
+    val pureBlack = uiState.pureBlack
+    val sleepTimerRemaining = uiState.sleepTimerRemaining
+    val allPlaylists = uiState.allPlaylists
+    val hotComments = uiState.hotComments
+    val newestComments = uiState.newestComments
+    val commentTotal = uiState.commentTotal
+    val isCommentsLoading = uiState.isCommentsLoading
+    val hasMoreComments = uiState.hasMoreComments
+    val commentSortType = uiState.commentSortType
+    val floorComments = uiState.floorComments
+    val floorCommentTotal = uiState.floorCommentTotal
+    val floorHasMore = uiState.floorHasMore
+    val activeParentComment = uiState.activeParentComment
+
+    val onPlayPause = callbacks.onPlayPause
+    val onSkipNext = callbacks.onSkipNext
+    val onSkipPrevious = callbacks.onSkipPrevious
+    val onSeek = callbacks.onSeek
+    val onRepeatClick = callbacks.onRepeatClick
+    val onShuffleClick = callbacks.onShuffleClick
+    val onLikeClick = callbacks.onLikeClick
+    val onArtistClick = callbacks.onArtistClick
+    val onDownloadClick = callbacks.onDownloadClick
+    val onCommentClick = callbacks.onCommentClick
+    val onDislikeClick = callbacks.onDislikeClick
+    val onAddToPlaylist = callbacks.onAddToPlaylist
+    val onPlayAtQueueIndex = callbacks.onPlayAtQueueIndex
+    val onMoveQueueItem = callbacks.onMoveQueueItem
+    val onRemoveQueueItem = callbacks.onRemoveQueueItem
+    val onClearQueue = callbacks.onClearQueue
+    val onLoadMoreComments = callbacks.onLoadMoreComments
+    val onLikeComment = callbacks.onLikeComment
+    val onReplyComment = callbacks.onReplyComment
+    val onPostComment = callbacks.onPostComment
+    val onAvatarClick = callbacks.onAvatarClick
+    val onCommentSortChange = callbacks.onCommentSortChange
+    val onViewFloorClick = callbacks.onViewFloorClick
+    val onLoadMoreFloor = callbacks.onLoadMoreFloor
+    val onDismissFloor = callbacks.onDismissFloor
+    val onSetSleepTimer = callbacks.onSetSleepTimer
+    val onBackPressed = callbacks.onBackPressed
     val context = LocalContext.current
     val backDispatcher = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val activity = remember(context) {
@@ -153,18 +145,40 @@ fun PlayerScreen(
     var showSleepTimerBottomSheet by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var showSongInfoDialog by remember { mutableStateOf(false) }
-    var showQualityInfoDialog by remember { mutableStateOf(false) }
-
+    // 是否处于播放器页面（非歌词/评论页），用于控制下拉关闭手势
+    var isOnPlayerPage by remember { mutableStateOf(true) }
+    // HorizontalPager 状态（仅移动端使用，但需要在 TopAppBar 中读取）
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = 1) { 3 }
+    // 翻译开关
+    var showTranslation by remember { mutableStateOf(true) }
     if (showSongInfoDialog) {
         AlertDialog(
             onDismissRequest = { showSongInfoDialog = false },
             title = { Text(stringResource(R.string.song_info)) },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.title_label, song.name))
                     Text(stringResource(R.string.artist_label, song.artist))
                     Text(stringResource(R.string.album_label, song.album))
                     Text(stringResource(R.string.song_id_label, song.id))
+
+                    if (lyricsInfo != null) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text("歌词信息", style = MaterialTheme.typography.titleSmall)
+                        Text("来源: ${lyricsInfo.source}", style = MaterialTheme.typography.bodyMedium)
+                        Text("格式: ${lyricsInfo.format}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "逐字歌词: ${if (lyricsInfo.hasWordLevel) "支持 ✓" else "不支持 ✗"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (lyricsInfo.hasWordLevel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (lyricsInfo.hasTranslation) {
+                            Text("翻译: 有", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        if (lyricsInfo.hasPhonetic) {
+                            Text("音译: 有", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -175,87 +189,13 @@ fun PlayerScreen(
         )
     }
 
-    if (showQualityInfoDialog) {
-        AlertDialog(
-            onDismissRequest = { showQualityInfoDialog = false },
-            title = { Text(stringResource(R.string.quality_info)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.wifi_quality, qualityWifi), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(R.string.cellular_quality, qualityCellular), style = MaterialTheme.typography.bodyMedium)
-                    HorizontalDivider()
-                    Text(stringResource(R.string.playback_stats), style = MaterialTheme.typography.titleSmall)
-                    if (sampleRate > 0) {
-                        Text(stringResource(R.string.sample_rate, sampleRate), style = MaterialTheme.typography.bodyMedium)
-                    } else if (sampleRate == 0) {
-                        Text(stringResource(R.string.sample_rate_na), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-
-                    if (bitrate > 0) {
-                        Text(stringResource(R.string.bitrate, bitrate / 1000), style = MaterialTheme.typography.bodyMedium)
-                    } else if (bitrate == 0) {
-                        Text(stringResource(R.string.bitrate_na), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-
-                    val engineType = cp.player.util.UserPreferences.getAudioEngine(context)
-                    if (engineType == 1) {
-                        HorizontalDivider()
-                        Text("Hi-Fi & USB DAC", style = MaterialTheme.typography.titleSmall)
-                        val isUsbActive = remember<Boolean> { cp.player.engine.RustEngine.isRustDirectUsbSessionActive() }
-                        Text("USB Exclusive: ${if (isUsbActive) "Active" else "Inactive"}", style = MaterialTheme.typography.bodyMedium, color = if (isUsbActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        
-                        val hasHwVolume = remember<Boolean> { cp.player.engine.RustEngine.hasRustDirectUsbHardwareVolume() }
-                        if (hasHwVolume) {
-                            var hwVolume by remember { mutableStateOf(cp.player.engine.RustEngine.getRustDirectUsbHardwareVolume().toFloat()) }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Hardware Volume: ${(hwVolume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
-                            Slider(
-                                value = hwVolume,
-                                onValueChange = {
-                                    hwVolume = it
-                                    cp.player.engine.RustEngine.setRustDirectUsbHardwareVolume(it.toDouble())
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showQualityInfoDialog = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
-        )
-    }
-
     if (showAddToPlaylistDialog) {
-        AlertDialog(
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = allPlaylists,
             onDismissRequest = { showAddToPlaylistDialog = false },
-            title = { Text(stringResource(R.string.add_to_playlist)) },
-            text = {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    itemsIndexed(allPlaylists) { index, p ->
-                        cp.player.ui.component.UnifiedListItem(
-    onClick = { onAddToPlaylist(song.id, p.id)
-                                    showAddToPlaylistDialog = false },
-                            headlineContent = { Text(p.name) },
-                            modifier = Modifier
-
-                                ,
-                            colors = ListItemDefaults.colors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAddToPlaylistDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onPlaylistSelected = { p ->
+                onAddToPlaylist(song.id, p.id)
+                showAddToPlaylistDialog = false
             }
         )
     }
@@ -264,6 +204,7 @@ fun PlayerScreen(
         QueueBottomSheet(
             queue = queue,
             currentSongId = song.id,
+            onPlayAt = onPlayAtQueueIndex,
             onMove = onMoveQueueItem,
             onRemove = onRemoveQueueItem,
             onClear = onClearQueue,
@@ -297,17 +238,11 @@ fun PlayerScreen(
         )
     }
 
-    val playerColorScheme = if (useCoverColor && coverColor != null) {
-        createCustomColorScheme(coverColor, isSystemInDarkTheme())
-    } else {
-        MaterialTheme.colorScheme
-    }
-
-    MaterialTheme(colorScheme = playerColorScheme) {
+    CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor, pureBlack = pureBlack) {
         val bgBrush = if (useCoverColor && coverColor != null) {
             Brush.verticalGradient(
                 colors = listOf(
-                    Color(coverColor).copy(alpha = 0.5f),
+                    Color(coverColor).copy(alpha = 1.0f),
                     MaterialTheme.colorScheme.surface
                 )
             )
@@ -341,58 +276,10 @@ fun PlayerScreen(
         val offsetY = remember { Animatable(0f) }
         val maxDrag = with(androidx.compose.ui.platform.LocalDensity.current) { 400.dp.toPx() }
 
-        val nestedScrollConnection = remember {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                    val delta = available.y
-                    if (delta < 0 && offsetY.value > 0) {
-                        val newOffset = (offsetY.value + delta).coerceAtLeast(0f)
-                        val consumed = offsetY.value - newOffset
-                        coroutineScope.launch { offsetY.snapTo(newOffset) }
-                        return androidx.compose.ui.geometry.Offset(0f, -consumed)
-                    }
-                    return androidx.compose.ui.geometry.Offset.Zero
-                }
-
-                override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                    val delta = available.y
-                    if (delta > 0) {
-                        val newOffset = (offsetY.value + delta).coerceAtMost(maxDrag * 2)
-                        coroutineScope.launch { offsetY.snapTo(newOffset) }
-                        return androidx.compose.ui.geometry.Offset(0f, delta)
-                    }
-                    return androidx.compose.ui.geometry.Offset.Zero
-                }
-
-                override suspend fun onPreFling(available: Velocity): Velocity {
-                    if (offsetY.value > 0) {
-                        val targetOffset = if (offsetY.value > maxDrag / 2 || available.y > 1000f) {
-                            maxDrag * 2
-                        } else {
-                            0f
-                        }
-                        if (targetOffset > 0f) {
-                            onBackPressed()
-                            coroutineScope.launch {
-                                offsetY.animateTo(targetOffset, tween(300))
-                            }
-                        } else {
-                            coroutineScope.launch {
-                                offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
-                            }
-                        }
-                        return available
-                    }
-                    return Velocity.Zero
-                }
-            }
-        }
-
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(nestedScrollConnection)
-                .pointerInput(Unit) {
+                .then(if (isOnPlayerPage) Modifier.pointerInput(Unit) {
                     detectVerticalDragGestures(
                         onDragEnd = {
                             if (offsetY.value > 0) {
@@ -422,7 +309,7 @@ fun PlayerScreen(
                             }
                         }
                     )
-                }
+                } else Modifier)
                 .offset { IntOffset(0, offsetY.value.roundToInt()) }
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -450,7 +337,41 @@ fun PlayerScreen(
                     topBar = {
                         @OptIn(ExperimentalMaterial3Api::class)
                         TopAppBar(
-                            title = { },
+                            title = {
+                                if (!isWideScreen) {
+                                    AnimatedContent(
+                                        targetState = pagerState.currentPage,
+                                        transitionSpec = {
+                                            (slideInVertically { h -> h } + fadeIn()) togetherWith
+                                                    (slideOutVertically { h -> -h } + fadeOut())
+                                        },
+                                        label = "TopBarTitle"
+                                    ) { page ->
+                                        when (page) {
+                                            1 -> { /* 播放器页无标题 */ }
+                                            else -> {
+                                                // 歌词页/评论页标题栏：歌曲名 + 歌手
+                                                Column {
+                                                    Text(
+                                                        song.name,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        song.artist,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             navigationIcon = {
                                 IconButton(onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() }) {
                                     Icon(
@@ -461,15 +382,52 @@ fun PlayerScreen(
                                 }
                             },
                             actions = {
-                                IconButton(
-                                    onClick = { showQueueBottomSheet = true },
-                                    modifier = Modifier.padding(end = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                                        contentDescription = "Queue",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
+                                if (!isWideScreen) {
+                                    AnimatedContent(
+                                        targetState = pagerState.currentPage,
+                                        label = "TopBarActions"
+                                    ) { page ->
+                                        when (page) {
+                                            0 -> {
+                                                // 歌词页：翻译开关
+                                                IconButton(
+                                                    onClick = { showTranslation = !showTranslation },
+                                                    modifier = Modifier.padding(end = 8.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Translate,
+                                                        contentDescription = "翻译",
+                                                        tint = if (showTranslation) MaterialTheme.colorScheme.onSurface
+                                                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                                    )
+                                                }
+                                            }
+                                            else -> {
+                                                // 播放器页/评论页：队列按钮
+                                                IconButton(
+                                                    onClick = { showQueueBottomSheet = true },
+                                                    modifier = Modifier.padding(end = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), CircleShape)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                                        contentDescription = "Queue",
+                                                        tint = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    IconButton(
+                                        onClick = { showQueueBottomSheet = true },
+                                        modifier = Modifier.padding(end = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                            contentDescription = "Queue",
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -489,7 +447,8 @@ fun PlayerScreen(
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
                                     song = song,
-                                lyrics = lyrics,
+                                syncedLyrics = syncedLyrics,
+                                lyricsInfo = lyricsInfo,
                                 isPlaying = isPlaying,
                                 isBuffering = isBuffering,
                                 currentPosition = currentPosition,
@@ -500,7 +459,6 @@ fun PlayerScreen(
                                 bitrate = bitrate,
                                 sampleRate = sampleRate,
                                 isDownloaded = isDownloaded,
-                                useWavyProgress = useWavyProgress,
                                 onPlayPause = onPlayPause,
                                 onSkipNext = onSkipNext,
                                 onSkipPrevious = onSkipPrevious,
@@ -520,15 +478,28 @@ fun PlayerScreen(
                                 onDownloadClick = onDownloadClick,
                                 onSleepTimerClick = { showSleepTimerBottomSheet = true },
                                 onInfoClick = { showSongInfoDialog = true },
-                                onQualityClick = { showQualityInfoDialog = true },
                                 onDislikeClick = onDislikeClick
                             )
                         } else {
+                                // 歌词自动预加载：切换歌曲时获取歌词
+                                LaunchedEffect(song.id) {
+                                    cp.player.lyrics.LyricsManager.fetch(song.id, context)
+                                }
+
+                                // 页面切换时重置下拉偏移量，防止卡在中间
+                                LaunchedEffect(pagerState.settledPage) {
+                                    isOnPlayerPage = pagerState.settledPage == 1
+                                    if (pagerState.settledPage != 1 && offsetY.value > 0f) {
+                                        offsetY.snapTo(0f)
+                                    }
+                                }
+
                                 PlayerMobileLayout(
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
                                     song = song,
-                                lyrics = lyrics,
+                                syncedLyrics = syncedLyrics,
+                                lyricsInfo = lyricsInfo,
                                 isPlaying = isPlaying,
                                 isBuffering = isBuffering,
                                 currentPosition = currentPosition,
@@ -539,7 +510,6 @@ fun PlayerScreen(
                                 bitrate = bitrate,
                                 sampleRate = sampleRate,
                                 isDownloaded = isDownloaded,
-                                useWavyProgress = useWavyProgress,
                                 onPlayPause = onPlayPause,
                                 onSkipNext = onSkipNext,
                                 onSkipPrevious = onSkipPrevious,
@@ -559,9 +529,9 @@ fun PlayerScreen(
                                 onDownloadClick = onDownloadClick,
                                 onSleepTimerClick = { showSleepTimerBottomSheet = true },
                                 onInfoClick = { showSongInfoDialog = true },
-                                onQualityClick = { showQualityInfoDialog = true },
                                 onDislikeClick = onDislikeClick,
-                                onLyricClick = onLyricClick,
+                                pagerState = pagerState,
+                                showTranslation = showTranslation,
                                 hotComments = hotComments,
                                 newestComments = newestComments,
                                 commentTotal = commentTotal,
@@ -584,32 +554,6 @@ fun PlayerScreen(
     }
 }
 
-    @Composable
-    fun AudioQualityBadge(sampleRate: Int, bitrate: Int) {
-        if (sampleRate > 0 || bitrate > 0) {
-            val isDsd = sampleRate >= 2822400
-            val text = if (isDsd) {
-                "DSD \${sampleRate / 1000}kHz"
-            } else if (sampleRate > 0) {
-                "\${sampleRate / 1000}kHz" + if (bitrate > 0) " | \${bitrate / 1000}kbps" else ""
-            } else {
-                "\${bitrate / 1000}kbps"
-            }
-            
-            Surface(
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
-            }
-        }
-    }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -617,7 +561,8 @@ private fun PlayerWideLayout(
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
     song: Song,
-    lyrics: List<LyricLine>,
+    syncedLyrics: com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics?,
+    lyricsInfo: cp.player.model.LyricsInfo?,
     isPlaying: Boolean,
     isBuffering: Boolean,
     currentPosition: Long,
@@ -628,7 +573,6 @@ private fun PlayerWideLayout(
     bitrate: Int,
     sampleRate: Int,
     isDownloaded: Boolean,
-    useWavyProgress: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -646,7 +590,6 @@ private fun PlayerWideLayout(
     onDownloadClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onInfoClick: () -> Unit,
-    onQualityClick: () -> Unit,
     onDislikeClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -779,8 +722,8 @@ private fun PlayerWideLayout(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(formatTime(currentPosition), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatTime(duration), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(cp.player.util.FormatUtils.formatTime(currentPosition), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(cp.player.util.FormatUtils.formatTime(duration), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -858,10 +801,9 @@ private fun PlayerWideLayout(
                                 cp.player.ui.component.PlayerSongOptionsBottomSheet(
                                     song = song,
                                     isDownloaded = isDownloaded,
-                                    qualityWifi = "Unknown",
-                                    qualityCellular = "Unknown",
                                     sampleRate = sampleRate,
                                     bitrate = bitrate,
+                                    lyricsInfo = lyricsInfo,
                                     onPlaylistClick = {
                                         onAddToPlaylist()
                                         onDismissMore()
@@ -890,7 +832,7 @@ private fun PlayerWideLayout(
         // Right Side: Lyrics
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             LyricContent(
-                lyrics = lyrics,
+                syncedLyrics = syncedLyrics,
                 currentPosition = currentPosition,
                 contentPadding = PaddingValues(vertical = 120.dp, horizontal = 24.dp)
             )
@@ -904,7 +846,8 @@ private fun PlayerMobileLayout(
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?,
     song: Song,
-    lyrics: List<LyricLine>,
+    syncedLyrics: com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics?,
+    lyricsInfo: cp.player.model.LyricsInfo?,
     isPlaying: Boolean,
     isBuffering: Boolean,
     currentPosition: Long,
@@ -915,7 +858,6 @@ private fun PlayerMobileLayout(
     bitrate: Int,
     sampleRate: Int,
     isDownloaded: Boolean,
-    useWavyProgress: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -933,9 +875,9 @@ private fun PlayerMobileLayout(
     onDownloadClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onInfoClick: () -> Unit,
-    onQualityClick: () -> Unit,
     onDislikeClick: () -> Unit,
-    onLyricClick: () -> Unit,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    showTranslation: Boolean = true,
     hotComments: List<Comment>,
     newestComments: List<Comment>,
     commentTotal: Int,
@@ -950,283 +892,351 @@ private fun PlayerMobileLayout(
     onCommentSortChange: (Int) -> Unit,
     onViewFloorClick: (Comment) -> Unit
 ) {
-    var showLyrics by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { 2 })
-
     androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-        if (page == 0) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Main Content Area: Album Art or Lyrics
-        Box(
-            modifier = Modifier
-                .weight(1.2f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!showLyrics) {
-                Surface(
-                    shape = RoundedCornerShape(32.dp),
+        when (page) {
+            // ==================== 歌词页（向右滑动进入）====================
+            0 -> {
+                Column(
                     modifier = Modifier
-                        .aspectRatio(1f)
-                        .fillMaxWidth(0.95f)
-                        .clickable { showLyrics = true },
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shadowElevation = 16.dp
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (song.albumArtUrl != null) {
-                        AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .then(
-                                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                                        with(sharedTransitionScope) {
-                                            Modifier.sharedBounds(
-                                                sharedContentState = rememberSharedContentState(key = "player_cover"),
-                                                animatedVisibilityScope = animatedVisibilityScope,
-                                                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(32.dp))
+                    // 歌词内容（标题栏已显示歌曲名和歌手）
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        LyricContent(
+                            syncedLyrics = syncedLyrics,
+                            currentPosition = currentPosition,
+                            showTranslation = showTranslation,
+                            contentPadding = PaddingValues(vertical = 60.dp, horizontal = 8.dp)
+                        )
+                    }
+
+                    // 底部操作栏
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onRepeatClick) {
+                                val icon = when (repeatMode) {
+                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                    Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                                    else -> Icons.Default.Shuffle
+                                }
+                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = onLikeClick) {
+                                AnimatedContent(targetState = isFavorite, label = "LikeAnimation") { targetFavorite ->
+                                    Icon(
+                                        if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Like",
+                                        modifier = Modifier.size(28.dp),
+                                        tint = if (targetFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            // ==================== 播放器页（默认页）====================
+            1 -> {
+                var showExpandedCover by remember { mutableStateOf(false) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 封面区域
+                    Box(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!showExpandedCover) {
+                            Surface(
+                                shape = RoundedCornerShape(32.dp),
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .fillMaxWidth(0.95f)
+                                    .clickable { showExpandedCover = true },
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shadowElevation = 16.dp
+                            ) {
+                                if (song.albumArtUrl != null) {
+                                    AsyncImage(
+                                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .then(
+                                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                                    with(sharedTransitionScope) {
+                                                        Modifier.sharedBounds(
+                                                            sharedContentState = rememberSharedContentState(key = "player_cover"),
+                                                            animatedVisibilityScope = animatedVisibilityScope,
+                                                            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(32.dp))
+                                                        )
+                                                    }
+                                                } else Modifier
+                                            )
+                                    )
+                                } else {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(128.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // 扩展封面：封面作为大背景，底部渐隐，下方一行歌词
+                            Surface(
+                                shape = RoundedCornerShape(32.dp),
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .fillMaxWidth(0.95f)
+                                    .clickable { showExpandedCover = false },
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shadowElevation = 16.dp
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    if (song.albumArtUrl != null) {
+                                        AsyncImage(
+                                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.MusicNote,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(128.dp)
                                             )
                                         }
-                                    } else Modifier
-                                )
-                        )
-                    } else {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(128.dp)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                            .align(Alignment.BottomCenter)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.85f)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    val currentLineText = remember(currentPosition, syncedLyrics) {
+                                        syncedLyrics.getCurrentLineText(currentPosition)
+                                    }
+                                    Text(
+                                        text = currentLineText ?: "",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White.copy(alpha = 0.9f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 歌曲信息行
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                song.name,
+                                style = MaterialTheme.typography.headlineSmall,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                song.artist,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                             )
                         }
                     }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { showLyrics = false }
-                ) {
-                    LyricContent(
-                        lyrics = lyrics,
-                        currentPosition = currentPosition,
-                        contentPadding = PaddingValues(vertical = 48.dp)
+
+                    // 进度条
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Slider(
+                            value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                            onValueChange = { onSeek((it * duration).toLong()) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                cp.player.util.FormatUtils.formatTime(currentPosition),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            if (sampleRate > 0 || bitrate > 0) {
+                                val isDsd = sampleRate >= 2822400
+                                val qualityText = if (isDsd) {
+                                    "DSD ${sampleRate / 1000}"
+                                } else if (sampleRate > 0) {
+                                    "${sampleRate / 1000}kHz"
+                                } else {
+                                    "${bitrate / 1000}kbps"
+                                }
+                                Text(
+                                    text = qualityText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                            Text(
+                                cp.player.util.FormatUtils.formatTime(duration),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    // 播放控制
+                    cp.player.ui.component.PlaybackControls(
+                        isPlaying = isPlaying,
+                        isBuffering = isBuffering,
+                        onPlayPause = onPlayPause,
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        sideButtonModifier = Modifier.weight(1f).height(72.dp),
+                        centerButtonModifier = Modifier.weight(1.2f).height(72.dp),
+                        sideIconSize = 36.dp,
+                        centerIconSize = 40.dp
                     )
+
+                    // 底部操作栏
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onRepeatClick) {
+                                val icon = when (repeatMode) {
+                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                    Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                                    else -> Icons.Default.Shuffle
+                                }
+                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = onLikeClick) {
+                                AnimatedContent(targetState = isFavorite, label = "LikeAnimation") { targetFavorite ->
+                                    Icon(
+                                        if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Like",
+                                        modifier = Modifier.size(28.dp),
+                                        tint = if (targetFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Box {
+                                IconButton(onClick = onMoreClick) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (showMoreMenu) {
+                                    cp.player.ui.component.PlayerSongOptionsBottomSheet(
+                                        song = song,
+                                        isDownloaded = isDownloaded,
+                                        sampleRate = sampleRate,
+                                        bitrate = bitrate,
+                                        lyricsInfo = lyricsInfo,
+                                        onPlaylistClick = {
+                                            onAddToPlaylist()
+                                            onDismissMore()
+                                        },
+                                        onDownloadClick = {
+                                            onDownloadClick()
+                                            onDismissMore()
+                                        },
+                                        onSleepTimerClick = {
+                                            onSleepTimerClick()
+                                            onDismissMore()
+                                        },
+                                        onDislikeClick = {
+                                            onDislikeClick()
+                                            onDismissMore()
+                                        },
+                                        onDismissRequest = onDismissMore
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
-        }
 
-        // Song Information Row (Title/Artist left, Lyric/Action right)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    song.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    song.artist,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
-                )
-            }
-            
-            IconButton(
-                onClick = onLyricClick,
-                modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-            ) {
-                Icon(Icons.Default.Lyrics, contentDescription = "Lyrics", modifier = Modifier.size(24.dp))
-            }
-        }
-
-        // Progress Bar
-        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            if (useWavyProgress) {
-                Slider(
-                    value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                    onValueChange = { onSeek((it * duration).toLong()) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                Slider(
-                    value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                    onValueChange = { onSeek((it * duration).toLong()) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    formatTime(currentPosition),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Text(
-                    formatTime(duration),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-        }
-
-        // Audio Quality Badge (Pill)
-        if (sampleRate > 0 || bitrate > 0) {
-            val isDsd = sampleRate >= 2822400
-            val qualityText = if (isDsd) {
-                "DSD \${sampleRate / 1000} kHz"
-            } else if (sampleRate > 0) {
-                "\${sampleRate / 1000.0} kHz • \${bitrate / 1000} kbps • FLAC"
-            } else {
-                "\${bitrate / 1000} kbps"
-            }
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = CircleShape,
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                Text(
-                    text = qualityText,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                )
-            }
-        }
-
-        // Main Playback Controls
-        cp.player.ui.component.PlaybackControls(
-            isPlaying = isPlaying,
-            isBuffering = isBuffering,
-            onPlayPause = onPlayPause,
-            onSkipNext = onSkipNext,
-            onSkipPrevious = onSkipPrevious,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            sideButtonModifier = Modifier.weight(1f).height(72.dp),
-            centerButtonModifier = Modifier.weight(1.2f).height(72.dp),
-            sideIconSize = 36.dp,
-            centerIconSize = 40.dp
-        )
-
-        // Bottom Action Area (Dark Pill Container)
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Playback mode toggle (Combine shuffle/repeat into one logic if we had a dedicated combined method, but here we just rotate onRepeatClick or onShuffleClick. Let's just cycle repeatMode.)
-                IconButton(
-                    onClick = onRepeatClick
-                ) {
-                    val icon = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                        Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                        else -> Icons.Default.Shuffle
-                    }
-                    Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            // ==================== 评论页 ====================
+            2 -> {
+                LaunchedEffect(Unit) {
+                    onCommentClick()
                 }
-
-                IconButton(onClick = onLikeClick) {
-                    AnimatedContent(targetState = isFavorite, label = "LikeAnimation") { targetFavorite ->
-                        Icon(
-                            if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Like",
-                            modifier = Modifier.size(28.dp),
-                            tint = if (targetFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Box {
-                    IconButton(onClick = onMoreClick) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (showMoreMenu) {
-                        cp.player.ui.component.PlayerSongOptionsBottomSheet(
-                            song = song,
-                            isDownloaded = isDownloaded,
-                            qualityWifi = "Unknown",
-                            qualityCellular = "Unknown",
-                            sampleRate = sampleRate,
-                            bitrate = bitrate,
-                            onPlaylistClick = {
-                                onAddToPlaylist()
-                                onDismissMore()
-                            },
-                            onDownloadClick = {
-                                onDownloadClick()
-                                onDismissMore()
-                            },
-                            onSleepTimerClick = {
-                                onSleepTimerClick()
-                                onDismissMore()
-                            },
-                            onDislikeClick = {
-                                onDislikeClick()
-                                onDismissMore()
-                            },
-                            onDismissRequest = onDismissMore
-                        )
-                    }
-                }
+                CommentPage(
+                    hotComments = hotComments,
+                    newestComments = newestComments,
+                    totalCount = commentTotal,
+                    isLoading = isCommentsLoading,
+                    hasMore = hasMoreComments,
+                    currentSort = commentSortType,
+                    onLoadMore = { onLoadMoreComments() },
+                    onLikeClick = onLikeComment,
+                    onReplyClick = { comment -> onReplyComment(comment) },
+                    onPostComment = onPostComment,
+                    onAvatarClick = onAvatarClick,
+                    onSortChange = onCommentSortChange,
+                    onViewFloorClick = onViewFloorClick
+                )
             }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-        } else if (page == 1) {
-            LaunchedEffect(Unit) {
-                onCommentClick()
-            }
-            CommentPage(
-                hotComments = hotComments,
-                newestComments = newestComments,
-                totalCount = commentTotal,
-                isLoading = isCommentsLoading,
-                hasMore = hasMoreComments,
-                currentSort = commentSortType,
-                onLoadMore = {
-                    onLoadMoreComments()
-                },
-                onLikeClick = onLikeComment,
-                onReplyClick = { comment -> onReplyComment(comment) },
-                onPostComment = onPostComment,
-                onAvatarClick = onAvatarClick,
-                onSortChange = onCommentSortChange,
-                onViewFloorClick = onViewFloorClick
-            )
         }
     }
 }
 
-
-
-@Composable
-fun formatTime(millis: Long): String {
-    val totalSeconds = millis / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format(androidx.compose.ui.platform.LocalConfiguration.current.locales[0], "%d:%02d", minutes, seconds)
-}

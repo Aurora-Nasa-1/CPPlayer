@@ -89,6 +89,7 @@
     <string name="cellular_caching_desc">使用移动网络播放时缓存歌曲</string>
     <string name="max_cache_size">最大缓存大小: %1$dMB</string>
     <string name="debug">调试</string>
+    <string name="health_status">健康状态</string>
     <string name="comments_count">评论 (%1$d)</string>
     <string name="hot_comments">最热评论</string>
     <string name="newest_comments">最新评论</string>
@@ -168,4 +169,65 @@
     <string name="engine_flick">Flick 引擎 (本地, USB独占) [BETA]</string>
     <string name="usb_exclusive_title">USB 独占模式 [BETA]</string>
     <string name="usb_exclusive_subtitle">获取外置 USB DAC 的独占控制权</string>
+    <string name="font_roundness">字体圆润度</string>
+    <string name="font_roundness_desc">切换 Google Sans Flex 的字体圆润模式，类似 Android 16 QPR2 效果</string>
+    <string name="font_roundness_standard">标准模式</string>
+    <string name="font_roundness_expressive">Expressive 模式</string>
+    <string name="play_immediately">点击直接播放</string>
+    <string name="play_immediately_desc">点击歌曲时直接开始播放，不跳转到播放界面</string>
+    <string name="playback_behavior">播放行为</string>
+
+    <!-- UI翻新新增字符串 -->
+    <string name="quick_access">快速访问</string>
+    <string name="recommended_playlists">推荐歌单</string>
+    <string name="greeting_morning">早上好</string>
+    <string name="greeting_afternoon">下午好</string>
+    <string name="greeting_evening">晚上好</string>
+    <string name="greeting_late_night">夜深了</string>
+    <string name="daily_mix_title">每日推荐</string>
+    <string name="daily_mix_subtitle">基于播放历史</string>
+    <string name="check_all_daily_mix">查看全部 →</string>
+    <string name="all_replies">所有回复</string>
+    <string name="sort_comments">排序</string>
+    <string name="send">发送</string>
+    <string name="view_all">查看全部</string>
+    <string name="no_comments_yet">暂无评论，快来抢沙发吧</string>
+    <string name="no_messages_yet">暂无消息</string>
+    <string name="import_from_playlist">从歌单导入</string>
+    <string name="add_songs">添加歌曲</string>
+    <string name="add_from_queue">从播放队列添加</string>
+    <string name="added_to_queue">已添加 %1$d 首到播放队列</string>
+    <string name="current_provider_label">当前音乐源</string>
+    <string name="switch_provider_label">切换音乐源</string>
+    <string name="provider_accounts_label">%1$s 的账号</string>
+    <string name="all_accounts_label">所有已保存的账号</string>
+    <string name="account_provider_badge">%1$s</string>
+
+    <!-- 本地音乐云端关联 -->
+    <string name="bind_cloud_song">关联云端歌曲</string>
+    <string name="bind_cloud_search">搜索</string>
+    <string name="bind_cloud_no_results">未找到匹配的云端歌曲</string>
+    <string name="bind_cloud_success">已关联云端歌曲</string>
+    <string name="unbind_cloud_song">解除关联</string>
+
+    <!-- 关于页面 -->
+    <string name="about">关于</string>
+    <string name="settings_about_desc">项目信息、版本、维护者</string>
+    <string name="about_version_info">版本信息</string>
+    <string name="about_project">项目信息</string>
+    <string name="about_maintainers">主要维护者</string>
+    <string name="about_contributors">贡献者</string>
+    <string name="about_main_developer">项目创建者 &amp; 主要维护者</string>
+    <string name="current_version">当前版本</string>
+    <string name="commit_hash">提交哈希</string>
+    <string name="check_for_updates">检查更新</string>
+    <string name="checking_update">正在检查更新…</string>
+    <string name="update_available">发现新版本</string>
+    <string name="already_latest">已是最新版本</string>
+    <string name="project_address">项目地址</string>
+    <string name="qq_group">QQ 群</string>
+    <string name="qq_group_placeholder">链接待添加</string>
+    <string name="update_changelog">更新日志</string>
+    <string name="update_download">下载更新</string>
+    <string name="copied">已复制</string>
 </resources>

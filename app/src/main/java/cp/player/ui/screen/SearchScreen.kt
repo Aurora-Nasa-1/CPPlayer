@@ -25,19 +25,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cp.player.api.MusicApiMethod
+import cp.player.model.Artist
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.PlaylistItem
+import cp.player.ui.component.ArtistItem
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun SearchScreen(
     searchResults: List<Song>,
     searchPlaylists: List<cp.player.model.Playlist>,
+    searchArtists: List<Artist> = emptyList(),
     favoriteSongs: List<String>,
     hotSearches: List<Pair<String, String>>,
     searchHistory: List<String>,
     suggestions: List<String>,
+    searchQuery: String = "",
     searchType: Int,
     isLoading: Boolean,
     onSearch: (String, Int) -> Unit,
@@ -45,14 +50,19 @@ fun SearchScreen(
     onClearHistory: () -> Unit,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (cp.player.model.Playlist) -> Unit,
+    onAlbumClick: (cp.player.model.Playlist) -> Unit = onPlaylistClick,
+    onArtistClick: (Artist) -> Unit = {},
     onLikeClick: (Song) -> Unit,
+    onDownloadClick: ((Song) -> Unit)? = null,
+    currentSongId: String? = null,
+    completedSongs: Set<String> = emptySet(),
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = LocalContext.current
     val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
     val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    var query by remember { mutableStateOf("") }
+    var query by remember(searchQuery) { mutableStateOf(searchQuery) }
     var active by remember { mutableStateOf(false) }
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
@@ -153,12 +163,12 @@ fun SearchScreen(
             }
 
             // Filter Chips
-            if (searchResults.isNotEmpty() || query.isNotEmpty()) {
+            if (searchResults.isNotEmpty() || searchPlaylists.isNotEmpty() || searchArtists.isNotEmpty() || searchQuery.isNotEmpty()) {
                 val types = listOf(
-                    1 to "Songs",
-                    10 to "Albums",
-                    100 to "Artists",
-                    1000 to "Playlists"
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_SONG to "Songs",
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ALBUM to "Albums",
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ARTIST to "Artists",
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_PLAYLIST to "Playlists"
                 )
                 LazyRow(
                     modifier = Modifier
@@ -171,8 +181,9 @@ fun SearchScreen(
                         FilterChip(
                             selected = searchType == type,
                             onClick = {
-                                if (query.isNotBlank()) {
-                                    onSearch(query, type)
+                                val kw = query.ifBlank { searchQuery }
+                                if (kw.isNotBlank()) {
+                                    onSearch(kw, type)
                                 }
                             },
                             label = { Text(label) }
@@ -193,7 +204,7 @@ fun SearchScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (searchResults.isEmpty() && searchPlaylists.isEmpty() && query.isEmpty()) {
+                if (searchResults.isEmpty() && searchPlaylists.isEmpty() && searchArtists.isEmpty() && searchQuery.isEmpty()) {
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                         Text(
                             "Hot Searches",
@@ -206,6 +217,7 @@ fun SearchScreen(
                         cp.player.ui.component.UnifiedListItem(
     onClick = { query = hot.first
                                     onSearch(hot.first, searchType) },
+                            shapes = androidx.compose.material3.ListItemDefaults.segmentedShapes(index, hotSearches.size),
                             headlineContent = { Text(hot.first) },
                             supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
                             leadingContent = {
@@ -224,40 +236,58 @@ fun SearchScreen(
                         )
                     }
                 } else {
-                    if (searchType == 1) {
-                        itemsIndexed(searchResults, key = { _, song -> song.id }) { index, song ->
-                            SongItem(
-                                song = song,
-                                isFavorite = favoriteSongs.contains(song.id),
-                                onOptionsClick = { selectedSongForOptions = song },
-                                onClick = { onSongClick(song) },
-                                showDivider = false,
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                    when (searchType) {
+                        MusicApiMethod.SEARCH_TYPE_SONG -> {
+                            itemsIndexed(searchResults, key = { _, song -> song.id }) { index, song ->
+                                SongItem(
+                                    song = song,
+                                    index = index,
+                                    total = searchResults.size,
+                                    isFavorite = favoriteSongs.contains(song.id),
+                                    isCurrentlyPlaying = song.id == currentSongId,
+                                    onOptionsClick = { selectedSongForOptions = song },
+                                    onClick = { onSongClick(song) },
+                                    showDivider = false,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            }
                         }
-                    } else if (searchType == 10) {
-                        itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = { onPlaylistClick(playlist) },
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                        MusicApiMethod.SEARCH_TYPE_ALBUM -> {
+                            itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    index = index,
+                                    total = searchPlaylists.size,
+                                    onClick = { onAlbumClick(playlist) },
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            }
                         }
-                    } else if (searchType == 100) {
-                        itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = { onPlaylistClick(playlist) },
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                        MusicApiMethod.SEARCH_TYPE_ARTIST -> {
+                            itemsIndexed(searchArtists, key = { _, artist -> artist.id }) { index, artist ->
+                                ArtistItem(
+                                    artist = artist,
+                                    index = index,
+                                    total = searchArtists.size,
+                                    onClick = { onArtistClick(artist) },
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            }
                         }
-                    } else if (searchType == 1000) {
-                        itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = { onPlaylistClick(playlist) },
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                        MusicApiMethod.SEARCH_TYPE_PLAYLIST -> {
+                            itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    index = index,
+                                    total = searchPlaylists.size,
+                                    onClick = { onPlaylistClick(playlist) },
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            }
                         }
                     }
                 }
@@ -269,6 +299,7 @@ fun SearchScreen(
         cp.player.ui.component.SongOptionsBottomSheet(
             song = song,
             isFavorite = favoriteSongs.contains(song.id),
+            isDownloaded = completedSongs.contains(song.id),
             onDismissRequest = { selectedSongForOptions = null },
             onPlayClick = {
                 onSongClick(song)
@@ -277,7 +308,8 @@ fun SearchScreen(
             onFavoriteClick = {
                 onLikeClick(song)
                 selectedSongForOptions = null
-            }
+            },
+            onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } }
         )
     }
 }

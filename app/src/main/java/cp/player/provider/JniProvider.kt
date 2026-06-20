@@ -8,7 +8,8 @@ class JniProvider(
     override val name: String,
     override val version: String,
     private val soPath: String,
-    override val apiMap: Map<String, String>? = null
+    override val apiMap: Map<String, String>? = null,
+    override val updateUrl: String? = null
 ) : BackendProvider {
     override val type = ProviderType.JNI
     private var isLoaded = false

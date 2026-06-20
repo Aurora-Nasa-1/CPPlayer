@@ -6,5 +6,7 @@ data class Playlist(
     val coverImgUrl: String? = null,
     val trackCount: Int = 0,
     val creatorName: String? = null,
+    val creatorUserId: Long = 0L,
+    val subscribed: Boolean = false,
     val description: String? = null
 )
