@@ -110,7 +110,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                             DebugLog.i("PlaybackVM: ACTION_SONG_CHANGED id=$mediaId title=$title")
                             val song = Song(id = mediaId, name = title, artist = artist, album = album, albumArtUrl = artworkUri)
                             currentSong = song
-                            LyricsManager.fetch(mediaId, getApplication())
+                            LyricsManager.fetch(mediaId, getApplication(), songTitle = title, songArtist = artist)
                             extractColorFromUrl(artworkUri)
                         }
                     }

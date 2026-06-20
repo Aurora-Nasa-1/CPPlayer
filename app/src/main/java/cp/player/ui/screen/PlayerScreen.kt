@@ -481,9 +481,9 @@ fun PlayerScreen(
                                 onDislikeClick = onDislikeClick
                             )
                         } else {
-                                // 歌词自动预加载：切换歌曲时获取歌词
+                                // 歌词自动预加载：切换歌曲时获取歌词（传入标题/歌手用于本地歌曲自动搜索云端绑定）
                                 LaunchedEffect(song.id) {
-                                    cp.player.lyrics.LyricsManager.fetch(song.id, context)
+                                    cp.player.lyrics.LyricsManager.fetch(song.id, context, songTitle = song.name, songArtist = song.artist)
                                 }
 
                                 // 页面切换时重置下拉偏移量，防止卡在中间

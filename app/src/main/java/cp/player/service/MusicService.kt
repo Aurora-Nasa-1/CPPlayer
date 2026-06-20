@@ -640,8 +640,8 @@ class MusicService : MediaSessionService() {
         lyriconProvider?.player?.setPlaybackState(activePlayer?.isPlaying ?: false)
         lyriconProvider?.player?.setSong(Song(id = songId, name = title, artist = artist))
 
-        // 通过 LyricsManager 统一获取歌词
-        cp.player.lyrics.LyricsManager.fetch(songId, this)
+        // 通过 LyricsManager 统一获取歌词（传入标题/歌手用于本地歌曲自动搜索云端绑定）
+        cp.player.lyrics.LyricsManager.fetch(songId, this, songTitle = title, songArtist = artist)
 
         // 观察歌词状态变化，同步到 Lyricon
         lyricJob?.cancel()

@@ -61,8 +61,10 @@ object LyricsManager {
      *
      * @param filePath 本地文件路径（用于内嵌歌词提取），可为 null
      * @param contentUri content:// URI（用于内嵌歌词提取），可为 null
+     * @param songTitle 歌曲标题（用于本地歌曲自动搜索云端绑定），可为 null
+     * @param songArtist 歌曲歌手（用于本地歌曲自动搜索云端绑定），可为 null
      */
-    fun fetch(songId: String, context: Context, filePath: String? = null, contentUri: String? = null) {
+    fun fetch(songId: String, context: Context, filePath: String? = null, contentUri: String? = null, songTitle: String? = null, songArtist: String? = null) {
         DebugLog.i("LyricsManager: fetch($songId) called, currentSongId=$currentSongId, state=${_state.value::class.simpleName}")
 
         // 同一首歌已有成功结果，跳过（避免重复网络请求）
@@ -86,7 +88,7 @@ object LyricsManager {
             DebugLog.i("LyricsManager: debounce expired, starting fetch for $songId")
             fetchJob = scope.launch {
                 try {
-                    val result = fetchInternal(songId, context, filePath, contentUri)
+                    val result = fetchInternal(songId, context, filePath, contentUri, songTitle, songArtist)
                     ensureActive()
                     if (currentSongId == songId) {
                         _state.value = result
@@ -115,14 +117,22 @@ object LyricsManager {
         songId: String,
         context: Context,
         filePath: String?,
-        contentUri: String?
+        contentUri: String?,
+        songTitle: String?,
+        songArtist: String?
     ): LyricsState {
         // 本地歌曲：查询云端绑定 ID，用云端 ID 获取歌词
-        val effectiveId = if (songId.startsWith("local_")) {
+        var effectiveId = if (songId.startsWith("local_")) {
             cp.player.manager.LocalMusicManager.getBinding(songId)?.cloudSongId ?: songId
         } else {
             songId
         }
+
+        // 本地歌曲无绑定时，自动搜索云端匹配歌曲并绑定
+        if (effectiveId.startsWith("local_") && !songTitle.isNullOrBlank()) {
+            effectiveId = autoSearchAndBind(songId, songTitle, songArtist, context) ?: effectiveId
+        }
+
         DebugLog.i("LyricsManager: songId=$songId, effectiveId=$effectiveId")
 
         val lyricsSource = UserPreferences.getLyricsSource(context)
@@ -155,6 +165,42 @@ object LyricsManager {
         }
 
         return result
+    }
+
+    /**
+     * 自动搜索云端匹配歌曲并绑定，返回云端歌曲 ID。
+     * 仅用于本地歌曲无绑定时的自动匹配。
+     */
+    private suspend fun autoSearchAndBind(
+        localSongId: String,
+        title: String,
+        artist: String?,
+        context: Context
+    ): String? {
+        return try {
+            val api = cp.player.api.MusicApiServiceFactory.instance
+            val query = if (!artist.isNullOrBlank()) "$title $artist" else title
+            DebugLog.i("LyricsManager: auto-searching cloud for [$query]")
+            val body = withContext(Dispatchers.IO) {
+                api.search(query, 1)
+            }
+            val resultObj = body.get("result")?.asJsonObject
+            val candidates = resultObj?.get("songs")?.asJsonArray?.mapNotNull {
+                cp.player.util.JsonUtils.parseSong(it)
+            }
+            val best = candidates?.firstOrNull()
+            if (best != null) {
+                DebugLog.i("LyricsManager: auto-bound [$title] → [${best.name}] (${best.id})")
+                cp.player.manager.LocalMusicManager.bind(context, localSongId, best)
+                best.id
+            } else {
+                DebugLog.w("LyricsManager: no cloud match for [$title]")
+                null
+            }
+        } catch (e: Exception) {
+            DebugLog.w("LyricsManager: auto-search failed for [$title]: ${e.message}")
+            null
+        }
     }
 
     /**
