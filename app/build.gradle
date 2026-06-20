@@ -179,7 +179,13 @@ dependencies {
 }
 
 tasks.register('buildRust', Exec) {
-    environment 'PATH', '/home/auroranasa/.cargo/bin:' + System.getenv('PATH')
+    def cargoHome = System.getenv('CARGO_HOME') ?: "${System.getProperty('user.home')}/.cargo/bin"
+    environment 'PATH', "${cargoHome}:${System.getenv('PATH')}"
+    // ANDROID_NDK_HOME 由 CI 设置，本地开发时 cargo-ndk 自动检测
+    def ndkHome = System.getenv('ANDROID_NDK_HOME')
+    if (ndkHome) {
+        environment 'ANDROID_NDK_HOME', ndkHome
+    }
     workingDir file('src/main/rust')
     commandLine 'cargo', 'ndk',
             '-t', 'arm64-v8a',
@@ -187,8 +193,9 @@ tasks.register('buildRust', Exec) {
             'build', '--release'
 }
 
+// 确保 buildRust 在 JNI 合并和 Kotlin 编译之前完成（覆盖所有变体：debug/release/fastRelease）
 tasks.whenTaskAdded { task ->
-    if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+    if (task.name.startsWith('javaPreCompile') || task.name.startsWith('merge') && task.name.endsWith('JniLibFolders')) {
         task.dependsOn 'buildRust'
     }
 }

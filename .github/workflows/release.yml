@@ -29,6 +29,16 @@ jobs:
       with:
         targets: aarch64-linux-android
 
+    - name: Cache cargo registry & build
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          app/src/main/rust/target
+        key: cargo-${{ runner.os }}-${{ hashFiles('app/src/main/rust/Cargo.lock') }}
+        restore-keys: cargo-${{ runner.os }}-
+
     - name: Install cargo-ndk
       run: cargo install cargo-ndk
 
@@ -37,6 +47,9 @@ jobs:
 
     - name: Install NDK
       run: sdkmanager "ndk;28.0.13004108"
+
+    - name: Set ANDROID_NDK_HOME
+      run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> $GITHUB_ENV
 
     - name: Decode keystore
       run: |
