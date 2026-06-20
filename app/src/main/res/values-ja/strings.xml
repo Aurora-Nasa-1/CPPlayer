@@ -210,6 +210,9 @@
     <string name="bind_cloud_no_results">一致するクラウド曲が見つかりません</string>
     <string name="bind_cloud_success">クラウド曲を関連付けました</string>
     <string name="unbind_cloud_song">関連付けを解除</string>
+    <string name="sync_cloud_title">クラウド自動同期</string>
+    <string name="sync_cloud_progress">クラウド楽曲を検索・マッチング中…</string>
+    <string name="sync_cloud_done">同期完了：成功 %1$d 件、スキップ %2$d 件、失敗 %3$d 件</string>
 
     <!-- バージョン情報 -->
     <string name="about">バージョン情報</string>

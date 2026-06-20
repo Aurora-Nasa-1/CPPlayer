@@ -209,6 +209,9 @@
     <string name="bind_cloud_no_results">未找到匹配的云端歌曲</string>
     <string name="bind_cloud_success">已关联云端歌曲</string>
     <string name="unbind_cloud_song">解除关联</string>
+    <string name="sync_cloud_title">自动同步云端</string>
+    <string name="sync_cloud_progress">正在搜索并匹配云端歌曲…</string>
+    <string name="sync_cloud_done">同步完成：成功 %1$d 首，跳过 %2$d 首，失败 %3$d 首</string>
 
     <!-- 关于页面 -->
     <string name="about">关于</string>

@@ -4,11 +4,16 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import cp.player.model.LocalSongMetadata
 import cp.player.model.Song
 import cp.player.util.CoverArtExtractor
+import cp.player.util.JsonUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.abs
 
 /**
  * 本地音乐管理器。
@@ -131,5 +136,113 @@ object LocalMusicManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save bindings", e)
         }
+    }
+
+    /**
+     * 批量自动同步：为未绑定的本地歌曲搜索最匹配的云端歌曲并绑定。
+     *
+     * @param songs 待同步的本地歌曲列表
+     * @param context Android Context
+     * @return Triple(成功数, 跳过数(已绑定), 失败数)
+     */
+    suspend fun autoBindBatch(
+        songs: List<LocalSongMetadata>,
+        context: Context
+    ): Triple<Int, Int, Int> {
+        val api = cp.player.api.MusicApiServiceFactory.instance
+        var success = 0
+        var skipped = 0
+        var failed = 0
+
+        for (localSong in songs) {
+            // 已绑定则跳过
+            if (bindings.containsKey(localSong.songId)) {
+                skipped++
+                continue
+            }
+
+            try {
+                val query = "${localSong.songName} ${localSong.artist}"
+                val body = withContext(Dispatchers.IO) {
+                    api.search(query, 1)
+                }
+                val resultObj = body.get("result")?.asJsonObject
+                val candidates = resultObj?.get("songs")?.asJsonArray?.mapNotNull {
+                    JsonUtils.parseSong(it)
+                } ?: emptyList()
+
+                if (candidates.isEmpty()) {
+                    failed++
+                    Log.w(TAG, "AutoBind: no results for [${localSong.songName} - ${localSong.artist}]")
+                    continue
+                }
+
+                val bestMatch = candidates.maxByOrNull { scoreMatch(localSong, it) }
+                if (bestMatch != null && scoreMatch(localSong, bestMatch) >= 50) {
+                    bind(context, localSong.songId, bestMatch)
+                    success++
+                    Log.i(TAG, "AutoBind: bound [${localSong.songName}] → [${bestMatch.name}] (score=${scoreMatch(localSong, bestMatch)})")
+                } else {
+                    failed++
+                    Log.w(TAG, "AutoBind: no good match for [${localSong.songName}] (best=${bestMatch?.name}, score=${bestMatch?.let { scoreMatch(localSong, it) }})")
+                }
+            } catch (e: Exception) {
+                failed++
+                Log.e(TAG, "AutoBind: error for [${localSong.songName}]", e)
+            }
+        }
+
+        Log.i(TAG, "AutoBind batch done: success=$success, skipped=$skipped, failed=$failed")
+        return Triple(success, skipped, failed)
+    }
+
+    /**
+     * 评分算法：本地歌曲 vs 云端搜索结果的匹配度。
+     * 满分 100，阈值 50 才自动绑定。
+     */
+    private fun scoreMatch(local: LocalSongMetadata, cloud: Song): Int {
+        var score = 0
+
+        // 标题匹配 (0~40)
+        val localTitle = normalize(local.songName)
+        val cloudTitle = normalize(cloud.name)
+        score += when {
+            localTitle == cloudTitle -> 40
+            localTitle.contains(cloudTitle) || cloudTitle.contains(localTitle) -> 25
+            similarity(localTitle, cloudTitle) > 0.6f -> 15
+            else -> 0
+        }
+
+        // 歌手匹配 (0~30)
+        val localArtist = normalize(local.artist)
+        val cloudArtist = normalize(cloud.artist)
+        score += when {
+            localArtist == cloudArtist -> 30
+            localArtist.contains(cloudArtist) || cloudArtist.contains(localArtist) -> 20
+            similarity(localArtist, cloudArtist) > 0.5f -> 10
+            else -> 0
+        }
+
+        // 专辑匹配 (0~10)
+        val localAlbum = normalize(local.album)
+        val cloudAlbum = normalize(cloud.album)
+        if (localAlbum == cloudAlbum && localAlbum.isNotEmpty()) {
+            score += 10
+        }
+
+        // 时长匹配需要从 MediaStore 获取，这里用 0 跳过
+        // 如果后续 LocalSongMetadata 加入 duration 字段可以启用
+
+        return score
+    }
+
+    /** 字符串归一化：去空格、转小写 */
+    private fun normalize(s: String): String = s.trim().lowercase().replace(Regex("\\s+"), " ")
+
+    /** 简单相似度：基于公共子串比例 */
+    private fun similarity(a: String, b: String): Float {
+        if (a.isEmpty() || b.isEmpty()) return 0f
+        val common = a.commonPrefixWith(b).length + a.commonSuffixWith(b).length
+        return common.toFloat() / maxOf(a.length, b.length)
     }
 }

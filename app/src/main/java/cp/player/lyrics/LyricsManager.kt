@@ -117,6 +117,14 @@ object LyricsManager {
         filePath: String?,
         contentUri: String?
     ): LyricsState {
+        // 本地歌曲：查询云端绑定 ID，用云端 ID 获取歌词
+        val effectiveId = if (songId.startsWith("local_")) {
+            cp.player.manager.LocalMusicManager.getBinding(songId)?.cloudSongId ?: songId
+        } else {
+            songId
+        }
+        DebugLog.i("LyricsManager: songId=$songId, effectiveId=$effectiveId")
+
         val lyricsSource = UserPreferences.getLyricsSource(context)
         val amllPlatformSetting = UserPreferences.getAmllPlatform(context)
         val platform = if (amllPlatformSetting == "auto") {
@@ -129,9 +137,9 @@ object LyricsManager {
         DebugLog.i("LyricsManager: lyricsSource=$lyricsSource, platform=$platform (setting=$amllPlatformSetting)")
 
         val result = when (lyricsSource) {
-            1 -> fetchAmllFirst(songId, platform, context)  // AMLL 优先
-            2 -> fetchAmllOnly(songId, platform)             // 仅 AMLL
-            else -> fetchProviderOnly(songId, context)        // Provider API（默认）
+            1 -> fetchAmllFirst(effectiveId, platform, context)  // AMLL 优先
+            2 -> fetchAmllOnly(effectiveId, platform)             // 仅 AMLL
+            else -> fetchProviderOnly(effectiveId, context)        // Provider API（默认）
         }
 
         // 本地歌曲：云端歌词无结果时回退到内嵌歌词

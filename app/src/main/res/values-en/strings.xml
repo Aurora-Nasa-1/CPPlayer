@@ -206,6 +206,9 @@
     <string name="bind_cloud_no_results">No matching cloud songs found</string>
     <string name="bind_cloud_success">Cloud song bound</string>
     <string name="unbind_cloud_song">Unbind</string>
+    <string name="sync_cloud_title">Auto Sync Cloud</string>
+    <string name="sync_cloud_progress">Searching and matching cloud songs…</string>
+    <string name="sync_cloud_done">Sync done: %1$d matched, %2$d skipped, %3$d failed</string>
 
     <!-- About -->
     <string name="about">About</string>

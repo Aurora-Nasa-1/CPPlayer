@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -35,6 +34,7 @@ import cp.player.model.LocalSongMetadata
 import cp.player.ui.component.SongItem
 import cp.player.viewmodel.PlaybackViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,9 +60,11 @@ fun DownloadsContent(
     // 系统音乐文件夹多选状态
     var selectedLocalSongs by remember { mutableStateOf(setOf<String>()) }
     var isLocalSelectionMode by remember { mutableStateOf(false) }
-    var showMultiSelectAddToPlaylist by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
+    var syncProgress by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // 退出选择模式的 BackHandler
     BackHandler(enabled = isLocalSelectionMode) {
@@ -134,9 +136,25 @@ fun DownloadsContent(
                 }) {
                     Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Add to Queue")
                 }
-                // 添加到歌单
-                IconButton(onClick = { showMultiSelectAddToPlaylist = true }) {
-                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
+                // 自动同步云端
+                IconButton(onClick = {
+                    val selectedList = localSongs.filter { selectedLocalSongs.contains(it.songId) }
+                    if (selectedList.isEmpty()) return@IconButton
+                    isSyncing = true
+                    scope.launch {
+                        val (success, skipped, failed) = LocalMusicManager.autoBindBatch(selectedList, context)
+                        isSyncing = false
+                        isLocalSelectionMode = false
+                        selectedLocalSongs = emptySet()
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.sync_cloud_done, success, skipped, failed),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                        onRefreshLocalMusic()
+                    }
+                }) {
+                    Icon(Icons.Rounded.CloudSync, contentDescription = "Auto Sync Cloud")
                 }
             }
         ) { innerPadding ->
@@ -199,20 +217,18 @@ fun DownloadsContent(
         )
     }
 
-    // 多选添加到歌单面板
-    if (showMultiSelectAddToPlaylist && onAddToPlaylist != null) {
-        val selectedIds = remember(selectedLocalSongs, localSongs) {
-            localSongs.filter { selectedLocalSongs.contains(it.songId) }.map { it.songId }
-        }
-        cp.player.ui.component.AddToPlaylistBottomSheet(
-            playlists = allPlaylists,
-            onPlaylistSelected = { playlist ->
-                onAddToPlaylist(playlist.id, selectedIds)
-                showMultiSelectAddToPlaylist = false
-                isLocalSelectionMode = false
-                selectedLocalSongs = emptySet()
+    // 同步进度对话框
+    if (isSyncing) {
+        AlertDialog(
+            onDismissRequest = { /* 不允许关闭 */ },
+            title = { Text(stringResource(R.string.sync_cloud_title)) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                    Text(stringResource(R.string.sync_cloud_progress))
+                }
             },
-            onDismissRequest = { showMultiSelectAddToPlaylist = false }
+            confirmButton = {}
         )
     }
 }
