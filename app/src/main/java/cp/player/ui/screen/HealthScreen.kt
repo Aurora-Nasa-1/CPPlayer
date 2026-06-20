@@ -26,8 +26,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cp.player.R
 import cp.player.api.MusicApiMethod
 import cp.player.monitor.HealthMonitor
 import cp.player.provider.ModuleManager
@@ -56,7 +58,7 @@ fun HealthScreen(
     var currentTab by remember { mutableStateOf(0) }
 
     AppScaffold(
-        title = "健康状态 & 调试",
+        title = stringResource(R.string.health_and_debug),
         onBackPressed = onBackPressed,
         containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) { innerPadding ->
@@ -95,12 +97,12 @@ fun HealthScreenInline() {
 @Composable
 private fun HealthTabRow(currentTab: Int, compact: Boolean = false, onSelect: (Int) -> Unit) {
     val tabs = listOf(
-        "概览" to Icons.Default.Dashboard,
-        "方法" to Icons.Default.Analytics,
-        "日志" to Icons.AutoMirrored.Filled.List,
-        "测试" to Icons.AutoMirrored.Filled.Send,
+        stringResource(R.string.tab_overview) to Icons.Default.Dashboard,
+        stringResource(R.string.tab_methods) to Icons.Default.Analytics,
+        stringResource(R.string.tab_logs) to Icons.AutoMirrored.Filled.List,
+        stringResource(R.string.tab_test) to Icons.AutoMirrored.Filled.Send,
         "apiMap" to Icons.Default.Map,
-        "状态" to Icons.Default.Info
+        stringResource(R.string.tab_status) to Icons.Default.Info
     )
     val chipSize = if (compact) 32.dp else 36.dp
     val iconSize = if (compact) 16.dp else 18.dp
@@ -197,9 +199,9 @@ private fun HealthOverviewTab(scrollable: Boolean) {
                         }
                     }
                     Spacer(Modifier.height(20.dp))
-                    Text("暂无监控数据", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.no_monitoring_data), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text("执行 API 调用后将自动记录健康数据", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.health_auto_record), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                 }
             }
             return@Column
@@ -211,7 +213,7 @@ private fun HealthOverviewTab(scrollable: Boolean) {
         }
 
         // ── Provider 健康卡片 ──
-        Text("Provider 健康状态", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.provider_health_status), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         val providerMap = providers.associateBy { it.id }
         val statsToShow = (allStats.keys + providers.map { it.id }).distinct()
         statsToShow.forEach { providerId ->
@@ -249,8 +251,8 @@ private fun GlobalStatsCard(records: List<HealthMonitor.ApiCallRecord>) {
             // 标题行 + 大分数
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("全局健康", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("$totalCalls 次调用 · 平均 ${avgResponse}ms", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.global_health), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.calls_avg_time, totalCalls, avgResponse), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                 }
                 // 大号评分
                 Box(
@@ -273,10 +275,10 @@ private fun GlobalStatsCard(records: List<HealthMonitor.ApiCallRecord>) {
 
             // 指标网格
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                MetricChip("成功", "$totalSuccess", Color(0xFF4CAF50), Icons.Default.CheckCircle)
-                MetricChip("失败", "$totalFail", Color(0xFFF44336), Icons.Default.Error)
-                MetricChip("回退", "$totalFallbacks", Color(0xFFFF9800), Icons.Default.SwapHoriz)
-                MetricChip("警告", "$totalWarnings", Color(0xFFFF9800), Icons.Default.Warning)
+                MetricChip(stringResource(R.string.metric_success), "$totalSuccess", Color(0xFF4CAF50), Icons.Default.CheckCircle)
+                MetricChip(stringResource(R.string.metric_fail), "$totalFail", Color(0xFFF44336), Icons.Default.Error)
+                MetricChip(stringResource(R.string.metric_fallback), "$totalFallbacks", Color(0xFFFF9800), Icons.Default.SwapHoriz)
+                MetricChip(stringResource(R.string.metric_warning), "$totalWarnings", Color(0xFFFF9800), Icons.Default.Warning)
             }
         }
     }
@@ -343,7 +345,7 @@ private fun ProviderHealthCard(providerName: String, providerType: String, stats
                         ) {
                             Text("${(score * 100).toInt()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scoreColor)
                             Spacer(Modifier.width(3.dp))
-                            Text("分", style = MaterialTheme.typography.labelSmall, color = scoreColor.copy(alpha = 0.7f))
+                            Text(stringResource(R.string.score_unit), style = MaterialTheme.typography.labelSmall, color = scoreColor.copy(alpha = 0.7f))
                         }
                     }
                 }
@@ -351,7 +353,7 @@ private fun ProviderHealthCard(providerName: String, providerType: String, stats
 
             if (!hasData) {
                 Spacer(Modifier.height(12.dp))
-                Text("暂无调用记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                Text(stringResource(R.string.no_call_records), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
             } else {
                 Spacer(Modifier.height(16.dp))
 
@@ -359,7 +361,7 @@ private fun ProviderHealthCard(providerName: String, providerType: String, stats
                 val successRate = stats.successCount.toFloat() / stats.totalCalls
                 Column {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("成功率", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        Text(stringResource(R.string.success_rate), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         Text("${String.format("%.1f", successRate * 100)}%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = scoreColor)
                     }
                     Spacer(Modifier.height(6.dp))
@@ -375,16 +377,16 @@ private fun ProviderHealthCard(providerName: String, providerType: String, stats
 
                 // 指标行
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    MiniStat("调用", "${stats.totalCalls}")
-                    MiniStat("成功", "${stats.successCount}", Color(0xFF4CAF50))
-                    MiniStat("失败", "${stats.failCount}", if (stats.failCount > 0) Color(0xFFF44336) else MaterialTheme.colorScheme.outline)
-                    MiniStat("回退", "${stats.fallbackCount}", if (stats.fallbackCount > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.outline)
+                    MiniStat(stringResource(R.string.metric_calls), "${stats.totalCalls}")
+                    MiniStat(stringResource(R.string.metric_success), "${stats.successCount}", Color(0xFF4CAF50))
+                    MiniStat(stringResource(R.string.metric_fail), "${stats.failCount}", if (stats.failCount > 0) Color(0xFFF44336) else MaterialTheme.colorScheme.outline)
+                    MiniStat(stringResource(R.string.metric_fallback), "${stats.fallbackCount}", if (stats.fallbackCount > 0) Color(0xFFFF9800) else MaterialTheme.colorScheme.outline)
                 }
 
                 // 响应时间
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("平均响应", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.avg_response), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     Text("${stats.avgResponseMs}ms  ·  P95: ${stats.p95ResponseMs}ms", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                 }
 
@@ -395,7 +397,7 @@ private fun ProviderHealthCard(providerName: String, providerType: String, stats
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, null, Modifier.size(16.dp), tint = Color(0xFFFF9800))
                             Spacer(Modifier.width(8.dp))
-                            Text("${stats.warningCount} 个兼容性警告", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
+                            Text(stringResource(R.string.compatibility_warnings_count, stats.warningCount), style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
                             if (stats.lastWarning != null) {
                                 Text(" · ${formatWarning(stats.lastWarning)}", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800).copy(alpha = 0.7f))
                             }
@@ -442,11 +444,11 @@ private fun HealthMethodStatsTab(scrollable: Boolean) {
     Column(modifier = columnModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (methodStats.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                Text("暂无方法统计数据", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+                Text(stringResource(R.string.no_method_stats), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
             }
             return@Column
         }
-        Text("按 API 方法分组统计（按调用次数排序）", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.method_stats_desc), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
         methodStats.values.sortedByDescending { it.totalCalls }.forEach { MethodStatRow(it) }
     }
@@ -471,13 +473,13 @@ private fun MethodStatRow(stat: HealthMonitor.MethodStats) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stat.method, style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace)
                     Text(
-                        "${stat.totalCalls} 次 · 成功率 ${String.format("%.0f", successRate)}% · 平均 ${stat.avgResponseMs}ms",
+                        stringResource(R.string.method_calls_success_rate, stat.totalCalls, String.format("%.0f", successRate), stat.avgResponseMs),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline
                     )
                 }
-                if (stat.failCount > 0) Text("${stat.failCount} 失败", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                if (stat.warningCount > 0) { Spacer(Modifier.width(8.dp)); Text("${stat.warningCount} 警告", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF9800)) }
-                if (stat.fallbackCount > 0) { Spacer(Modifier.width(8.dp)); Text("${stat.fallbackCount} 回退", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF9800)) }
+                if (stat.failCount > 0) Text(stringResource(R.string.fail_count, stat.failCount), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                if (stat.warningCount > 0) { Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.warning_count, stat.warningCount), style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF9800)) }
+                if (stat.fallbackCount > 0) { Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.fallback_count, stat.fallbackCount), style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF9800)) }
                 Spacer(Modifier.width(8.dp))
                 Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
             }
@@ -491,7 +493,7 @@ private fun MethodStatRow(stat: HealthMonitor.MethodStats) {
                 if (stat.warningTypes.isNotEmpty()) {
                     Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFFF9800).copy(alpha = 0.06f), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(10.dp)) {
-                            Text("兼容性警告分布", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                            Text(stringResource(R.string.compatibility_warning_dist), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
                             Spacer(Modifier.height(4.dp))
                             stat.warningTypes.forEach { (warning, count) ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -535,7 +537,7 @@ private fun HealthCallLogTab(scrollable: Boolean) {
                 FilterChip(
                     selected = filterFailuresOnly,
                     onClick = { filterFailuresOnly = !filterFailuresOnly; filterWarningsOnly = false },
-                    label = { Text("仅失败", fontWeight = FontWeight.Medium) },
+                    label = { Text(stringResource(R.string.filter_failures_only), fontWeight = FontWeight.Medium) },
                     leadingIcon = if (filterFailuresOnly) {{ Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }} else null,
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
@@ -545,7 +547,7 @@ private fun HealthCallLogTab(scrollable: Boolean) {
                 FilterChip(
                     selected = filterWarningsOnly,
                     onClick = { filterWarningsOnly = !filterWarningsOnly; filterFailuresOnly = false },
-                    label = { Text("仅警告", fontWeight = FontWeight.Medium) },
+                    label = { Text(stringResource(R.string.filter_warnings_only), fontWeight = FontWeight.Medium) },
                     leadingIcon = if (filterWarningsOnly) {{ Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }} else null,
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFFFF9800).copy(alpha = 0.15f),
@@ -554,17 +556,17 @@ private fun HealthCallLogTab(scrollable: Boolean) {
                 )
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { HealthMonitor.clearRecords() }) {
-                    Icon(Icons.Default.DeleteOutline, "清除记录", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+                    Icon(Icons.Default.DeleteOutline, stringResource(R.string.clear_records), tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
         if (filteredRecords.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                Text("暂无调用记录", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+                Text(stringResource(R.string.no_call_records), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
             }
         } else {
-            Text("共 ${filteredRecords.size} 条记录", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text(stringResource(R.string.total_records, filteredRecords.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(8.dp))
             Column(
                 modifier = if (scrollable) Modifier.fillMaxWidth().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth(),
@@ -629,31 +631,31 @@ private fun CallRecordRow(record: HealthMonitor.ApiCallRecord, compact: Boolean)
                 ) {
                     Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (record.responseCode != null) {
-                            DetailRow("响应码", "${record.responseCode}", if (record.responseCode == 200 || record.responseCode == 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
+                            DetailRow(stringResource(R.string.response_code), "${record.responseCode}", if (record.responseCode == 200 || record.responseCode == 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
                         }
                         if (record.errorCode != null) {
-                            DetailRow("错误码", "${record.errorCode}", MaterialTheme.colorScheme.error)
+                            DetailRow(stringResource(R.string.error_code), "${record.errorCode}", MaterialTheme.colorScheme.error)
                         }
                         if (record.errorMessage != null) {
                             Text(record.errorMessage.take(400), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 16.sp)
                         }
                         if (record.responseWarnings.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                            Text("兼容性警告", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                            Text(stringResource(R.string.compatibility_warning), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
                             record.responseWarnings.forEach { w ->
                                 Row(verticalAlignment = Alignment.Top) {
                                     Text("• ", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
                                     Column {
                                         Text(formatWarning(w), style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
                                         if (w == HealthMonitor.ResponseWarning.MISSING_DATA_FIELD && record.expectedField != null) {
-                                            Text("  期望字段: ${record.expectedField}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFF9800).copy(alpha = 0.7f))
+                                            Text("  " + stringResource(R.string.expected_field, record.expectedField ?: ""), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFF9800).copy(alpha = 0.7f))
                                         }
                                     }
                                 }
                             }
                         }
                         if (record.wasFallback && record.fallbackFrom != null) {
-                            DetailRow("回退自", record.fallbackFrom, Color(0xFFFF9800))
+                            DetailRow(stringResource(R.string.fallback_from), record.fallbackFrom, Color(0xFFFF9800))
                         }
                     }
                 }
@@ -705,7 +707,7 @@ private fun ApiTestTab(scrollable: Boolean) {
     }
 
     Column(modifier = columnModifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("选择 API 方法", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.select_api_method), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
             OutlinedTextField(
                 value = selectedMethod, onValueChange = {}, readOnly = true,
@@ -725,7 +727,7 @@ private fun ApiTestTab(scrollable: Boolean) {
                                     Text("→ $mapped", style = MaterialTheme.typography.bodySmall,
                                         color = if (mapped.equals("unsupported", ignoreCase = true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                                 } else if (provider?.apiMap != null) {
-                                    Text("(未映射，直通)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                    Text(stringResource(R.string.unmapped_passthrough), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 }
                             }
                         },
@@ -735,7 +737,7 @@ private fun ApiTestTab(scrollable: Boolean) {
             }
         }
 
-        Text("请求参数 (JSON)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.request_params_json), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         OutlinedTextField(
             value = paramsText, onValueChange = { paramsText = it },
             modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
@@ -755,7 +757,7 @@ private fun ApiTestTab(scrollable: Boolean) {
                         responseText = formatJson(result)
                     } catch (e: Exception) {
                         responseTime = System.currentTimeMillis() - startTime
-                        responseText = "错误: ${e.message}"
+                        responseText = context.getString(R.string.error_message, e.message ?: "")
                     } finally { isLoading = false }
                 }
             },
@@ -763,15 +765,15 @@ private fun ApiTestTab(scrollable: Boolean) {
         ) {
             if (isLoading) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp)); Text("发送中...")
+                Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sending))
             } else {
-                Icon(Icons.AutoMirrored.Filled.Send, null); Spacer(Modifier.width(8.dp)); Text("发送请求")
+                Icon(Icons.AutoMirrored.Filled.Send, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.send_request))
             }
         }
 
         if (responseText.isNotEmpty()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("响应", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.response), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Text("${responseTime}ms", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
@@ -810,12 +812,12 @@ private fun ApiMapTab(scrollable: Boolean) {
 
     Column(modifier = columnModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (provider == null) {
-            Text("没有活跃的 Provider", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.no_active_provider), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
             return@Column
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(16.dp)) {
-                Text("当前 Provider: ${provider.name}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.current_provider, provider.name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("ID: ${provider.id}  |  类型: ${provider.type}  |  版本: ${provider.version}", style = MaterialTheme.typography.bodySmall)
                 Text("apiMap 条目数: ${provider.apiMap?.size ?: 0}", style = MaterialTheme.typography.bodySmall)
             }
@@ -825,12 +827,12 @@ private fun ApiMapTab(scrollable: Boolean) {
         val unsupportedCount = allMethods.count { provider.apiMap?.get(it)?.equals("unsupported", ignoreCase = true) == true }
         val passthroughCount = allMethods.size - mappedCount
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatChip("已映射", "$mappedCount", MaterialTheme.colorScheme.primaryContainer)
-            StatChip("不支持", "$unsupportedCount", MaterialTheme.colorScheme.errorContainer)
-            StatChip("直通", "$passthroughCount", MaterialTheme.colorScheme.surfaceVariant)
+            StatChip(stringResource(R.string.mapped), "$mappedCount", MaterialTheme.colorScheme.primaryContainer)
+            StatChip(stringResource(R.string.unsupported), "$unsupportedCount", MaterialTheme.colorScheme.errorContainer)
+            StatChip(stringResource(R.string.passthrough), "$passthroughCount", MaterialTheme.colorScheme.surfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
-        Text("所有 API 方法", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.all_api_methods), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         allMethods.forEachIndexed { index, method ->
             val mapped = provider.apiMap?.get(method)
             val isUnsupported = mapped?.equals("unsupported", ignoreCase = true) == true
@@ -849,7 +851,7 @@ private fun ApiMapTab(scrollable: Boolean) {
                     if (isMapped) Text("→ $mapped", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
                 Text(
-                    text = when { isUnsupported -> "不支持"; isMapped -> "已映射"; else -> "直通" },
+                    text = when { isUnsupported -> stringResource(R.string.unsupported); isMapped -> stringResource(R.string.mapped); else -> stringResource(R.string.passthrough) },
                     style = MaterialTheme.typography.labelSmall,
                     color = when { isUnsupported -> MaterialTheme.colorScheme.error; isMapped -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.outline }
                 )
@@ -872,7 +874,7 @@ private fun ProviderStatusTab(scrollable: Boolean) {
     }
 
     Column(modifier = columnModifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("已加载的 Providers", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.loaded_providers), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         providers.forEach { provider ->
             val isCurrent = provider.id == currentProvider?.id
             Card(
@@ -883,19 +885,19 @@ private fun ProviderStatusTab(scrollable: Boolean) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(provider.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (isCurrent) {
-                            AssistChip(onClick = {}, label = { Text("活跃") }, leadingIcon = { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) })
+                            AssistChip(onClick = {}, label = { Text(stringResource(R.string.active_label)) }, leadingIcon = { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) })
                         }
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("ID: ${provider.id}", style = MaterialTheme.typography.bodySmall)
-                    Text("类型: ${provider.type}", style = MaterialTheme.typography.bodySmall)
-                    Text("版本: ${provider.version}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.type_label, provider.type.toString()), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.version_label, provider.version), style = MaterialTheme.typography.bodySmall)
                     Text("apiMap: ${provider.apiMap?.size ?: 0} 条", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         if (providers.isEmpty()) {
-            Text("没有已加载的 Provider", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+            Text(stringResource(R.string.no_loaded_providers), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
         }
     }
 }

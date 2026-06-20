@@ -18,9 +18,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import cp.player.R
 import cp.player.model.Playlist
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +106,7 @@ fun PlaylistOptionsBottomSheet(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "Playlist",
+                        text = stringResource(R.string.playlist),
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -137,7 +139,7 @@ fun PlaylistOptionsBottomSheet(
                     ) {
                         Icon(Icons.Rounded.PlayArrow, null, tint = playOnColor)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Play", color = playOnColor, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.play), color = playOnColor, fontSize = 20.sp, fontWeight = FontWeight.Medium)
                     }
                 }
 
@@ -155,7 +157,7 @@ fun PlaylistOptionsBottomSheet(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share",
+                            contentDescription = stringResource(R.string.share),
                             tint = circleBtnOnColor,
                             modifier = Modifier.size(32.dp)
                         )
@@ -178,7 +180,7 @@ fun PlaylistOptionsBottomSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.BookmarkRemove,
-                                contentDescription = "Unsubscribe",
+                                contentDescription = stringResource(R.string.unsubscribe),
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -199,7 +201,7 @@ fun PlaylistOptionsBottomSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.delete),
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -229,9 +231,9 @@ fun PlaylistOptionsBottomSheet(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "Add to queue", tint = queueOnColor)
+                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = stringResource(R.string.add_to_queue), tint = queueOnColor)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add to queue", color = queueOnColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.add_to_queue), color = queueOnColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -240,7 +242,7 @@ fun PlaylistOptionsBottomSheet(
             if (onSortDefaultClick != null || onSortByNameClick != null || onSortByArtistClick != null) {
                 // 标题
                 Text(
-                    text = "排序方式",
+                    text = stringResource(R.string.sort_method),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
@@ -270,12 +272,12 @@ fun PlaylistOptionsBottomSheet(
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Rounded.List,
-                                    contentDescription = "Default sort",
+                                    contentDescription = stringResource(R.string.default_sort),
                                     tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "默认",
+                                    stringResource(R.string.sort_default),
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
@@ -304,12 +306,12 @@ fun PlaylistOptionsBottomSheet(
                             ) {
                                 Icon(
                                     Icons.Rounded.SortByAlpha,
-                                    contentDescription = "Sort by name",
+                                    contentDescription = stringResource(R.string.sort_by_name_cn),
                                     tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "按名称",
+                                    stringResource(R.string.sort_by_name_cn),
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
@@ -338,12 +340,12 @@ fun PlaylistOptionsBottomSheet(
                             ) {
                                 Icon(
                                     Icons.Rounded.Person,
-                                    contentDescription = "Sort by artist",
+                                    contentDescription = stringResource(R.string.sort_by_artist_cn),
                                     tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "按歌手",
+                                    stringResource(R.string.sort_by_artist_cn),
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium

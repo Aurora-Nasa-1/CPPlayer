@@ -161,7 +161,7 @@ fun AboutScreenInline() {
             icon = { MonetIcon(Icons.Default.Group, Color(0xFFE3F2FD), Color(0xFF1565C0)) },
             onClick = {
                 // TODO: 用户输入 QQ 群链接后替换
-                Toast.makeText(context, "QQ 群链接待添加", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.qq_group_link_pending), Toast.LENGTH_SHORT).show()
             },
             shapes = ListItemDefaults.segmentedShapes(1, 2)
         )
@@ -170,7 +170,7 @@ fun AboutScreenInline() {
     // 贡献者
     SettingsSection(title = stringResource(R.string.about_contributors)) {
         val contributors = listOf(
-            Contributor("Aurora-Nasa-1", "项目创建者 & 主要维护者", "https://github.com/Aurora-Nasa-1")
+            Contributor("Aurora-Nasa-1", stringResource(R.string.creator_and_main_maintainer), "https://github.com/Aurora-Nasa-1")
         )
 
         contributors.forEachIndexed { index, contributor ->

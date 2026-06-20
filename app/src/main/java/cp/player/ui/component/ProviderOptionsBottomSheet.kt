@@ -18,8 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cp.player.R
 import cp.player.provider.BackendProvider
 import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
@@ -140,7 +142,7 @@ fun ProviderOptionsBottomSheet(
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("正在检查更新...", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.checking_update_progress), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -152,7 +154,7 @@ fun ProviderOptionsBottomSheet(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "发现新版本 v${state.info.version}",
+                                stringResource(R.string.new_version_found, state.info.version),
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -174,7 +176,7 @@ fun ProviderOptionsBottomSheet(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            "已是最新版本",
+                            stringResource(R.string.already_latest_version),
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -208,7 +210,7 @@ fun ProviderOptionsBottomSheet(
                 if (updateUrl != null) {
                     ProviderPillButton(
                         modifier = Modifier.weight(1f),
-                        text = "检查更新",
+                        text = stringResource(R.string.check_update),
                         icon = Icons.Rounded.SystemUpdate,
                         bgColor = checkUpdateColor,
                         textColor = checkUpdateOnColor,
@@ -232,7 +234,7 @@ fun ProviderOptionsBottomSheet(
                 // 手动更新
                 ProviderPillButton(
                     modifier = Modifier.weight(1f),
-                    text = "手动更新",
+                    text = stringResource(R.string.manual_update),
                     icon = Icons.Rounded.FolderZip,
                     bgColor = manualUpdateColor,
                     textColor = manualUpdateOnColor,
@@ -246,7 +248,7 @@ fun ProviderOptionsBottomSheet(
             // 删除按钮
             ProviderPillButton(
                 modifier = Modifier.fillMaxWidth(),
-                text = "删除此提供商",
+                text = stringResource(R.string.delete_provider),
                 icon = Icons.Rounded.Delete,
                 bgColor = deleteColor,
                 textColor = deleteOnColor,
@@ -259,9 +261,9 @@ fun ProviderOptionsBottomSheet(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("删除提供商") },
+            title = { Text(stringResource(R.string.delete_provider_title)) },
             text = {
-                Text("确定要删除「${provider.name}」吗？此操作不可撤销，所有该提供商的用户数据（登录信息、缓存等）将被清除。")
+                Text(stringResource(R.string.delete_provider_confirm, provider.name))
             },
             confirmButton = {
                 TextButton(
@@ -280,21 +282,21 @@ fun ProviderOptionsBottomSheet(
                         provider.stopServer()
                         val success = ModuleManager.deleteModule(provider.id)
                         if (success) {
-                            android.widget.Toast.makeText(context, "已删除「${provider.name}」", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.provider_deleted, provider.name), android.widget.Toast.LENGTH_SHORT).show()
                             onDeleted()
                         } else {
-                            android.widget.Toast.makeText(context, "删除失败", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.delete_failed), android.widget.Toast.LENGTH_SHORT).show()
                         }
                         onDismissRequest()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("删除")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

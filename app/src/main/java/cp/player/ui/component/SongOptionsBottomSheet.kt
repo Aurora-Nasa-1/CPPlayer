@@ -95,7 +95,7 @@ fun SongOptionsBottomSheet(
             putExtra(android.content.Intent.EXTRA_TEXT, "Check out this song: ${song.name} by ${song.artist}\nhttps://music.163.com/song?id=${song.id}")
             type = "text/plain"
         }
-        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Song"))
+        context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share)))
         onDismissRequest()
     }
 
@@ -105,13 +105,13 @@ fun SongOptionsBottomSheet(
 
     val handleAddToQueue = onAddToQueueClick ?: {
         playbackViewModel.addToQueue(song)
-        showToast("Added to queue")
+        showToast(context.getString(R.string.add_to_queue))
         onDismissRequest()
     }
 
     val handlePlayNext = onNextClick ?: {
         playbackViewModel.insertNext(song)
-        showToast("Playing next")
+        showToast(context.getString(R.string.play_next))
         onDismissRequest()
     }
 
@@ -220,7 +220,7 @@ fun SongOptionsBottomSheet(
                     ) {
                         Icon(Icons.Rounded.PlayArrow, null, tint = playOnColor)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Play", color = playOnColor, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.play), color = playOnColor, fontSize = 20.sp, fontWeight = FontWeight.Medium)
                     }
                 }
 
@@ -236,7 +236,7 @@ fun SongOptionsBottomSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(R.string.favorite),
                                 tint = circleBtnOnColor,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -256,7 +256,7 @@ fun SongOptionsBottomSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
-                                contentDescription = "Share",
+                                contentDescription = stringResource(R.string.share),
                                 tint = circleBtnOnColor,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -272,7 +272,7 @@ fun SongOptionsBottomSheet(
             ) {
                 PillButton(
                     modifier = Modifier.weight(1.2f),
-                    text = "Add to queue",
+                    text = stringResource(R.string.add_to_queue),
                     icon = Icons.AutoMirrored.Rounded.QueueMusic,
                     bgColor = queueColor,
                     textColor = queueOnColor,
@@ -280,7 +280,7 @@ fun SongOptionsBottomSheet(
                 )
                 PillButton(
                     modifier = Modifier.weight(0.8f),
-                    text = "Next",
+                    text = stringResource(R.string.play_next),
                     icon = Icons.Rounded.SkipNext,
                     bgColor = nextColor,
                     textColor = nextOnColor,
@@ -300,7 +300,7 @@ fun SongOptionsBottomSheet(
                     if (onDownloadClick != null) {
                         PillButton(
                             modifier = Modifier.weight(1f),
-                            text = if (isDownloaded) "Downloaded" else "Download",
+                            text = if (isDownloaded) stringResource(R.string.downloaded_action) else stringResource(R.string.download_action),
                             icon = if (isDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
                             bgColor = downloadBtnColor,
                             textColor = downloadBtnOnColor,
@@ -315,7 +315,7 @@ fun SongOptionsBottomSheet(
                     if (showPlaylist) {
                         PillButton(
                             modifier = Modifier.weight(1f),
-                            text = "Playlist",
+                            text = stringResource(R.string.playlist),
                             icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
                             bgColor = playlistColor,
                             textColor = playlistOnColor,
@@ -338,29 +338,29 @@ fun SongOptionsBottomSheet(
                                             val obj = songs?.firstOrNull()?.asJsonObject
                                             val map = linkedMapOf<String, String>()
                                             if (obj != null) {
-                                                map["歌曲名称"] = obj.get("name")?.asString ?: ""
+                                                map[context.getString(R.string.detail_song_name)] = obj.get("name")?.asString ?: ""
                                                 // 歌手列表
                                                 val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
-                                                map["歌手"] = artists?.joinToString(", ") {
+                                                map[context.getString(R.string.detail_artist)] = artists?.joinToString(", ") {
                                                     it.asJsonObject.get("name")?.asString ?: ""
                                                 } ?: ""
                                                 // 专辑
                                                 val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
-                                                map["专辑"] = album?.get("name")?.asString ?: ""
+                                                map[context.getString(R.string.detail_album)] = album?.get("name")?.asString ?: ""
                                                 // 时长
                                                 val dt = obj.get("dt")?.asLong ?: obj.get("duration")?.asLong ?: 0L
                                                 val min = dt / 1000 / 60
                                                 val sec = (dt / 1000) % 60
-                                                map["时长"] = "%d:%02d".format(min, sec)
+                                                map[context.getString(R.string.detail_duration)] = "%d:%02d".format(min, sec)
                                                 // 发行时间
                                                 val publishTime = obj.get("publishTime")?.asLong ?: 0L
                                                 if (publishTime > 0) {
                                                     val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                                    map["发行时间"] = sdf.format(java.util.Date(publishTime))
+                                                    map[context.getString(R.string.detail_publish_time)] = sdf.format(java.util.Date(publishTime))
                                                 }
                                                 // 评论数
                                                 val commentCount = obj.get("commentCount")?.asLong ?: 0L
-                                                if (commentCount > 0) map["评论数"] = commentCount.toString()
+                                                if (commentCount > 0) map[context.getString(R.string.detail_comment_count)] = commentCount.toString()
                                                 // MV
                                                 val mvId = obj.get("mv")?.asInt ?: 0
                                                 if (mvId > 0) map["MV ID"] = mvId.toString()
@@ -368,24 +368,24 @@ fun SongOptionsBottomSheet(
                                                 val privilege = body.get("privileges")?.asJsonArray?.firstOrNull()?.asJsonObject
                                                 if (privilege != null) {
                                                     val maxBr = privilege.get("maxbr")?.asInt ?: 0
-                                                    if (maxBr > 0) map["最高码率"] = "${maxBr / 1000}kbps"
+                                                    if (maxBr > 0) map[context.getString(R.string.detail_max_bitrate)] = "${maxBr / 1000}kbps"
                                                     val fee = privilege.get("fee")?.asInt ?: -1
-                                                    map["付费类型"] = when (fee) {
-                                                        0 -> "免费"
-                                                        1 -> "VIP"
-                                                        4 -> "付费专辑"
-                                                        8 -> "免费+VIP"
-                                                        else -> "未知"
+                                                    map[context.getString(R.string.detail_pay_type)] = when (fee) {
+                                                        0 -> context.getString(R.string.pay_type_free)
+                                                        1 -> context.getString(R.string.pay_type_vip)
+                                                        4 -> context.getString(R.string.pay_type_paid_album)
+                                                        8 -> context.getString(R.string.pay_type_free_vip)
+                                                        else -> context.getString(R.string.pay_type_unknown)
                                                     }
                                                 }
-                                                map["歌曲 ID"] = song.id
+                                                map[context.getString(R.string.detail_song_id)] = song.id
                                             }
                                             withContext(Dispatchers.Main) {
                                                 songDetailMap = map
                                             }
                                         } catch (e: Exception) {
                                             withContext(Dispatchers.Main) {
-                                                songDetailMap = mapOf("错误" to (e.message ?: "Unknown error"))
+                                                songDetailMap = mapOf(context.getString(R.string.detail_error) to (e.message ?: "Unknown error"))
                                             }
                                         }
                                     }
@@ -395,7 +395,7 @@ fun SongOptionsBottomSheet(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Rounded.Info,
-                                    contentDescription = "Info",
+                                    contentDescription = stringResource(R.string.info),
                                     tint = infoBtnOnColor,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -406,7 +406,7 @@ fun SongOptionsBottomSheet(
                     if (onDeleteClick != null) {
                         PillButton(
                             modifier = Modifier.weight(1f),
-                            text = "Delete",
+                            text = stringResource(R.string.delete),
                             icon = Icons.Rounded.Delete,
                             bgColor = MaterialTheme.colorScheme.errorContainer,
                             textColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -451,7 +451,7 @@ fun SongOptionsBottomSheet(
     if (showInfoDialog) {
         AlertDialog(
             onDismissRequest = { showInfoDialog = false },
-            title = { Text("歌曲详情") },
+            title = { Text(stringResource(R.string.song_details)) },
             text = {
                 if (songDetailMap.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -480,7 +480,7 @@ fun SongOptionsBottomSheet(
             },
             confirmButton = {
                 TextButton(onClick = { showInfoDialog = false }) {
-                    Text("关闭")
+                    Text(stringResource(R.string.close))
                 }
             }
         )

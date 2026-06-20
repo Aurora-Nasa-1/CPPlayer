@@ -231,4 +231,295 @@
     <string name="update_changelog">変更履歴</string>
     <string name="update_download">アップデートをダウンロード</string>
     <string name="copied">コピーしました</string>
+
+    <!-- 再生エンジン -->
+    <string name="playback_engine">再生エンジン</string>
+    <string name="engine_selection">エンジン選択</string>
+    <string name="dsd_output_mode">DSD 出力モード</string>
+    <string name="dap_bit_perfect">DAP Bit-Perfect</string>
+    <string name="dap_bit_perfect_desc">対応デバイスでAndroid SRCをバイパス</string>
+    <string name="usb_audio_auto_resume">USB オーディオ自動再開</string>
+    <string name="usb_audio_auto_resume_desc">USB オーディオが2秒以内に再接続された場合、自動的に再生を再開します</string>
+    <string name="copy_rust_debug_state">Rust デバッグ状態をコピー</string>
+    <string name="copy_rust_debug_state_desc">USB排他モードのトラブルシューティングに役立ちます</string>
+    <string name="copied_to_clipboard">クリップボードにコピーしました</string>
+    <string name="manage_music_source_modules">音楽ソースモジュールの管理</string>
+
+    <!-- 歌詞 -->
+    <string name="lyrics">歌詞</string>
+    <string name="lyrics_source">歌詞ソース</string>
+    <string name="lyrics_source_provider_api">Provider API 優先</string>
+    <string name="lyrics_source_amll_ttml">AMLL TTML 優先</string>
+    <string name="lyrics_source_amll_only">AMLL TTML のみ</string>
+    <string name="amll_lyrics_platform">AMLL 歌詞プラットフォーム</string>
+    <string name="auto_detect">自動検出</string>
+    <string name="netease_cloud_music">NetEase Cloud Music</string>
+    <string name="qq_music">QQ Music</string>
+
+    <!-- モジュール更新 -->
+    <string name="module_update_success">モジュールの更新に成功しました</string>
+    <string name="module_update_failed">モジュールの更新に失敗しました</string>
+    <string name="module_update_error">更新エラー: %1$s</string>
+    <string name="has_update">更新あり</string>
+    <string name="more_actions">その他の操作</string>
+
+    <!-- デバッグ -->
+    <string name="view_app_and_system_logs">アプリログとシステムログを表示</string>
+    <string name="api_monitor_desc">API呼び出し監視、互換性チェック、Providerテスト</string>
+
+    <!-- ライブラリ -->
+    <string name="tab_playlists">プレイリスト</string>
+    <string name="tab_downloads">ダウンロード</string>
+    <string name="tab_cloud">クラウド</string>
+    <string name="tab_live_sort">ライブソート</string>
+    <string name="create_new_playlist">新しいプレイリストを作成</string>
+    <string name="playlist_name">プレイリスト名</string>
+    <string name="create">作成</string>
+    <string name="songs_count_cn">%1$d 曲</string>
+    <string name="created_playlist">作成したプレイリスト</string>
+    <string name="collected_playlist">お気に入り · %1$s</string>
+    <string name="unknown">不明</string>
+    <string name="delete_playlist">プレイリストを削除</string>
+    <string name="unsubscribe">お気に入り解除</string>
+    <string name="delete_playlist_confirm">「%1$s」を削除してもよろしいですか？</string>
+    <string name="unsubscribe_confirm">「%1$s」のお気に入りを解除してもよろしいですか？</string>
+    <string name="delete">削除</string>
+    <string name="added_to_queue_count">%1$d 曲をキューに追加しました</string>
+    <string name="share_playlist">プレイリストを共有</string>
+
+    <!-- バージョン情報 -->
+    <string name="qq_group_link_pending">QQグループリンクを追加予定</string>
+    <string name="creator_and_main_maintainer">作成者 &amp; メインメンテナー</string>
+
+    <!-- ヘルスステータス -->
+    <string name="health_and_debug">ヘルスステータス &amp; デバッグ</string>
+    <string name="tab_overview">概要</string>
+    <string name="tab_methods">メソッド</string>
+    <string name="tab_logs">ログ</string>
+    <string name="tab_test">テスト</string>
+    <string name="tab_status">ステータス</string>
+    <string name="no_monitoring_data">監視データがありません</string>
+    <string name="health_auto_record">API呼び出し後にヘルスデータが自動的に記録されます</string>
+    <string name="provider_health_status">Provider ヘルスステータス</string>
+    <string name="global_health">グローバルヘルス</string>
+    <string name="calls_avg_time">%1$d 回の呼び出し · 平均 %2$dms</string>
+    <string name="metric_success">成功</string>
+    <string name="metric_fail">失敗</string>
+    <string name="metric_fallback">フォールバック</string>
+    <string name="metric_warning">警告</string>
+    <string name="score_unit">ポイント</string>
+    <string name="no_call_records">通話記録がありません</string>
+    <string name="success_rate">成功率</string>
+    <string name="metric_calls">呼び出し</string>
+    <string name="avg_response">平均レスポンス</string>
+    <string name="compatibility_warnings_count">%1$d 件の互換性警告</string>
+    <string name="no_method_stats">メソッド統計がありません</string>
+    <string name="method_stats_desc">APIメソッド別グループ化（呼び出し回数順）</string>
+    <string name="method_calls_success_rate">%1$d 回 · 成功率 %2$s%% · 平均 %3$dms</string>
+    <string name="fail_count">%1$d 失敗</string>
+    <string name="warning_count">%1$d 警告</string>
+    <string name="fallback_count">%1$d フォールバック</string>
+    <string name="compatibility_warning_dist">互換性警告の分布</string>
+    <string name="filter_failures_only">失敗のみ</string>
+    <string name="filter_warnings_only">警告のみ</string>
+    <string name="clear_records">記録をクリア</string>
+    <string name="total_records">%1$d 件の記録</string>
+    <string name="response_code">レスポンスコード</string>
+    <string name="error_code">エラーコード</string>
+    <string name="compatibility_warning">互換性警告</string>
+    <string name="expected_field">期待されるフィールド: %1$s</string>
+    <string name="fallback_from">フォールバック元</string>
+    <string name="select_api_method">APIメソッドを選択</string>
+    <string name="unmapped_passthrough">（未マッピング、パススルー）</string>
+    <string name="request_params_json">リクエストパラメータ (JSON)</string>
+    <string name="error_message">エラー: %1$s</string>
+    <string name="sending">送信中...</string>
+    <string name="send_request">リクエスト送信</string>
+    <string name="response">レスポンス</string>
+    <string name="no_active_provider">アクティブなProviderがありません</string>
+    <string name="current_provider">現在のProvider: %1$s</string>
+    <string name="active_label">アクティブ</string>
+
+    <!-- Providerテスト -->
+    <string name="provider_test">Provider テスト</string>
+    <string name="api_test">API テスト</string>
+    <string name="status">ステータス</string>
+    <string name="type_label">種類: %1$s</string>
+    <string name="version_label">バージョン: %1$s</string>
+    <string name="mapped">マッピング済み</string>
+    <string name="unsupported">未対応</string>
+    <string name="passthrough">パススルー</string>
+    <string name="all_api_methods">すべてのAPIメソッド</string>
+    <string name="loaded_providers">ロード済みProvider</string>
+    <string name="no_loaded_providers">ロード済みProviderがありません</string>
+
+    <!-- ログビューア -->
+    <string name="app_logs_tab">アプリログ</string>
+    <string name="system_logs_tab">システムログ</string>
+    <string name="share_logs">ログを共有</string>
+    <string name="share">共有</string>
+    <string name="clear_log">クリア</string>
+    <string name="no_app_logs">アプリログがありません</string>
+    <string name="total_log_count">%1$d 件</string>
+
+    <!-- 検索 -->
+    <string name="hot_searches">人気の検索</string>
+    <string name="search_songs">曲</string>
+    <string name="search_albums">アルバム</string>
+    <string name="search_artists">アーティスト</string>
+    <string name="search_playlists">プレイリスト</string>
+
+    <!-- 曲の詳細 -->
+    <string name="song_details">曲の詳細</string>
+    <string name="detail_song_name">曲名</string>
+    <string name="detail_artist">アーティスト</string>
+    <string name="detail_album">アルバム</string>
+    <string name="detail_duration">再生時間</string>
+    <string name="detail_publish_time">リリース日</string>
+    <string name="detail_comment_count">コメント数</string>
+    <string name="detail_max_bitrate">最大ビットレート</string>
+    <string name="detail_pay_type">支払いタイプ</string>
+    <string name="pay_type_free">無料</string>
+    <string name="pay_type_vip">VIP</string>
+    <string name="pay_type_paid_album">有料アルバム</string>
+    <string name="pay_type_free_vip">無料+VIP</string>
+    <string name="pay_type_unknown">不明</string>
+    <string name="detail_song_id">曲 ID</string>
+    <string name="detail_error">エラー</string>
+
+    <!-- 曲の操作 -->
+    <string name="play">再生</string>
+    <string name="add_to_queue">キューに追加</string>
+    <string name="play_next">次に再生</string>
+    <string name="favorite">お気に入り</string>
+    <string name="info">情報</string>
+
+    <!-- プレーヤー曲オプション -->
+    <string name="add_to_playlist_action">プレイリストに追加</string>
+    <string name="download_action">ダウンロード</string>
+    <string name="downloaded_action">ダウンロード済み</string>
+    <string name="not_interested_action">興味なし</string>
+    <string name="song_information">曲の情報</string>
+    <string name="audio_quality_label">音質情報</string>
+    <string name="sample_rate_label">サンプリングレート: %1$dHz</string>
+    <string name="bitrate_label">ビットレート: %1$dkbps</string>
+    <string name="usb_exclusive_status">USB排他: %1$s</string>
+    <string name="usb_active">アクティブ</string>
+    <string name="usb_inactive">非アクティブ</string>
+
+    <!-- 歌詞情報 -->
+    <string name="lyrics_info">歌詞情報</string>
+    <string name="lyrics_source_label">ソース: %1$s</string>
+    <string name="lyrics_format_label">フォーマット: %1$s</string>
+    <string name="lyrics_word_by_word">一字一字: %1$s</string>
+    <string name="lyrics_supported">対応 ✓</string>
+    <string name="lyrics_not_supported">非対応 ✗</string>
+    <string name="lyrics_translation">翻訳: あり</string>
+    <string name="lyrics_transliteration">翻字: あり</string>
+
+    <!-- プレイリストオプション -->
+    <string name="sort_method">並べ替え方法</string>
+    <string name="sort_default">デフォルト</string>
+    <string name="sort_by_name_cn">名前順</string>
+    <string name="sort_by_artist_cn">アーティスト順</string>
+    <string name="default_sort">デフォルト並べ替え</string>
+
+    <!-- キュー -->
+    <string name="next_up">次に再生</string>
+    <string name="all_songs">すべての曲</string>
+    <string name="locate_current">現在位置に移動</string>
+    <string name="save_as_playlist">プレイリストとして保存</string>
+    <string name="clear_queue_action">キューをクリア</string>
+    <string name="drag_to_reorder">ドラッグして並べ替え</string>
+    <string name="album_art">アルバムアート</string>
+    <string name="more_options">その他のオプション</string>
+    <string name="added_to_playlist_name">%1$s に追加しました</string>
+
+    <!-- スリープタイマー -->
+    <string name="sleep_timer_off">オフ</string>
+    <string name="sleep_timer_10min">10分</string>
+    <string name="sleep_timer_20min">20分</string>
+    <string name="sleep_timer_30min">30分</string>
+    <string name="sleep_timer_45min">45分</string>
+    <string name="sleep_timer_60min">60分</string>
+    <string name="sleep_timer_90min">90分</string>
+    <string name="remaining_time_label">残り: %1$s</string>
+
+    <!-- 再生コントロール -->
+    <string name="previous">前へ</string>
+    <string name="play_pause">再生/一時停止</string>
+    <string name="next">次へ</string>
+
+    <!-- コメント -->
+    <string name="avatar">アバター</string>
+    <string name="like">いいね</string>
+
+    <!-- アーティスト -->
+    <string name="albums_count">%1$d アルバム</string>
+
+    <!-- 曲の選択 -->
+    <string name="select_songs">曲を選択</string>
+    <string name="from_source">%1$s から</string>
+    <string name="deselect_all">すべて解除</string>
+    <string name="select_all">すべて選択</string>
+    <string name="no_songs_found">曲が見つかりません</string>
+    <string name="add_songs_count">%1$d 曲を追加</string>
+
+    <!-- ログイン -->
+    <string name="add_new_account">新しいアカウントを追加</string>
+    <string name="other_provider_accounts">他のプロバイダーアカウント</string>
+
+    <!-- ダウンロード -->
+    <string name="refresh">更新</string>
+
+    <!-- ユーザーアカウント -->
+    <string name="initializing">初期化中...</string>
+    <string name="already_logged_in">ログイン済み</string>
+    <string name="active_account">アクティブ</string>
+    <string name="remove_account">削除</string>
+
+    <!-- Providerオプション -->
+    <string name="checking_update_progress">アップデートを確認中...</string>
+    <string name="new_version_found">新しいバージョンが見つかりました: v%1$s</string>
+    <string name="already_latest_version">最新バージョンです</string>
+    <string name="check_update">アップデートを確認</string>
+    <string name="manual_update">手動更新</string>
+    <string name="delete_provider">このプロバイダーを削除</string>
+    <string name="delete_provider_title">プロバイダーを削除</string>
+    <string name="delete_provider_confirm">「%1$s」を削除してもよろしいですか？この操作は元に戻せません。</string>
+    <string name="provider_deleted">「%1$s」を削除しました</string>
+    <string name="delete_failed">削除に失敗しました</string>
+
+    <!-- LiveSort -->
+    <string name="select_tracks_to_mix">ミックスするトラックを選択</string>
+    <string name="analyze_and_mix">%1$d トラックを分析＆ミックス</string>
+    <string name="analyzing_features">特徴を分析中</string>
+    <string name="optimizing_flow">フローを最適化中</string>
+    <string name="analysis_failed">分析に失敗しました</string>
+    <string name="reset_and_try_again">リセットして再試行</string>
+    <string name="livesort_flow">LiveSort フロー</string>
+    <string name="done">完了</string>
+    <string name="ideal_curve">理想カーブ</string>
+    <string name="actual_mix">実際のミックス</string>
+    <string name="start_seamless_mix">シームレスミックスを開始</string>
+
+    <!-- ログインステータス -->
+    <string name="switched_to_provider">%1$s に切り替えました</string>
+    <string name="please_login_provider">%1$s にログインしてください</string>
+    <string name="getting_qr_code">QRコードを取得中...</string>
+    <string name="switched_to_account">%1$s に切り替えました</string>
+    <string name="failed_to_get_qr_key">QRキーの取得に失敗しました</string>
+    <string name="captcha_sent">認証コードを送信しました</string>
+    <string name="failed_to_send_captcha">認証コードの送信に失敗しました</string>
+    <string name="logged_out">ログアウトしました</string>
+    <string name="login_failed">ログインに失敗しました</string>
+    <string name="parse_error">解析エラー</string>
+    <string name="user_nickname">ユーザー</string>
+    <string name="guest_nickname">ゲスト</string>
+
+    <!-- お気に入りの音楽 -->
+    <string name="liked_music">お気に入りの音楽</string>
+
+    <!-- 不明なユーザー -->
+    <string name="unknown_user">不明なユーザー</string>
 </resources>

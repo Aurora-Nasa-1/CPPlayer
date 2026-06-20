@@ -21,9 +21,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import cp.player.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.activity.ComponentActivity
@@ -148,7 +150,7 @@ fun PlayerSongOptionsBottomSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
-                                contentDescription = "Share",
+                                contentDescription = stringResource(R.string.share),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -166,7 +168,7 @@ fun PlayerSongOptionsBottomSheet(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         PlayerPillButton(
                             modifier = Modifier.weight(1f),
-                            text = "Add to playlist",
+                            text = stringResource(R.string.add_to_playlist_action),
                             icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
                             bgColor = MaterialTheme.colorScheme.primaryContainer,
                             textColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -174,7 +176,7 @@ fun PlayerSongOptionsBottomSheet(
                         )
                         PlayerPillButton(
                             modifier = Modifier.weight(1f),
-                            text = if (isDownloaded) "Downloaded" else "Download",
+                            text = if (isDownloaded) stringResource(R.string.downloaded_action) else stringResource(R.string.download_action),
                             icon = if (isDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
                             bgColor = MaterialTheme.colorScheme.secondaryContainer,
                             textColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -188,7 +190,7 @@ fun PlayerSongOptionsBottomSheet(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         PlayerPillButton(
                             modifier = Modifier.weight(1f),
-                            text = "Sleep Timer",
+                            text = stringResource(R.string.sleep_timer),
                             icon = Icons.Rounded.Timer,
                             bgColor = MaterialTheme.colorScheme.tertiaryContainer,
                             textColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -199,7 +201,7 @@ fun PlayerSongOptionsBottomSheet(
                         )
                         PlayerPillButton(
                             modifier = Modifier.weight(1f),
-                            text = "Not interested",
+                            text = stringResource(R.string.not_interested_action),
                             icon = Icons.Rounded.Block,
                             bgColor = MaterialTheme.colorScheme.errorContainer,
                             textColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -220,7 +222,7 @@ fun PlayerSongOptionsBottomSheet(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Song Information",
+                            text = stringResource(R.string.song_information),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -243,37 +245,37 @@ fun PlayerSongOptionsBottomSheet(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "歌词信息",
+                                text = stringResource(R.string.lyrics_info),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "来源: ${lyricsInfo.source}",
+                                text = stringResource(R.string.lyrics_source_label, lyricsInfo.source),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "格式: ${lyricsInfo.format}",
+                                text = stringResource(R.string.lyrics_format_label, lyricsInfo.format),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "逐字歌词: ${if (lyricsInfo.hasWordLevel) "支持 ✓" else "不支持 ✗"}",
+                                text = stringResource(R.string.lyrics_word_by_word, if (lyricsInfo.hasWordLevel) stringResource(R.string.lyrics_supported) else stringResource(R.string.lyrics_not_supported)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (lyricsInfo.hasWordLevel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (lyricsInfo.hasTranslation) {
                                 Text(
-                                    text = "翻译: 有",
+                                    text = stringResource(R.string.lyrics_translation),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
                             if (lyricsInfo.hasPhonetic) {
                                 Text(
-                                    text = "音译: 有",
+                                    text = stringResource(R.string.lyrics_transliteration),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -286,7 +288,7 @@ fun PlayerSongOptionsBottomSheet(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "Audio Quality",
+                            text = stringResource(R.string.audio_quality_label),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -294,14 +296,14 @@ fun PlayerSongOptionsBottomSheet(
                         Spacer(modifier = Modifier.height(12.dp))
                         if (sampleRate > 0) {
                             Text(
-                                text = "Sample Rate: ${sampleRate}Hz",
+                                text = stringResource(R.string.sample_rate_label, sampleRate),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (bitrate > 0) {
                             Text(
-                                text = "Bitrate: ${bitrate / 1000}kbps",
+                                text = stringResource(R.string.bitrate_label, bitrate / 1000),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -315,7 +317,7 @@ fun PlayerSongOptionsBottomSheet(
                             Text("Hi-Fi & USB DAC", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
                             val isUsbActive = remember<Boolean> { cp.player.engine.RustEngine.isRustDirectUsbSessionActive() }
-                            Text("USB Exclusive: ${if (isUsbActive) "Active" else "Inactive"}", style = MaterialTheme.typography.bodyMedium, color = if (isUsbActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.usb_exclusive_status, if (isUsbActive) stringResource(R.string.usb_active) else stringResource(R.string.usb_inactive)), style = MaterialTheme.typography.bodyMedium, color = if (isUsbActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
 
                             val hasHwVolume = remember<Boolean> { cp.player.engine.RustEngine.hasRustDirectUsbHardwareVolume() }
                             if (hasHwVolume) {

@@ -202,7 +202,7 @@ fun SettingsScreen(
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.provider_management),
-                                subtitle = "Manage music source modules",
+                                subtitle = stringResource(R.string.manage_music_source_modules),
                                 icon = { MonetIcon(Icons.Default.Extension, Color(0xFFFFFDE7), Color(0xFFF57F17)) },
                                 onClick = { currentScreen = "provider" },
                                 shapes = ListItemDefaults.segmentedShapes(4, 6)
@@ -292,13 +292,13 @@ fun SettingsScreen(
                     }
                     "audio" -> {
                         // 播放引擎选择
-                        SettingsSection(title = "Playback Engine") {
+                        SettingsSection(title = stringResource(R.string.playback_engine)) {
                             val engines = listOf(
                                 stringResource(id = R.string.engine_exoplayer),
                                 stringResource(id = R.string.engine_flick)
                             )
                             ExpressiveDropdownItem(
-                                title = "Engine Selection",
+                                title = stringResource(R.string.engine_selection),
                                 subtitle = engines.getOrElse(audioEngine) { engines[0] },
                                 options = engines,
                                 selectedIndex = audioEngine,
@@ -394,7 +394,7 @@ fun SettingsScreen(
                             SettingsSection(title = stringResource(R.string.engine_flick)) {
                                 val dsdModes = listOf("PCM Decimation", "DoP", "Native DSD", "Auto")
                                 ExpressiveDropdownItem(
-                                    title = "DSD Output Mode",
+                                    title = stringResource(R.string.dsd_output_mode),
                                     subtitle = dsdModes.getOrElse(dsdOutputMode) { dsdModes[0] },
                                     options = dsdModes,
                                     selectedIndex = dsdOutputMode,
@@ -403,8 +403,8 @@ fun SettingsScreen(
                                 )
 
                                 ExpressiveSwitchItem(
-                                    title = "DAP Bit-Perfect",
-                                    subtitle = "Bypass Android SRC on supported devices",
+                                    title = stringResource(R.string.dap_bit_perfect),
+                                    subtitle = stringResource(R.string.dap_bit_perfect_desc),
                                     checked = dapBitPerfect,
                                     onCheckedChange = onDapBitPerfectChange,
                                     shapes = ListItemDefaults.segmentedShapes(1, 5)
@@ -419,22 +419,22 @@ fun SettingsScreen(
                                 )
 
                                 ExpressiveSwitchItem(
-                                    title = "USB Audio Auto-resume",
-                                    subtitle = "Auto-resume playback if USB audio is reconnected within 2 seconds",
+                                    title = stringResource(R.string.usb_audio_auto_resume),
+                                    subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
                                     checked = autoResumeUsbAudio,
                                     onCheckedChange = onAutoResumeUsbAudioChange,
                                     shapes = ListItemDefaults.segmentedShapes(3, 5)
                                 )
 
                                 ExpressiveClickItem(
-                                    title = "Copy Rust Debug State",
-                                    subtitle = "Useful for troubleshooting USB Exclusive mode",
+                                    title = stringResource(R.string.copy_rust_debug_state),
+                                    subtitle = stringResource(R.string.copy_rust_debug_state_desc),
                                     onClick = {
                                         val state = cp.player.engine.RustEngine.getRustAudioDebugStateJson()
                                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                         val clip = android.content.ClipData.newPlainText("Rust Debug State", state)
                                         clipboard.setPrimaryClip(clip)
-                                        android.widget.Toast.makeText(context, "Copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, context.getString(R.string.copied_to_clipboard), android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                     shapes = ListItemDefaults.segmentedShapes(4, 5)
                                 )
@@ -465,23 +465,23 @@ fun SettingsScreen(
                         }
 
                         // 歌词来源设置
-                        SettingsSection(title = "Lyrics") {
+                        SettingsSection(title = stringResource(R.string.lyrics)) {
                             val lyricsSourceOptions = listOf(
-                                "Provider API 优先",
-                                "AMLL TTML 优先",
-                                "仅 AMLL TTML"
+                                stringResource(R.string.lyrics_source_provider_api),
+                                stringResource(R.string.lyrics_source_amll_ttml),
+                                stringResource(R.string.lyrics_source_amll_only)
                             )
                             val amllPlatformOptions = listOf(
-                                "auto" to "自动检测",
-                                "ncm" to "网易云音乐",
-                                "qq" to "QQ 音乐",
+                                "auto" to stringResource(R.string.auto_detect),
+                                "ncm" to stringResource(R.string.netease_cloud_music),
+                                "qq" to stringResource(R.string.qq_music),
                                 "am" to "Apple Music",
                                 "spotify" to "Spotify"
                             )
                             val lyricsItemCount = if (lyricsSource == 0) 1 else 2
 
                             ExpressiveDropdownItem(
-                                title = "歌词来源",
+                                title = stringResource(R.string.lyrics_source),
                                 subtitle = lyricsSourceOptions.getOrElse(lyricsSource) { lyricsSourceOptions[0] },
                                 options = lyricsSourceOptions,
                                 selectedIndex = lyricsSource,
@@ -491,8 +491,8 @@ fun SettingsScreen(
 
                             if (lyricsSource != 0) {
                                 ExpressiveDropdownItem(
-                                    title = "AMLL 歌词平台",
-                                    subtitle = amllPlatformOptions.find { it.first == amllPlatform }?.second ?: "自动检测",
+                                    title = stringResource(R.string.amll_lyrics_platform),
+                                    subtitle = amllPlatformOptions.find { it.first == amllPlatform }?.second ?: stringResource(R.string.auto_detect),
                                     options = amllPlatformOptions.map { it.second },
                                     selectedIndex = amllPlatformOptions.indexOfFirst { it.first == amllPlatform }.coerceAtLeast(0),
                                     onSelect = { onAmllPlatformChange(amllPlatformOptions[it].first) },
@@ -608,15 +608,15 @@ fun SettingsScreen(
                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                     if (success) {
                                                         cp.player.provider.ProviderManager.startServer(context)
-                                                        android.widget.Toast.makeText(context, "模块更新成功", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.module_update_success), android.widget.Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        android.widget.Toast.makeText(context, "模块更新失败", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.module_update_failed), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             }
                                         } catch(e: Exception) {
                                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                android.widget.Toast.makeText(context, "更新出错: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.module_update_error, e.message ?: ""), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
@@ -678,7 +678,7 @@ fun SettingsScreen(
                                                     color = MaterialTheme.colorScheme.primary
                                                 ) {
                                                     Text(
-                                                        "有更新",
+                                                        stringResource(R.string.has_update),
                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = MaterialTheme.colorScheme.onPrimary
@@ -717,7 +717,7 @@ fun SettingsScreen(
                                             Box(contentAlignment = Alignment.Center) {
                                                 Icon(
                                                     Icons.Default.MoreVert,
-                                                    contentDescription = "更多操作",
+                                                    contentDescription = stringResource(R.string.more_actions),
                                                     tint = if (hasUpdate) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
@@ -774,13 +774,13 @@ fun SettingsScreen(
                             val logsCopiedMsg = stringResource(R.string.logs_copied)
                             ExpressiveClickItem(
                                 title = stringResource(R.string.app_logs),
-                                subtitle = "查看应用日志和系统日志",
+                                subtitle = stringResource(R.string.view_app_and_system_logs),
                                 onClick = { currentScreen = "logViewer" },
                                 shapes = ListItemDefaults.segmentedShapes(0, 3)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.health_status),
-                                subtitle = "API 调用监控、兼容性检查、Provider 测试",
+                                subtitle = stringResource(R.string.api_monitor_desc),
                                 onClick = { currentScreen = "health" },
                                 shapes = ListItemDefaults.segmentedShapes(1, 3)
                             )

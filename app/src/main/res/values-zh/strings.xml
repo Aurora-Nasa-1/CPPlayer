@@ -230,4 +230,295 @@
     <string name="update_changelog">更新日志</string>
     <string name="update_download">下载更新</string>
     <string name="copied">已复制</string>
+
+    <!-- 播放引擎 -->
+    <string name="playback_engine">播放引擎</string>
+    <string name="engine_selection">引擎选择</string>
+    <string name="dsd_output_mode">DSD 输出模式</string>
+    <string name="dap_bit_perfect">DAP Bit-Perfect</string>
+    <string name="dap_bit_perfect_desc">在支持的设备上绕过 Android SRC</string>
+    <string name="usb_audio_auto_resume">USB 音频自动恢复</string>
+    <string name="usb_audio_auto_resume_desc">USB 音频在 2 秒内重新连接时自动恢复播放</string>
+    <string name="copy_rust_debug_state">复制 Rust 调试状态</string>
+    <string name="copy_rust_debug_state_desc">用于排查 USB 独占模式问题</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="manage_music_source_modules">管理音乐源模块</string>
+
+    <!-- 歌词 -->
+    <string name="lyrics">歌词</string>
+    <string name="lyrics_source">歌词来源</string>
+    <string name="lyrics_source_provider_api">Provider API 优先</string>
+    <string name="lyrics_source_amll_ttml">AMLL TTML 优先</string>
+    <string name="lyrics_source_amll_only">仅 AMLL TTML</string>
+    <string name="amll_lyrics_platform">AMLL 歌词平台</string>
+    <string name="auto_detect">自动检测</string>
+    <string name="netease_cloud_music">网易云音乐</string>
+    <string name="qq_music">QQ 音乐</string>
+
+    <!-- 模块更新 -->
+    <string name="module_update_success">模块更新成功</string>
+    <string name="module_update_failed">模块更新失败</string>
+    <string name="module_update_error">更新出错: %1$s</string>
+    <string name="has_update">有更新</string>
+    <string name="more_actions">更多操作</string>
+
+    <!-- 调试 -->
+    <string name="view_app_and_system_logs">查看应用日志和系统日志</string>
+    <string name="api_monitor_desc">API 调用监控、兼容性检查、Provider 测试</string>
+
+    <!-- 音乐库 -->
+    <string name="tab_playlists">歌单</string>
+    <string name="tab_downloads">下载</string>
+    <string name="tab_cloud">云盘</string>
+    <string name="tab_live_sort">智能排序</string>
+    <string name="create_new_playlist">创建新歌单</string>
+    <string name="playlist_name">歌单名称</string>
+    <string name="create">创建</string>
+    <string name="songs_count_cn">%1$d 首</string>
+    <string name="created_playlist">创建的歌单</string>
+    <string name="collected_playlist">收藏 · %1$s</string>
+    <string name="unknown">未知</string>
+    <string name="delete_playlist">删除歌单</string>
+    <string name="unsubscribe">取消收藏</string>
+    <string name="delete_playlist_confirm">确定要删除「%1$s」吗？</string>
+    <string name="unsubscribe_confirm">确定要取消收藏「%1$s」吗？</string>
+    <string name="delete">删除</string>
+    <string name="added_to_queue_count">已添加 %1$d 首到播放队列</string>
+    <string name="share_playlist">分享歌单</string>
+
+    <!-- 关于页面 -->
+    <string name="qq_group_link_pending">QQ 群链接待添加</string>
+    <string name="creator_and_main_maintainer">项目创建者 &amp; 主要维护者</string>
+
+    <!-- 健康状态 -->
+    <string name="health_and_debug">健康状态 &amp; 调试</string>
+    <string name="tab_overview">概览</string>
+    <string name="tab_methods">方法</string>
+    <string name="tab_logs">日志</string>
+    <string name="tab_test">测试</string>
+    <string name="tab_status">状态</string>
+    <string name="no_monitoring_data">暂无监控数据</string>
+    <string name="health_auto_record">执行 API 调用后将自动记录健康数据</string>
+    <string name="provider_health_status">Provider 健康状态</string>
+    <string name="global_health">全局健康</string>
+    <string name="calls_avg_time">%1$d 次调用 · 平均 %2$dms</string>
+    <string name="metric_success">成功</string>
+    <string name="metric_fail">失败</string>
+    <string name="metric_fallback">回退</string>
+    <string name="metric_warning">警告</string>
+    <string name="score_unit">分</string>
+    <string name="no_call_records">暂无调用记录</string>
+    <string name="success_rate">成功率</string>
+    <string name="metric_calls">调用</string>
+    <string name="avg_response">平均响应</string>
+    <string name="compatibility_warnings_count">%1$d 个兼容性警告</string>
+    <string name="no_method_stats">暂无方法统计数据</string>
+    <string name="method_stats_desc">按 API 方法分组统计（按调用次数排序）</string>
+    <string name="method_calls_success_rate">%1$d 次 · 成功率 %2$s%% · 平均 %3$dms</string>
+    <string name="fail_count">%1$d 失败</string>
+    <string name="warning_count">%1$d 警告</string>
+    <string name="fallback_count">%1$d 回退</string>
+    <string name="compatibility_warning_dist">兼容性警告分布</string>
+    <string name="filter_failures_only">仅失败</string>
+    <string name="filter_warnings_only">仅警告</string>
+    <string name="clear_records">清除记录</string>
+    <string name="total_records">共 %1$d 条记录</string>
+    <string name="response_code">响应码</string>
+    <string name="error_code">错误码</string>
+    <string name="compatibility_warning">兼容性警告</string>
+    <string name="expected_field">期望字段: %1$s</string>
+    <string name="fallback_from">回退自</string>
+    <string name="select_api_method">选择 API 方法</string>
+    <string name="unmapped_passthrough">(未映射，直通)</string>
+    <string name="request_params_json">请求参数 (JSON)</string>
+    <string name="error_message">错误: %1$s</string>
+    <string name="sending">发送中...</string>
+    <string name="send_request">发送请求</string>
+    <string name="response">响应</string>
+    <string name="no_active_provider">没有活跃的 Provider</string>
+    <string name="current_provider">当前 Provider: %1$s</string>
+    <string name="active_label">活跃</string>
+
+    <!-- Provider 测试 -->
+    <string name="provider_test">Provider 测试</string>
+    <string name="api_test">API 测试</string>
+    <string name="status">状态</string>
+    <string name="type_label">类型: %1$s</string>
+    <string name="version_label">版本: %1$s</string>
+    <string name="mapped">已映射</string>
+    <string name="unsupported">不支持</string>
+    <string name="passthrough">直通</string>
+    <string name="all_api_methods">所有 API 方法</string>
+    <string name="loaded_providers">已加载的 Providers</string>
+    <string name="no_loaded_providers">没有已加载的 Provider</string>
+
+    <!-- 日志查看 -->
+    <string name="app_logs_tab">应用日志</string>
+    <string name="system_logs_tab">系统日志</string>
+    <string name="share_logs">分享日志</string>
+    <string name="share">分享</string>
+    <string name="clear_log">清除</string>
+    <string name="no_app_logs">暂无应用日志</string>
+    <string name="total_log_count">共 %1$d 条</string>
+
+    <!-- 搜索 -->
+    <string name="hot_searches">热门搜索</string>
+    <string name="search_songs">歌曲</string>
+    <string name="search_albums">专辑</string>
+    <string name="search_artists">歌手</string>
+    <string name="search_playlists">歌单</string>
+
+    <!-- 歌曲详情 -->
+    <string name="song_details">歌曲详情</string>
+    <string name="detail_song_name">歌曲名称</string>
+    <string name="detail_artist">歌手</string>
+    <string name="detail_album">专辑</string>
+    <string name="detail_duration">时长</string>
+    <string name="detail_publish_time">发行时间</string>
+    <string name="detail_comment_count">评论数</string>
+    <string name="detail_max_bitrate">最高码率</string>
+    <string name="detail_pay_type">付费类型</string>
+    <string name="pay_type_free">免费</string>
+    <string name="pay_type_vip">VIP</string>
+    <string name="pay_type_paid_album">付费专辑</string>
+    <string name="pay_type_free_vip">免费+VIP</string>
+    <string name="pay_type_unknown">未知</string>
+    <string name="detail_song_id">歌曲 ID</string>
+    <string name="detail_error">错误</string>
+
+    <!-- 歌曲操作 -->
+    <string name="play">播放</string>
+    <string name="add_to_queue">添加到队列</string>
+    <string name="play_next">下一首播放</string>
+    <string name="favorite">收藏</string>
+    <string name="info">信息</string>
+
+    <!-- 播放器歌曲选项 -->
+    <string name="add_to_playlist_action">添加到歌单</string>
+    <string name="download_action">下载</string>
+    <string name="downloaded_action">已下载</string>
+    <string name="not_interested_action">不感兴趣</string>
+    <string name="song_information">歌曲信息</string>
+    <string name="audio_quality_label">音质信息</string>
+    <string name="sample_rate_label">采样率: %1$dHz</string>
+    <string name="bitrate_label">比特率: %1$dkbps</string>
+    <string name="usb_exclusive_status">USB 独占: %1$s</string>
+    <string name="usb_active">活跃</string>
+    <string name="usb_inactive">未活跃</string>
+
+    <!-- 歌词信息 -->
+    <string name="lyrics_info">歌词信息</string>
+    <string name="lyrics_source_label">来源: %1$s</string>
+    <string name="lyrics_format_label">格式: %1$s</string>
+    <string name="lyrics_word_by_word">逐字歌词: %1$s</string>
+    <string name="lyrics_supported">支持 ✓</string>
+    <string name="lyrics_not_supported">不支持 ✗</string>
+    <string name="lyrics_translation">翻译: 有</string>
+    <string name="lyrics_transliteration">音译: 有</string>
+
+    <!-- 播放列表操作 -->
+    <string name="sort_method">排序方式</string>
+    <string name="sort_default">默认</string>
+    <string name="sort_by_name_cn">按名称</string>
+    <string name="sort_by_artist_cn">按歌手</string>
+    <string name="default_sort">默认排序</string>
+
+    <!-- 队列 -->
+    <string name="next_up">待播放</string>
+    <string name="all_songs">所有歌曲</string>
+    <string name="locate_current">定位当前</string>
+    <string name="save_as_playlist">保存为歌单</string>
+    <string name="clear_queue_action">清空队列</string>
+    <string name="drag_to_reorder">拖拽排序</string>
+    <string name="album_art">专辑封面</string>
+    <string name="more_options">更多选项</string>
+    <string name="added_to_playlist_name">已添加到 %1$s</string>
+
+    <!-- 睡眠定时 -->
+    <string name="sleep_timer_off">关闭</string>
+    <string name="sleep_timer_10min">10 分钟</string>
+    <string name="sleep_timer_20min">20 分钟</string>
+    <string name="sleep_timer_30min">30 分钟</string>
+    <string name="sleep_timer_45min">45 分钟</string>
+    <string name="sleep_timer_60min">60 分钟</string>
+    <string name="sleep_timer_90min">90 分钟</string>
+    <string name="remaining_time_label">剩余: %1$s</string>
+
+    <!-- 播放控制 -->
+    <string name="previous">上一首</string>
+    <string name="play_pause">播放/暂停</string>
+    <string name="next">下一首</string>
+
+    <!-- 评论 -->
+    <string name="avatar">头像</string>
+    <string name="like">点赞</string>
+
+    <!-- 歌手 -->
+    <string name="albums_count">%1$d 张专辑</string>
+
+    <!-- 歌曲选择 -->
+    <string name="select_songs">选择歌曲</string>
+    <string name="from_source">来自 %1$s</string>
+    <string name="deselect_all">取消全选</string>
+    <string name="select_all">全选</string>
+    <string name="no_songs_found">未找到歌曲</string>
+    <string name="add_songs_count">添加 %1$d 首歌曲</string>
+
+    <!-- 登录 -->
+    <string name="add_new_account">添加新账号</string>
+    <string name="other_provider_accounts">其他提供商账号</string>
+
+    <!-- 下载 -->
+    <string name="refresh">刷新</string>
+
+    <!-- 用户账号 -->
+    <string name="initializing">初始化中...</string>
+    <string name="already_logged_in">已登录</string>
+    <string name="active_account">活跃</string>
+    <string name="remove_account">移除</string>
+
+    <!-- Provider 选项 -->
+    <string name="checking_update_progress">正在检查更新...</string>
+    <string name="new_version_found">发现新版本 v%1$s</string>
+    <string name="already_latest_version">已是最新版本</string>
+    <string name="check_update">检查更新</string>
+    <string name="manual_update">手动更新</string>
+    <string name="delete_provider">删除此提供商</string>
+    <string name="delete_provider_title">删除提供商</string>
+    <string name="delete_provider_confirm">确定要删除「%1$s」吗？删除后无法恢复。</string>
+    <string name="provider_deleted">已删除「%1$s」</string>
+    <string name="delete_failed">删除失败</string>
+
+    <!-- LiveSort -->
+    <string name="select_tracks_to_mix">选择混音曲目</string>
+    <string name="analyze_and_mix">分析并混音 %1$d 首曲目</string>
+    <string name="analyzing_features">正在分析特征</string>
+    <string name="optimizing_flow">正在优化流程</string>
+    <string name="analysis_failed">分析失败</string>
+    <string name="reset_and_try_again">重试</string>
+    <string name="livesort_flow">LiveSort 流程</string>
+    <string name="done">完成</string>
+    <string name="ideal_curve">理想曲线</string>
+    <string name="actual_mix">实际混音</string>
+    <string name="start_seamless_mix">开始无缝混音</string>
+
+    <!-- 登录状态 -->
+    <string name="switched_to_provider">已切换到 %1$s</string>
+    <string name="please_login_provider">请登录 %1$s</string>
+    <string name="getting_qr_code">获取二维码中...</string>
+    <string name="switched_to_account">已切换到 %1$s</string>
+    <string name="failed_to_get_qr_key">获取二维码失败</string>
+    <string name="captcha_sent">验证码已发送</string>
+    <string name="failed_to_send_captcha">验证码发送失败</string>
+    <string name="logged_out">已退出登录</string>
+    <string name="login_failed">登录失败</string>
+    <string name="parse_error">解析错误</string>
+    <string name="user_nickname">用户</string>
+    <string name="guest_nickname">游客</string>
+
+    <!-- 喜欢的音乐 -->
+    <string name="liked_music">喜欢的音乐</string>
+
+    <!-- 未知用户 -->
+    <string name="unknown_user">未知用户</string>
 </resources>

@@ -27,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cp.player.R
 import coil3.compose.AsyncImage
 import cp.player.model.Playlist
 import cp.player.model.Song
@@ -71,10 +73,10 @@ fun LibraryScreen(
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val filters = listOf(
-        "Playlists" to Icons.Rounded.QueueMusic,
-        "Downloads" to Icons.Rounded.DownloadDone,
-        "Cloud" to Icons.Rounded.CloudQueue,
-        "Live Sort" to Icons.Rounded.AutoGraph
+        stringResource(R.string.tab_playlists) to Icons.Rounded.QueueMusic,
+        stringResource(R.string.tab_downloads) to Icons.Rounded.DownloadDone,
+        stringResource(R.string.tab_cloud) to Icons.Rounded.CloudQueue,
+        stringResource(R.string.tab_live_sort) to Icons.Rounded.AutoGraph
     )
     val pagerState = rememberPagerState(pageCount = { filters.size })
     val coroutineScope = rememberCoroutineScope()
@@ -82,9 +84,9 @@ fun LibraryScreen(
     
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    // 当 Cloud 标签页被选中时，自动获取云盘歌曲
+    // 当 Cloud 标签页被选中时，自动获取云盘歌曲 (index 2 = Cloud)
     LaunchedEffect(pagerState.currentPage) {
-        if (filters[pagerState.currentPage].first == "Cloud") {
+        if (pagerState.currentPage == 2) {
             onFetchCloudSongs()
         }
     }
@@ -127,8 +129,8 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1
                     ) { page ->
-                        when (filters[page].first) {
-                            "Playlists" -> {
+                        when (page) {
+                            0 -> { // Playlists
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
@@ -155,7 +157,7 @@ fun LibraryScreen(
                                                     val songs = userViewModel.getPlaylistSongs(userPlaylists[index].id)
                                                     if (songs.isNotEmpty()) {
                                                         playbackViewModel.addSongsToQueue(songs)
-                                                        android.widget.Toast.makeText(context, "Added ${songs.size} songs to queue", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.added_to_queue_count, songs.size), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             },
@@ -165,13 +167,13 @@ fun LibraryScreen(
                                                     putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${userPlaylists[index].name}\nhttps://music.163.com/playlist?id=${userPlaylists[index].id}")
                                                     type = "text/plain"
                                                 }
-                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share_playlist)))
                                             }
                                         )
                                     }
                                 }
                             }
-                            "Downloads" -> {
+                            1 -> { // Downloads
                                 cp.player.ui.screen.DownloadsContent(
                                     onPlayLocalSong = onPlayLocalSong,
                                     downloadedSongs = downloadedSongs,
@@ -188,7 +190,7 @@ fun LibraryScreen(
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )
                             }
-                            "Cloud" -> {
+                            2 -> { // Cloud
                                 cp.player.ui.screen.CloudMusicContent(
                                     songs = cloudSongs,
                                     favoriteSongs = favoriteSongs,
@@ -199,7 +201,7 @@ fun LibraryScreen(
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )
                             }
-                            "Live Sort" -> {
+                            3 -> { // Live Sort
                                 cp.player.ui.screen.LiveSortContent(
                                     liveSortViewModel = liveSortViewModel,
                                     playbackViewModel = playbackViewModel,
@@ -218,12 +220,12 @@ fun LibraryScreen(
         var newPlaylistName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Create New Playlist") },
+            title = { Text(stringResource(R.string.create_new_playlist)) },
             text = {
                 OutlinedTextField(
                     value = newPlaylistName,
                     onValueChange = { newPlaylistName = it },
-                    label = { Text("Playlist Name") },
+                    label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true
                 )
             },
@@ -236,12 +238,12 @@ fun LibraryScreen(
                         showCreateDialog = false
                     }
                 ) {
-                    Text("Create")
+                    Text(stringResource(R.string.create))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -294,8 +296,8 @@ fun PlaylistItem(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                val trackCountStr = if (playlist.trackCount > 0) "${playlist.trackCount} 首" else ""
-                val ownerStr = if (isOwner) "创建的歌单" else "收藏 · ${playlist.creatorName ?: "未知"}"
+                val trackCountStr = if (playlist.trackCount > 0) stringResource(R.string.songs_count_cn, playlist.trackCount) else ""
+                val ownerStr = if (isOwner) stringResource(R.string.created_playlist) else stringResource(R.string.collected_playlist, playlist.creatorName ?: stringResource(R.string.unknown))
                 Text(
                     text = listOf(ownerStr, trackCountStr).filter { it.isNotEmpty() }.joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
@@ -314,7 +316,7 @@ fun PlaylistItem(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Rounded.MoreVert,
-                            contentDescription = "More",
+                            contentDescription = stringResource(R.string.more_actions),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -337,9 +339,9 @@ fun PlaylistItem(
     }
 
     if (showConfirmDialog) {
-        val actionText = if (isOwner) "Delete Playlist" else "Unsubscribe"
-        val descText = if (isOwner) "Are you sure you want to delete '${playlist.name}'?"
-                       else "Are you sure you want to unsubscribe from '${playlist.name}'?"
+        val actionText = if (isOwner) stringResource(R.string.delete_playlist) else stringResource(R.string.unsubscribe)
+        val descText = if (isOwner) stringResource(R.string.delete_playlist_confirm, playlist.name)
+                       else stringResource(R.string.unsubscribe_confirm, playlist.name)
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             title = { Text(actionText) },
@@ -352,14 +354,14 @@ fun PlaylistItem(
                     }
                 ) {
                     Text(
-                        if (isOwner) "Delete" else "Unsubscribe",
+                        if (isOwner) stringResource(R.string.delete) else stringResource(R.string.unsubscribe),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -452,7 +454,7 @@ fun LibraryTopFilters(
             onClick = onNavigateToSettings
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -481,13 +483,13 @@ fun PlaylistsControlBar(
             ) {
                 Icon(
                     Icons.Rounded.Add,
-                    contentDescription = "Create Playlist",
+                    contentDescription = stringResource(R.string.create_new_playlist),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    "Create Playlist",
+                    stringResource(R.string.create_new_playlist),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
