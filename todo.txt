@@ -2,5 +2,5 @@
 2.代码优化，性能优化，多线程
 3.增加DSP音效，适配EXOPLAYER和FLICK engine，交叉馈音，eq曲线，一键导入AUTO EQ曲线
 4.移动数据下载歌曲时的提示，设置项不够完善
-5.软件更新系统
+6.YRC逐字歌词解析问题
 典型的api提供商插件/3rd-rust-server
