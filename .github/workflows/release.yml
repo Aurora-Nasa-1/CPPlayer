@@ -24,11 +24,33 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-linux-android
+
+    - name: Install cargo-ndk
+      run: cargo install cargo-ndk
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install NDK
+      run: sdkmanager "ndk;28.0.13004108"
+
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/release.keystore
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build Release APK
-      run: ./gradlew assembleRelease --no-daemon
+      run: ./gradlew assembleRelease --no-daemon \
+        -PRELEASE_STORE_FILE=release.keystore \
+        -PRELEASE_STORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }} \
+        -PRELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }} \
+        -PRELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
 
     - name: Get version info
       id: version
@@ -64,7 +86,6 @@ jobs:
 
           ### 下载
           - `app-release.apk` — Release 签名，R8 优化
-          - `app-release.apk` (unsigned) — 无签名版本
         files: |
           app/build/outputs/apk/release/*.apk
         draft: false

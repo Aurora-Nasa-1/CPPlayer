@@ -39,7 +39,22 @@ android {
             keyPassword 'android'
         }
         debug(commonSigningConfig)
-        release(commonSigningConfig)
+        release {
+            // CI 环境：从 Gradle properties 读取签名配置（-P 参数传入）
+            def storeFilePath = findProperty('RELEASE_STORE_FILE')
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+                storePassword findProperty('RELEASE_STORE_PASSWORD')
+                keyAlias findProperty('RELEASE_KEY_ALIAS')
+                keyPassword findProperty('RELEASE_KEY_PASSWORD')
+            } else {
+                // 本地开发：使用 debug keystore
+                storeFile file('../debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
     }
 
     defaultConfig {
