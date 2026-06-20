@@ -85,6 +85,8 @@ jobs:
         echo "changelog<<EOF" >> $GITHUB_OUTPUT
         echo "$CHANGELOG" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
+        
+        cp app/build/outputs/apk/release/*.apk ./CP-Player-v${TAG}.apk
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -100,9 +102,9 @@ jobs:
           ${{ steps.version.outputs.changelog }}
 
           ### 下载
-          - `app-release.apk` — Release 签名，R8 优化
+          - `CP-Player-v${{ steps.version.outputs.version }}.apk` — Release 签名，R8 优化
         files: |
-          app/build/outputs/apk/release/*.apk
+          CP-Player-v${{ steps.version.outputs.version }}.apk
         draft: false
         prerelease: false
       env:
