@@ -128,20 +128,44 @@ object AppUpdateChecker {
     }
 
     /**
-     * 比较两个语义化版本号。
+     * 比较两个语义化版本号（支持 pre-release 后缀，如 `1.0.0-beta3`）。
+     *
+     * 规则：
+     * 1. 先按 `.` 分段比较数字部分
+     * 2. 数字部分相同时，有 pre-release 后缀的版本 **小于** 没有后缀的（如 `1.0.0-beta1` < `1.0.0`）
+     * 3. 都有后缀时，按字符串字典序比较后缀（`beta2` < `beta3`）
      *
      * @return 负数 = v1 < v2，0 = 相等，正数 = v1 > v2
      */
     fun compareVersions(v1: String, v2: String): Int {
-        val parts1 = v1.split(".").map { it.toIntOrNull() ?: 0 }
-        val parts2 = v2.split(".").map { it.toIntOrNull() ?: 0 }
+        // 分离数字部分和 pre-release 后缀
+        fun parseVersion(version: String): Pair<List<Int>, String?> {
+            val dashIndex = version.indexOf('-')
+            val numericPart = if (dashIndex >= 0) version.substring(0, dashIndex) else version
+            val preRelease = if (dashIndex >= 0) version.substring(dashIndex + 1) else null
+            val parts = numericPart.split(".").map { it.toIntOrNull() ?: 0 }
+            return parts to preRelease
+        }
+
+        val (parts1, pre1) = parseVersion(v1)
+        val (parts2, pre2) = parseVersion(v2)
+
+        // 比较数字部分
         val maxLen = maxOf(parts1.size, parts2.size)
         for (i in 0 until maxLen) {
             val p1 = parts1.getOrElse(i) { 0 }
             val p2 = parts2.getOrElse(i) { 0 }
             if (p1 != p2) return p1 - p2
         }
-        return 0
+
+        // 数字部分相同，比较 pre-release 后缀
+        // 有 pre-release < 无 pre-release（如 1.0.0-beta1 < 1.0.0）
+        return when {
+            pre1 != null && pre2 != null -> pre1.compareTo(pre2)
+            pre1 != null && pre2 == null -> -1
+            pre1 == null && pre2 != null -> 1
+            else -> 0
+        }
     }
 
     /**
