@@ -66,6 +66,9 @@ fun DownloadsContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // 云端绑定状态（响应式，绑定后自动更新 UI）
+    val bindings by LocalMusicManager.bindingsFlow.collectAsState()
+
     // 退出选择模式的 BackHandler
     BackHandler(enabled = isLocalSelectionMode) {
         isLocalSelectionMode = false
@@ -184,7 +187,8 @@ fun DownloadsContent(
                     isLocalSelectionMode = it
                     if (!it) selectedLocalSongs = emptySet()
                 },
-                bottomContentPadding = bottomContentPadding
+                bottomContentPadding = bottomContentPadding,
+                bindings = bindings
             )
         }
     } else {
@@ -213,7 +217,8 @@ fun DownloadsContent(
                 isLocalSelectionMode = it
                 if (!it) selectedLocalSongs = emptySet()
             },
-            bottomContentPadding = bottomContentPadding
+            bottomContentPadding = bottomContentPadding,
+            bindings = bindings
         )
     }
 
@@ -256,7 +261,8 @@ private fun DownloadsMainContent(
     selectedLocalSongs: Set<String>,
     onLocalSelectionChange: (String, Boolean) -> Unit,
     onToggleLocalSelectionMode: (Boolean) -> Unit,
-    bottomContentPadding: PaddingValues
+    bottomContentPadding: PaddingValues,
+    bindings: Map<String, cp.player.manager.LocalMusicManager.CloudBinding> = emptyMap()
 ) {
     val context = LocalContext.current
 
@@ -416,12 +422,9 @@ private fun DownloadsMainContent(
                         val uri = android.net.Uri.parse(localSong.albumArtUrl)
 
                         // 获取封面：云端绑定封面 > 内嵌封面 > null
-                        // 异步加载，避免 MediaMetadataRetriever 阻塞 composition
-                        val bindingForCover = remember(localSong.songId) {
-                            LocalMusicManager.getBinding(localSong.songId)
-                        }
-                        val coverArtUrl by produceState<String?>(initialValue = bindingForCover?.cloudCoverUrl) {
-                            if (bindingForCover?.cloudCoverUrl != null) return@produceState
+                        val binding = bindings[localSong.songId]
+                        val coverArtUrl by produceState<String?>(initialValue = binding?.cloudCoverUrl) {
+                            if (binding?.cloudCoverUrl != null) return@produceState
                             value = withContext(Dispatchers.IO) {
                                 cp.player.util.CoverArtExtractor.getOrExtract(context, localSong.songId, localSong.filePath)
                             }
@@ -435,7 +438,6 @@ private fun DownloadsMainContent(
                             albumArtUrl = coverArtUrl
                         )
 
-                        val binding = bindingForCover
                         val isSelected = selectedLocalSongs.contains(localSong.songId)
 
                         var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }

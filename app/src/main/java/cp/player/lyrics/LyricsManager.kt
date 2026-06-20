@@ -152,15 +152,18 @@ object LyricsManager {
             else -> fetchProviderOnly(effectiveId, context)        // Provider API（默认）
         }
 
-        // 本地歌曲：云端歌词无结果时回退到内嵌歌词
-        if (songId.startsWith("local_") && result is LyricsState.Success &&
-            result.syncedLyrics == null && result.richLyricLines.isEmpty()
-        ) {
-            DebugLog.i("LyricsManager: cloud lyrics empty for local song $songId, trying embedded lyrics")
-            val (resolvedPath, resolvedUri) = resolveLocalFileInfo(songId, context, filePath, contentUri)
-            val embeddedLines = EmbeddedLyricsExtractor.extract(context, resolvedPath, resolvedUri)
-            if (embeddedLines.isNotEmpty()) {
-                return buildEmbeddedSuccess(songId, embeddedLines)
+        // 本地歌曲：云端歌词无结果或失败时回退到内嵌歌词
+        if (songId.startsWith("local_")) {
+            val cloudEmpty = result is LyricsState.Success &&
+                result.syncedLyrics == null && result.richLyricLines.isEmpty()
+            val cloudFailed = result is LyricsState.Error
+            if (cloudEmpty || cloudFailed) {
+                DebugLog.i("LyricsManager: cloud lyrics ${if (cloudFailed) "failed" else "empty"} for local song $songId, trying embedded lyrics")
+                val (resolvedPath, resolvedUri) = resolveLocalFileInfo(songId, context, filePath, contentUri)
+                val embeddedLines = EmbeddedLyricsExtractor.extract(context, resolvedPath, resolvedUri)
+                if (embeddedLines.isNotEmpty()) {
+                    return buildEmbeddedSuccess(songId, embeddedLines)
+                }
             }
         }
 
@@ -184,13 +187,17 @@ object LyricsManager {
             val body = withContext(Dispatchers.IO) {
                 api.search(query, 1)
             }
+            DebugLog.i("LyricsManager: search response keys=${body.keySet()}")
             val resultObj = body.get("result")?.asJsonObject
-            val candidates = resultObj?.get("songs")?.asJsonArray?.mapNotNull {
+            val songsArray = resultObj?.get("songs")?.asJsonArray
+            DebugLog.i("LyricsManager: songs array size=${songsArray?.size()}")
+            val candidates = songsArray?.mapNotNull {
                 cp.player.util.JsonUtils.parseSong(it)
             }
+            DebugLog.i("LyricsManager: parsed candidates size=${candidates?.size}")
             val best = candidates?.firstOrNull()
             if (best != null) {
-                DebugLog.i("LyricsManager: auto-bound [$title] → [${best.name}] (${best.id})")
+                DebugLog.i("LyricsManager: auto-bound [$title] → [${best.name}] (cloudId=${best.id})")
                 cp.player.manager.LocalMusicManager.bind(context, localSongId, best)
                 best.id
             } else {
@@ -198,7 +205,7 @@ object LyricsManager {
                 null
             }
         } catch (e: Exception) {
-            DebugLog.w("LyricsManager: auto-search failed for [$title]: ${e.message}")
+            DebugLog.e("LyricsManager: auto-search failed for [$title]", e)
             null
         }
     }
