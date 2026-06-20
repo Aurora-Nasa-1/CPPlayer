@@ -1,7 +1,7 @@
 # CPPlayer Provider 开发指南
 
 > **面向：** 想要为 CPPlayer 开发音乐数据源（Provider）的第三方开发者
-> **版本：** 1.0.0 · **最后更新：** 2026-06-17
+> **版本：** 2.0.0 · **最后更新：** 2026-06-20
 
 ---
 
@@ -16,9 +16,12 @@
 7. [可选 API 列表](#7-可选-api-列表)
 8. [每个 API 的请求与响应格式](#8-每个-api-的请求与响应格式)
 9. [不支持的功能处理](#9-不支持的功能处理)
-10. [模块打包与分发](#10-模块打包与分发)
-11. [调试与测试](#11-调试与测试)
-12. [常见问题](#12-常见问题)
+10. [健康监控与兼容性检查](#10-健康监控与兼容性检查)
+11. [AMLL TTML 歌词平台检测](#11-amll-ttml-歌词平台检测)
+12. [模块更新](#12-模块更新)
+13. [模块打包与分发](#13-模块打包与分发)
+14. [调试与测试](#14-调试与测试)
+15. [常见问题](#15-常见问题)
 
 ---
 
@@ -269,7 +272,11 @@ pub extern "C" fn Java_cp_player_provider_JniProvider_nativeCallApi(
         "cloudsearch": "search",
         "song/url/v1": "song/url",
         "like": "unsupported"
-    }
+    },
+
+    // 可选：检查更新的端点 URL
+    // 用户点击"检查更新"时，CPPlayer 会向此 URL 发送 HTTP GET 请求
+    "updateUrl": "https://example.com/provider-update.json"
 }
 ```
 
@@ -312,6 +319,17 @@ nativeCallApi(mappedMethod, paramsJson)
     // ... 业务数据字段（因 API 而异）
 }
 ```
+
+**CPPlayer 接受的成功的 `code` 值：**
+
+| code 值 | 含义 |
+|---------|------|
+| `200` | 标准成功（**推荐**） |
+| `0` | 成功（部分 API 约定） |
+| `201` | 创建成功 |
+| `301` | 重定向成功 |
+
+其他 code 值（如 `400`, `500`, `-1` 等）会被标记为失败或警告。特别地，`code: -1` 会被识别为"Provider 不支持"。
 
 ### 5.3 cookie 处理
 
@@ -1604,9 +1622,150 @@ nativeCallApi(mappedMethod, paramsJson)
 
 ---
 
-## 10. 模块打包与分发
+## 10. 健康监控与兼容性检查
 
-### 10.1 目录结构
+CPPlayer 内置了一套 **API 健康监控系统**，会自动对每次 API 调用进行兼容性检查。当你的 Provider 返回的响应不符合预期时，系统会记录警告并在"健康状态"界面展示。**请确保你的 Provider 通过所有检查以提供最佳用户体验。**
+
+### 每个 API 方法的期望数据字段
+
+CPPlayer 会检查响应中是否存在**期望的数据字段**。如果主字段不存在，会尝试回退字段。以下是每个方法的期望字段：
+
+| API 方法 | 期望字段 | 回退字段 | 说明 |
+|---------|---------|---------|------|
+| `cloudsearch` | `result` | `data` | 搜索结果，内含 `songs`/`albums`/`artists`/`playlists` |
+| `user/playlist` | `playlist` | `data` | 用户歌单数组 |
+| `user/detail` | `profile` | `data` | 用户资料对象 |
+| `user/cloud` | `data` | — | 云盘歌曲数组 |
+| `likelist` | `ids` | `data` | 喜欢的歌曲 ID 数组 |
+| `recommend/songs` | `data` | — | 推荐歌曲数组 |
+| `recommend/resource` | `recommend` | `data` | 推荐歌单数组 |
+| `playlist/detail` | `playlist` | `data` | 歌单详情对象 |
+| `playlist/track/all` | `songs` | `data` | 歌单内歌曲数组 |
+| `album` | `album` | `data` | 专辑详情对象 |
+| `artist/detail` | `data` | — | 歌手详情对象 |
+| `artist/songs` | `songs` | `data` | 歌手歌曲数组 |
+| `artist/album` | `hotAlbums` | `data` | 歌手专辑数组 |
+| `song/detail` | `songs` | `data` | 歌曲详情数组 |
+| `song/url/v1` | `data` | — | 播放 URL 数组，每项含 `url` 字段 |
+| `song/url/v1/302` | `data` | — | 同上（302 重定向版本） |
+| `lyric/new` | `lrc` | `data` | 歌词对象，含 `lyric` 字段 |
+| `comment/*` | `comments` | `data` | 评论数组 |
+| `msg/private` | `msgs` | `data` | 私信数组 |
+| `msg/recentcontact` | `data` | — | 最近联系人数组 |
+
+### 常见兼容性警告
+
+| 警告类型 | 原因 | 修复方法 |
+|---------|------|---------|
+| **缺少数据字段** | 响应中没有期望的字段 | 将数据放在上述期望字段中 |
+| **空数据数组** | 数据字段存在但为空 `[]` | 确保有实际数据返回，或在无数据时返回合理提示 |
+| **异常响应码** | code 不在 200/0/201/301 范围 | 使用 `"code": 200` 表示成功 |
+| **缺少 code 字段** | 响应中没有 `code` 字段 | **必须**包含 `"code": 200` |
+| **响应格式异常** | 返回内容不是合法 JSON | 确保返回标准 JSON 字符串 |
+| **响应过慢** | 响应时间超过 5 秒 | 优化后端性能或增加缓存 |
+
+### 开发建议
+
+1. **始终返回 `"code": 200`**：这是最可靠的成功标识
+2. **数据放在正确的字段中**：参考上表的期望字段，CPPlayer 会优先读取这些字段
+3. **错误时返回有意义的 `msg`**：如 `{"code": 500, "msg": "歌曲不存在"}`
+4. **不要省略 `code` 字段**：缺少 `code` 会触发警告
+5. **测试你的 Provider**：导入后进入 **设置 → 调试 → 健康状态 → 测试** Tab，手动测试各个 API 方法，确认无警告
+
+### 查看健康状态
+
+导入 Provider 后，可通过以下路径查看兼容性检查结果：
+
+**设置 → 调试 → 健康状态**
+
+- **概览 Tab**：查看 Provider 健康评分（0-100 分）和兼容性警告数
+- **方法 Tab**：按 API 方法查看调用统计和警告分布
+- **日志 Tab**：查看每次调用的详细记录，展开可看到具体的期望字段和实际字段信息
+- **测试 Tab**：手动测试单个 API 方法
+
+---
+
+## 11. AMLL TTML 歌词平台检测
+
+CPPlayer 支持从 [AMLL TTML Database](https://github.com/amll-dev/amll-ttml-db) 获取 TTML 格式歌词（逐字、翻译、注音）。当用户在设置中将歌词来源设为 "AMLL 优先" 或 "仅 AMLL" 且平台设为 "自动" 时，CPPlayer 会根据 **provider 的 `id` 和 `name`** 自动推断平台。
+
+### 检测规则
+
+| 关键词（不区分大小写） | 匹配平台 |
+|---|---|
+| `netease`, `ncm`, `云音乐`, `网易` | `ncm` (网易云音乐) |
+| `qq`, `tencent`, `qq音乐` | `qq` (QQ 音乐) |
+| `apple`, `apple music`, `itunes` | `am` (Apple Music) |
+| `spotify` | `spotify` |
+
+### 开发建议
+
+- **`name` 字段更重要**：检测同时检查 `id` 和 `name`，建议在 `name` 中包含平台关键词以确保正确识别。
+- 示例：`"id": "cp.provider.rust.default"`, `"name": "Default Rust NCM Provider"` → 识别为 `ncm`（因为 name 包含 "NCM"）
+- 若无法自动识别，用户可在设置中手动指定 AMLL 平台。
+
+### 支持的 AMLL 平台文件夹
+
+| 平台标识 | AMLL 数据库文件夹 |
+|---|---|
+| `ncm` | `ncm-lyrics/` |
+| `qq` | `qq-lyrics/` |
+| `am` | `am-lyrics/` |
+| `spotify` | `spotify-lyrics/` |
+
+TTML 文件命名格式为 `{songId}.ttml`，其中 `songId` 为该平台的原始歌曲 ID。
+
+---
+
+## 12. 模块更新
+
+CPPlayer 支持模块的自动更新检查和手动更新。更新时会**保留用户数据**（如登录信息、缓存配置等）。
+
+### 自动更新检查
+
+在 `manifest.json` 中配置 `updateUrl` 字段后，用户可以在设置中点击"检查更新"按钮。CPPlayer 会向该 URL 发送 HTTP GET 请求，期望获取以下 JSON 响应：
+
+```json
+{
+    "version": "1.1.0",
+    "downloadUrl": "https://example.com/provider-v1.1.0.zip",
+    "changelog": "修复了xxx问题，新增yyy功能"
+}
+```
+
+#### 响应字段说明
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `version` | string | ✅ | 最新版本号（语义化版本格式，如 `1.2.3`） |
+| `downloadUrl` | string | ✅ | 新版本 zip 包的下载地址 |
+| `changelog` | string | ❌ | 更新日志内容，展示给用户 |
+
+#### 版本比较规则
+
+CPPlayer 使用标准的语义化版本比较：逐段比较主版本号、次版本号、修订号。例如：
+- `1.0.0` < `1.0.1` < `1.1.0` < `2.0.0`
+- `1.0` 等同于 `1.0.0`
+
+只有当远程版本**高于**本地版本时，才会提示有可用更新。
+
+### 手动更新
+
+用户也可以在提供者管理界面点击"手动更新"，选择一个新版本的 `.zip` 文件进行更新。
+
+### 更新保留的用户数据
+
+更新过程中，模块目录下的 `user_data/` 子目录会被完整保留。建议将用户配置、登录信息等敏感数据存储在此目录下。
+
+### 无需 updateUrl 的模块
+
+如果模块没有配置 `updateUrl`，"检查更新"按钮将不会显示，用户仍可通过"手动更新"按钮选择 zip 文件进行更新。
+
+---
+
+## 13. 模块打包与分发
+
+### 13.1 目录结构
 
 **HTTP Provider：**
 ```
@@ -1628,7 +1787,7 @@ my-provider.zip
   └── libmybackend.so      # ARM64 共享库
 ```
 
-### 10.2 打包命令
+### 13.2 打包命令
 
 ```bash
 # HTTP Provider
@@ -1641,7 +1800,11 @@ zip -r my-binary-provider.zip manifest.json my-backend
 zip -r my-jni-provider.zip manifest.json libmybackend.so
 ```
 
-### 10.3 分发方式
+### 13.3 导入 CPPlayer
+
+在 Android 设备上打开 CPPlayer。前往 **设置 → 模块管理 → 导入新模块 (.zip)** → 选择你的 `.zip` 文件。
+
+### 13.4 分发方式
 
 1. **直接分享 .zip 文件** — 用户在 CPPlayer 设置中导入
 2. **GitHub Releases** — 发布到 GitHub，用户下载后导入
@@ -1649,9 +1812,9 @@ zip -r my-jni-provider.zip manifest.json libmybackend.so
 
 ---
 
-## 11. 调试与测试
+## 14. 调试与测试
 
-### 11.1 使用 curl 测试 HTTP Provider
+### 14.1 使用 curl 测试 HTTP Provider
 
 ```bash
 # 测试搜索
@@ -1670,7 +1833,7 @@ curl -X POST http://localhost:8080/lyric \
   -d '{"id": "123456"}'
 ```
 
-### 11.2 在 CPPlayer 中查看日志
+### 14.2 在 CPPlayer 中查看日志
 
 CPPlayer 内置日志查看器：**设置 → 日志查看器**
 
@@ -1680,7 +1843,11 @@ CPPlayer 内置日志查看器：**设置 → 日志查看器**
 - `ProviderManager` — Provider 切换日志
 - `BinaryProvider` / `JniProvider` / `HttpProvider` — 各 Provider 通信日志
 
-### 11.3 常见调试场景
+### 14.3 健康状态测试
+
+导入 Provider 后，前往 **设置 → 调试 → 健康状态 → 测试** Tab，逐一测试 API 方法，确认无兼容性警告。在"概览"Tab 查看健康评分，确保达到 80 分以上。
+
+### 14.4 常见调试场景
 
 **搜索无结果：**
 1. 检查 `cloudsearch` 端点是否正确响应
@@ -1698,7 +1865,7 @@ CPPlayer 内置日志查看器：**设置 → 日志查看器**
 
 ---
 
-## 12. 常见问题
+## 15. 常见问题
 
 ### Q: 我的后端和 NeteaseCloudMusicApi 完全兼容，需要设置 apiMap 吗？
 

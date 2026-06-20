@@ -47,11 +47,12 @@ jobs:
 
     - name: Build Release APK
       run: >-
-        ./gradlew assembleRelease --no-daemon
+        ./gradlew --no-daemon
         -PRELEASE_STORE_FILE=release.keystore
         -PRELEASE_STORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
         -PRELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}
         -PRELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
+        assembleRelease
 
     - name: Get version info
       id: version

@@ -39,7 +39,7 @@ Modules are `.zip` files with `manifest.json`. Three transport types: `jni`, `bi
 - [BinaryProvider.kt](app/src/main/java/cp/player/provider/BinaryProvider.kt) — Subprocess binary provider
 - [HttpProvider.kt](app/src/main/java/cp/player/provider/HttpProvider.kt) — HTTP REST provider
 
-See [MODULE_DEV_GUIDE.md](MODULE_DEV_GUIDE.md) for API surface and manifest format.
+See [PROVIDER_DEV_GUIDE.md](PROVIDER_DEV_GUIDE.md) for API surface and manifest format.
 
 ## API Layer
 
