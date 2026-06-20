@@ -187,6 +187,10 @@ fun LibraryScreen(
                                         userViewModel.toggleLike(song.id, !favoriteSongs.contains(song.id))
                                     },
                                     playbackViewModel = playbackViewModel,
+                                    onAddToPlaylist = { playlistId, songIds ->
+                                        userViewModel.addSongsToPlaylist(playlistId, songIds, cp.player.util.UserPreferences.getCookie(context))
+                                    },
+                                    allPlaylists = userPlaylists,
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )
                             }

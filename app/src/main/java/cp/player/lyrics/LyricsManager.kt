@@ -10,6 +10,7 @@ import cp.player.repository.PlaybackRepository
 import cp.player.service.AmllLyricService
 import cp.player.service.LyricService
 import cp.player.util.DebugLog
+import cp.player.util.EmbeddedLyricsExtractor
 import cp.player.util.LyricUtils
 import cp.player.util.SyncedLyricsConverter
 import cp.player.util.UserPreferences
@@ -57,8 +58,11 @@ object LyricsManager {
     /**
      * 获取歌词。重复调用同一 songId 时跳过（已有结果）。
      * 不同 songId 时取消旧请求，立即清除旧状态。
+     *
+     * @param filePath 本地文件路径（用于内嵌歌词提取），可为 null
+     * @param contentUri content:// URI（用于内嵌歌词提取），可为 null
      */
-    fun fetch(songId: String, context: Context) {
+    fun fetch(songId: String, context: Context, filePath: String? = null, contentUri: String? = null) {
         DebugLog.i("LyricsManager: fetch($songId) called, currentSongId=$currentSongId, state=${_state.value::class.simpleName}")
 
         // 同一首歌已有成功结果，跳过（避免重复网络请求）
@@ -82,7 +86,7 @@ object LyricsManager {
             DebugLog.i("LyricsManager: debounce expired, starting fetch for $songId")
             fetchJob = scope.launch {
                 try {
-                    val result = fetchInternal(songId, context)
+                    val result = fetchInternal(songId, context, filePath, contentUri)
                     ensureActive()
                     if (currentSongId == songId) {
                         _state.value = result
@@ -105,8 +109,14 @@ object LyricsManager {
 
     /**
      * 内部获取逻辑，根据用户设置选择歌词来源。
+     * 对于本地歌曲（songId 以 "local_" 开头），在云端歌词获取失败时回退到内嵌歌词。
      */
-    private suspend fun fetchInternal(songId: String, context: Context): LyricsState {
+    private suspend fun fetchInternal(
+        songId: String,
+        context: Context,
+        filePath: String?,
+        contentUri: String?
+    ): LyricsState {
         val lyricsSource = UserPreferences.getLyricsSource(context)
         val amllPlatformSetting = UserPreferences.getAmllPlatform(context)
         val platform = if (amllPlatformSetting == "auto") {
@@ -118,10 +128,68 @@ object LyricsManager {
 
         DebugLog.i("LyricsManager: lyricsSource=$lyricsSource, platform=$platform (setting=$amllPlatformSetting)")
 
-        return when (lyricsSource) {
+        val result = when (lyricsSource) {
             1 -> fetchAmllFirst(songId, platform, context)  // AMLL 优先
             2 -> fetchAmllOnly(songId, platform)             // 仅 AMLL
             else -> fetchProviderOnly(songId, context)        // Provider API（默认）
+        }
+
+        // 本地歌曲：云端歌词无结果时回退到内嵌歌词
+        if (songId.startsWith("local_") && result is LyricsState.Success &&
+            result.syncedLyrics == null && result.richLyricLines.isEmpty()
+        ) {
+            DebugLog.i("LyricsManager: cloud lyrics empty for local song $songId, trying embedded lyrics")
+            val (resolvedPath, resolvedUri) = resolveLocalFileInfo(songId, context, filePath, contentUri)
+            val embeddedLines = EmbeddedLyricsExtractor.extract(context, resolvedPath, resolvedUri)
+            if (embeddedLines.isNotEmpty()) {
+                return buildEmbeddedSuccess(songId, embeddedLines)
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * 解析本地歌曲的文件路径和 content URI。
+     * 如果调用方未提供，则从 MediaStore 查询。
+     */
+    private fun resolveLocalFileInfo(
+        songId: String,
+        context: Context,
+        filePath: String?,
+        contentUri: String?
+    ): Pair<String?, String?> {
+        if (!filePath.isNullOrBlank() && !contentUri.isNullOrBlank()) {
+            return filePath to contentUri
+        }
+
+        // 从 MediaStore ID 查询
+        val mediaStoreId = songId.removePrefix("local_").toLongOrNull() ?: return filePath to contentUri
+        return try {
+            val uri = android.content.ContentUris.withAppendedId(
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaStoreId
+            )
+            val resolvedPath = filePath ?: queryFilePath(context, mediaStoreId)
+            resolvedPath to uri.toString()
+        } catch (e: Exception) {
+            DebugLog.w("LyricsManager: failed to resolve local file info for $songId: ${e.message}")
+            filePath to contentUri
+        }
+    }
+
+    private fun queryFilePath(context: Context, mediaStoreId: Long): String? {
+        return try {
+            context.contentResolver.query(
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(android.provider.MediaStore.Audio.Media.DATA),
+                "${android.provider.MediaStore.Audio.Media._ID} = ?",
+                arrayOf(mediaStoreId.toString()),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -232,6 +300,28 @@ object LyricsManager {
                 hasWordLevel = hasKaraoke,
                 hasTranslation = hasTranslation,
                 hasPhonetic = hasPhonetic
+            ),
+            richLyricLines = LyricUtils.syncedLyricsToRichLyricLines(syncedLyrics)
+        )
+    }
+
+    /**
+     * 构建内嵌歌词成功状态。
+     */
+    private fun buildEmbeddedSuccess(songId: String, lines: List<LyricLine>): LyricsState.Success {
+        val syncedLyrics = SyncedLyricsConverter.convert(lines)
+        val hasWords = lines.any { it.words != null && it.words.isNotEmpty() }
+        val format = if (hasWords) "Embedded (逐字)" else "Embedded (LRC)"
+
+        return LyricsState.Success(
+            songId = songId,
+            syncedLyrics = syncedLyrics,
+            lyricsInfo = LyricsInfo(
+                source = "内嵌歌词",
+                format = format,
+                hasWordLevel = hasWords,
+                hasTranslation = false,
+                hasPhonetic = false
             ),
             richLyricLines = LyricUtils.syncedLyricsToRichLyricLines(syncedLyrics)
         )

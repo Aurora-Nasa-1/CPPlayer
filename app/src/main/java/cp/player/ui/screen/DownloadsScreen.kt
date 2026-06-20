@@ -2,17 +2,21 @@ package cp.player.ui.screen
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +34,8 @@ import cp.player.manager.LocalMusicManager
 import cp.player.model.LocalSongMetadata
 import cp.player.ui.component.SongItem
 import cp.player.viewmodel.PlaybackViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,12 +50,25 @@ fun DownloadsContent(
     favoriteSongs: List<String> = emptyList(),
     onLikeClick: (Song) -> Unit = {},
     playbackViewModel: PlaybackViewModel? = null,
+    onAddToPlaylist: ((Long, List<String>) -> Unit)? = null,
+    allPlaylists: List<cp.player.model.Playlist> = emptyList(),
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf(stringResource(R.string.downloaded), stringResource(R.string.system_music_folder))
 
+    // 系统音乐文件夹多选状态
+    var selectedLocalSongs by remember { mutableStateOf(setOf<String>()) }
+    var isLocalSelectionMode by remember { mutableStateOf(false) }
+    var showMultiSelectAddToPlaylist by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
+
+    // 退出选择模式的 BackHandler
+    BackHandler(enabled = isLocalSelectionMode) {
+        isLocalSelectionMode = false
+        selectedLocalSongs = emptySet()
+    }
 
     val permissionToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
@@ -69,7 +88,163 @@ fun DownloadsContent(
         permissionLauncher.launch(permissionToRequest)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // 选择模式下的顶部栏
+    if (isLocalSelectionMode && selectedTabIndex == 1) {
+        cp.player.ui.component.AppScaffold(
+            title = stringResource(R.string.selected_count, selectedLocalSongs.size),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            navigationIcon = {
+                IconButton(onClick = {
+                    isLocalSelectionMode = false
+                    selectedLocalSongs = emptySet()
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Cancel")
+                }
+            },
+            actions = {
+                // 全选/取消全选
+                IconButton(onClick = {
+                    if (selectedLocalSongs.size == localSongs.size) {
+                        selectedLocalSongs = emptySet()
+                    } else {
+                        selectedLocalSongs = localSongs.map { it.songId }.toSet()
+                    }
+                }) {
+                    Icon(
+                        Icons.Rounded.Checklist,
+                        contentDescription = if (selectedLocalSongs.size == localSongs.size) stringResource(R.string.deselect_all) else stringResource(R.string.select_all)
+                    )
+                }
+                // 添加到队列
+                IconButton(onClick = {
+                    val selectedList = localSongs.filter { selectedLocalSongs.contains(it.songId) }
+                    selectedList.forEach { localSong ->
+                        val uri = android.net.Uri.parse(localSong.albumArtUrl)
+                        val song = Song(
+                            id = localSong.songId,
+                            name = localSong.songName,
+                            artist = localSong.artist,
+                            album = localSong.album
+                        )
+                        playbackViewModel?.addToQueue(song)
+                    }
+                    android.widget.Toast.makeText(context, context.getString(R.string.added_to_queue, selectedList.size), android.widget.Toast.LENGTH_SHORT).show()
+                    isLocalSelectionMode = false
+                    selectedLocalSongs = emptySet()
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Add to Queue")
+                }
+                // 添加到歌单
+                IconButton(onClick = { showMultiSelectAddToPlaylist = true }) {
+                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
+                }
+            }
+        ) { innerPadding ->
+            DownloadsMainContent(
+                innerPadding = innerPadding,
+                selectedTabIndex = selectedTabIndex,
+                onTabChange = { selectedTabIndex = it },
+                tabs = tabs,
+                onRefreshClick = { permissionLauncher.launch(permissionToRequest) },
+                // 下载相关
+                tasks = tasks,
+                onCancelDownload = onCancelDownload,
+                downloadedSongs = downloadedSongs,
+                favoriteSongs = favoriteSongs,
+                onLikeClick = onLikeClick,
+                onPlayLocalSong = onPlayLocalSong,
+                onDeleteLocalSong = onDeleteLocalSong,
+                playbackViewModel = playbackViewModel,
+                // 本地音乐相关
+                localSongs = localSongs,
+                isLocalSelectionMode = isLocalSelectionMode,
+                selectedLocalSongs = selectedLocalSongs,
+                onLocalSelectionChange = { id, selected ->
+                    selectedLocalSongs = if (selected) selectedLocalSongs + id else selectedLocalSongs - id
+                },
+                onToggleLocalSelectionMode = {
+                    isLocalSelectionMode = it
+                    if (!it) selectedLocalSongs = emptySet()
+                },
+                bottomContentPadding = bottomContentPadding
+            )
+        }
+    } else {
+        DownloadsMainContent(
+            selectedTabIndex = selectedTabIndex,
+            onTabChange = { selectedTabIndex = it },
+            tabs = tabs,
+            onRefreshClick = { permissionLauncher.launch(permissionToRequest) },
+            // 下载相关
+            tasks = tasks,
+            onCancelDownload = onCancelDownload,
+            downloadedSongs = downloadedSongs,
+            favoriteSongs = favoriteSongs,
+            onLikeClick = onLikeClick,
+            onPlayLocalSong = onPlayLocalSong,
+            onDeleteLocalSong = onDeleteLocalSong,
+            playbackViewModel = playbackViewModel,
+            // 本地音乐相关
+            localSongs = localSongs,
+            isLocalSelectionMode = isLocalSelectionMode,
+            selectedLocalSongs = selectedLocalSongs,
+            onLocalSelectionChange = { id, selected ->
+                selectedLocalSongs = if (selected) selectedLocalSongs + id else selectedLocalSongs - id
+            },
+            onToggleLocalSelectionMode = {
+                isLocalSelectionMode = it
+                if (!it) selectedLocalSongs = emptySet()
+            },
+            bottomContentPadding = bottomContentPadding
+        )
+    }
+
+    // 多选添加到歌单面板
+    if (showMultiSelectAddToPlaylist && onAddToPlaylist != null) {
+        val selectedIds = remember(selectedLocalSongs, localSongs) {
+            localSongs.filter { selectedLocalSongs.contains(it.songId) }.map { it.songId }
+        }
+        cp.player.ui.component.AddToPlaylistBottomSheet(
+            playlists = allPlaylists,
+            onPlaylistSelected = { playlist ->
+                onAddToPlaylist(playlist.id, selectedIds)
+                showMultiSelectAddToPlaylist = false
+                isLocalSelectionMode = false
+                selectedLocalSongs = emptySet()
+            },
+            onDismissRequest = { showMultiSelectAddToPlaylist = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DownloadsMainContent(
+    innerPadding: PaddingValues = PaddingValues(0.dp),
+    selectedTabIndex: Int,
+    onTabChange: (Int) -> Unit,
+    tabs: List<String>,
+    onRefreshClick: () -> Unit,
+    // 下载相关
+    tasks: Map<String, DownloadTask>,
+    onCancelDownload: (String) -> Unit,
+    downloadedSongs: List<DownloadedSongMetadata>,
+    favoriteSongs: List<String>,
+    onLikeClick: (Song) -> Unit,
+    onPlayLocalSong: (Song, android.net.Uri) -> Unit,
+    onDeleteLocalSong: (android.net.Uri) -> Unit,
+    playbackViewModel: PlaybackViewModel?,
+    // 本地音乐相关
+    localSongs: List<LocalSongMetadata>,
+    isLocalSelectionMode: Boolean,
+    selectedLocalSongs: Set<String>,
+    onLocalSelectionChange: (String, Boolean) -> Unit,
+    onToggleLocalSelectionMode: (Boolean) -> Unit,
+    bottomContentPadding: PaddingValues
+) {
+    val context = LocalContext.current
+
+    Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,13 +258,13 @@ fun DownloadsContent(
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
+                        onClick = { onTabChange(index) },
                         text = { Text(title) }
                     )
                 }
             }
-            if (selectedTabIndex == 1) {
-                IconButton(onClick = { permissionLauncher.launch(permissionToRequest) }) {
+            if (selectedTabIndex == 1 && !isLocalSelectionMode) {
+                IconButton(onClick = onRefreshClick) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                 }
             }
@@ -160,10 +335,12 @@ fun DownloadsContent(
                         }
 
                         // 封面回退链：持久化本地封面 > 缓存提取封面 > 云端 HTTP URL
-                        val resolvedCoverUrl = remember(metadata.song.id, metadata.localCoverPath) {
-                            metadata.localCoverPath
-                                ?: cp.player.util.CoverArtExtractor.getOrExtract(context, metadata.song.id, metadata.filePath)
-                                ?: metadata.song.albumArtUrl
+                        // 异步加载，避免 MediaMetadataRetriever 阻塞 composition
+                        val resolvedCoverUrl by produceState<String?>(initialValue = metadata.localCoverPath ?: metadata.song.albumArtUrl) {
+                            if (metadata.localCoverPath != null) return@produceState
+                            value = withContext(Dispatchers.IO) {
+                                cp.player.util.CoverArtExtractor.getOrExtract(context, metadata.song.id, metadata.filePath)
+                            } ?: metadata.song.albumArtUrl
                         }
 
                         var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
@@ -179,7 +356,7 @@ fun DownloadsContent(
                             containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
-                        
+
                         selectedSongForOptions?.let { song ->
                             cp.player.ui.component.SongOptionsBottomSheet(
                                 song = song,
@@ -219,13 +396,19 @@ fun DownloadsContent(
                 }
             } else {
                 if (localSongs.isNotEmpty()) {
-                    itemsIndexed(localSongs) { index, localSong ->
+                    itemsIndexed(localSongs, key = { _, it -> it.songId }) { index, localSong ->
                         val uri = android.net.Uri.parse(localSong.albumArtUrl)
-                        val context = LocalContext.current
 
                         // 获取封面：云端绑定封面 > 内嵌封面 > null
-                        val coverArtUrl = remember(localSong.songId, localSong.cloudSongId) {
-                            LocalMusicManager.getCoverArt(context, localSong.songId, localSong.filePath)
+                        // 异步加载，避免 MediaMetadataRetriever 阻塞 composition
+                        val bindingForCover = remember(localSong.songId) {
+                            LocalMusicManager.getBinding(localSong.songId)
+                        }
+                        val coverArtUrl by produceState<String?>(initialValue = bindingForCover?.cloudCoverUrl) {
+                            if (bindingForCover?.cloudCoverUrl != null) return@produceState
+                            value = withContext(Dispatchers.IO) {
+                                cp.player.util.CoverArtExtractor.getOrExtract(context, localSong.songId, localSong.filePath)
+                            }
                         }
 
                         val convertedSong = Song(
@@ -236,9 +419,8 @@ fun DownloadsContent(
                             albumArtUrl = coverArtUrl
                         )
 
-                        val binding = remember(localSong.songId) {
-                            LocalMusicManager.getBinding(localSong.songId)
-                        }
+                        val binding = bindingForCover
+                        val isSelected = selectedLocalSongs.contains(localSong.songId)
 
                         var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
                         var showBindSheet by remember { mutableStateOf(false) }
@@ -247,12 +429,32 @@ fun DownloadsContent(
                             song = convertedSong,
                             isFavorite = false,
                             isCurrentlyPlaying = convertedSong.id == playbackViewModel?.currentSong?.id,
-                            onClick = { onPlayLocalSong(convertedSong, uri) },
-                            onOptionsClick = { selectedSongForOptions = convertedSong },
+                            onClick = {
+                                if (isLocalSelectionMode) {
+                                    onLocalSelectionChange(localSong.songId, !isSelected)
+                                } else {
+                                    onPlayLocalSong(convertedSong, uri)
+                                }
+                            },
+                            onLongClick = {
+                                if (!isLocalSelectionMode) {
+                                    onToggleLocalSelectionMode(true)
+                                    onLocalSelectionChange(localSong.songId, true)
+                                }
+                            },
+                            onOptionsClick = if (!isLocalSelectionMode) { { selectedSongForOptions = convertedSong } } else null,
                             index = index,
                             total = localSongs.size,
-                            containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
                             modifier = Modifier.padding(horizontal = 16.dp),
+                            leadingContent = if (isLocalSelectionMode) {
+                                {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { onLocalSelectionChange(localSong.songId, it) }
+                                    )
+                                }
+                            } else null,
                             supportingContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     // 已关联云端歌曲标识
