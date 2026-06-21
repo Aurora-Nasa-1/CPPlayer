@@ -63,6 +63,18 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var lastBitrate = 0
     @Volatile private var currentPlayingPath: String? = null
 
+    /**
+     * 暂停请求标志。
+     *
+     * 用于防止暂停过程中的竞态条件：handleSetPlayWhenReady(false) 同步更新 UI 状态，
+     * 但 RustEngine.pause() 是异步的。在此窗口期内，Rust 引擎可能发送旧的 "playing"
+     * 状态事件，导致 isPlaying 被错误地设为 true（UI 闪烁/状态不一致）。
+     *
+     * 设置时机：handleSetPlayWhenReady(false)
+     * 清除时机：收到 Rust 引擎的 "paused" 状态确认，或用户恢复播放
+     */
+    @Volatile private var pauseRequested = false
+
     // Next-track pre-caching
     @Volatile private var preCachedPath: String? = null
     @Volatile private var preCachedItemIndex = -1
@@ -128,12 +140,16 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
         when (state.lowercase()) {
             "playing" -> {
+                // 暂停请求进行中时，忽略引擎的 "playing" 状态事件，
+                // 防止旧事件覆盖用户的暂停意图
+                if (pauseRequested) return
                 isPlaying = true
                 playbackState = Player.STATE_READY
                 positionUpdateTimeMs.set(System.currentTimeMillis())
                 invalidateState()
             }
             "paused" -> {
+                pauseRequested = false
                 isPlaying = false
                 playbackState = Player.STATE_READY
                 invalidateState()
@@ -397,6 +413,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
         this.playWhenReady = playWhenReady
         if (playWhenReady) {
+            pauseRequested = false
             if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_ENDED) {
                 if (playlist.isNotEmpty()) playCurrentItem()
             } else {
@@ -404,6 +421,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 scope.launch(Dispatchers.IO) { RustEngine.resume() }
             }
         } else {
+            pauseRequested = true
             scope.launch(Dispatchers.IO) { RustEngine.pause() }
         }
         invalidateState()
@@ -509,6 +527,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
     override fun handleStop(): ListenableFuture<*> {
         scope.launch(Dispatchers.IO) { RustEngine.stop() }
+        pauseRequested = false
         playWhenReady = false
         playbackState = Player.STATE_IDLE
         isPlaying = false
