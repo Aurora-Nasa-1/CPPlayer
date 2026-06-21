@@ -59,18 +59,21 @@ object LyricUtils {
                 if (markers.isNotEmpty()) {
                     val words = mutableListOf<LyricLine.Word>()
 
-                    // 自动检测时间戳类型：若第一个 word 的时间 < lineBegin，则为绝对时间戳
+                    // 自动检测时间戳类型：
+                    // - firstWordTime == 0 → 肯定是相对时间戳（绝对时间戳不会为 0）
+                    // - firstWordTime < lineBegin → 可能是绝对时间戳
+                    // - 否则 → 默认相对时间戳（YRC 标准格式）
                     val firstWordTime = markers.first().groupValues[1].toLong()
-                    val isAbsolute = firstWordTime < lineBegin
+                    val isAbsolute = firstWordTime != 0L && firstWordTime < lineBegin
                     val baseTime = if (isAbsolute) 0L else lineBegin
 
                     markers.forEachIndexed { i, match ->
                         val wBegin = match.groupValues[1].toLong()
                         val wDur = match.groupValues[2].toLong()
-                        // 提取 word 文本：当前 marker 结束到下一个 marker 开始（或内容结尾）
-                        val textStart = match.range.last + 1
-                        val textEnd = if (i + 1 < markers.size) markers[i + 1].range.first else content.length
-                        val wText = if (textStart < textEnd) content.substring(textStart, textEnd) else ""
+                        // 提取 word 文本：YRC 格式中文字在 marker 之前，即上一个 marker 结束到当前 marker 开始
+                        val textStart = if (i > 0) markers[i - 1].range.last + 1 else 0
+                        val textEnd = match.range.first
+                        val wText = if (textStart < textEnd) content.substring(textStart, textEnd).trim() else ""
 
                         if (wText.isNotEmpty()) {
                             words.add(LyricLine.Word(
