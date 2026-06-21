@@ -21,6 +21,7 @@ provider = "0.1.70"
 accompanist-lyrics-ui = "1.0.19"
 accompanist-lyrics-core = "0.4.5"
 gaze-capsule = "2.1.1-patch2"
+androidx-window = "1.3.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -54,6 +55,7 @@ provider = { group = "io.github.proify.lyricon", name = "provider", version.ref 
 accompanist-lyrics-ui = { module = "com.mocharealm.accompanist:lyrics-ui", version.ref = "accompanist-lyrics-ui" }
 accompanist-lyrics-core = { module = "com.mocharealm.accompanist:lyrics-core", version.ref = "accompanist-lyrics-core" }
 gaze-capsule = { module = "com.mocharealm.gaze:capsule", version.ref = "gaze-capsule" }
+androidx-window = { group = "androidx.window", name = "window", version.ref = "androidx-window" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
