@@ -314,23 +314,48 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.play_immediately_desc),
                                 checked = playImmediately,
                                 onCheckedChange = onPlayImmediatelyChange,
-                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                                shapes = ListItemDefaults.segmentedShapes(0, 2)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.usb_audio_auto_resume),
+                                subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
+                                checked = autoResumeUsbAudio,
+                                onCheckedChange = onAutoResumeUsbAudioChange,
+                                shapes = ListItemDefaults.segmentedShapes(1, 2)
                             )
                         }
 
-                        // 音频焦点设置（两个引擎共享）
-                        SettingsSection(title = stringResource(R.string.auto_audio_focus).replaceFirstChar { it.uppercase() }) {
-                            val focusItemsCount = if (autoAudioFocus) 1 else 4
+                        // 音频焦点设置
+                        SettingsSection(title = stringResource(R.string.audio_focus_management)) {
+                            val isFlick = audioEngine == 1
+                            // Flick 始终显示手动设置；ExoPlayer 根据 autoAudioFocus 决定
+                            val showManual = isFlick || !autoAudioFocus
+                            val focusItemsCount = if (isFlick) 4 else if (autoAudioFocus) 2 else 5
 
-                            ExpressiveSwitchItem(
-                                title = stringResource(R.string.auto_audio_focus),
-                                subtitle = stringResource(R.string.auto_audio_focus_desc),
-                                checked = autoAudioFocus,
-                                onCheckedChange = onAutoAudioFocusChange,
+                            // 引擎提示
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.audio_focus_management),
+                                subtitle = stringResource(
+                                    if (isFlick) R.string.audio_focus_engine_hint_flick
+                                    else R.string.audio_focus_engine_hint_exoplayer
+                                ),
+                                onClick = {},
                                 shapes = ListItemDefaults.segmentedShapes(0, focusItemsCount)
                             )
 
-                            if (!autoAudioFocus) {
+                            // ExoPlayer 显示自动焦点开关；Flick 始终手动，不显示
+                            if (!isFlick) {
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.auto_audio_focus),
+                                    subtitle = stringResource(R.string.auto_audio_focus_desc),
+                                    checked = autoAudioFocus,
+                                    onCheckedChange = onAutoAudioFocusChange,
+                                    shapes = ListItemDefaults.segmentedShapes(1, focusItemsCount)
+                                )
+                            }
+
+                            if (showManual) {
+                                val manualStartIdx = if (isFlick) 1 else 2
                                 val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause))
                                 ExpressiveDropdownItem(
                                     title = stringResource(R.string.transient_focus_loss_behavior),
@@ -338,21 +363,21 @@ fun SettingsScreen(
                                     options = focusModes,
                                     selectedIndex = audioFocusMode,
                                     onSelect = onAudioFocusModeChange,
-                                    shapes = ListItemDefaults.segmentedShapes(1, focusItemsCount)
+                                    shapes = ListItemDefaults.segmentedShapes(manualStartIdx, focusItemsCount)
                                 )
                                 ExpressiveSwitchItem(
                                     title = stringResource(R.string.allow_ducking),
                                     subtitle = stringResource(R.string.allow_ducking_desc),
                                     checked = allowDucking,
                                     onCheckedChange = onAllowDuckingChange,
-                                    shapes = ListItemDefaults.segmentedShapes(2, focusItemsCount)
+                                    shapes = ListItemDefaults.segmentedShapes(manualStartIdx + 1, focusItemsCount)
                                 )
                                 ExpressiveSwitchItem(
                                     title = stringResource(R.string.pause_on_noisy),
                                     subtitle = stringResource(R.string.pause_on_noisy_desc),
                                     checked = pauseOnNoisy,
                                     onCheckedChange = onPauseOnNoisyChange,
-                                    shapes = ListItemDefaults.segmentedShapes(3, focusItemsCount)
+                                    shapes = ListItemDefaults.segmentedShapes(manualStartIdx + 2, focusItemsCount)
                                 )
                             }
                         }
@@ -399,7 +424,7 @@ fun SettingsScreen(
                                     options = dsdModes,
                                     selectedIndex = dsdOutputMode,
                                     onSelect = onDsdOutputModeChange,
-                                    shapes = ListItemDefaults.segmentedShapes(0, 5)
+                                    shapes = ListItemDefaults.segmentedShapes(0, 4)
                                 )
 
                                 ExpressiveSwitchItem(
@@ -407,7 +432,7 @@ fun SettingsScreen(
                                     subtitle = stringResource(R.string.dap_bit_perfect_desc),
                                     checked = dapBitPerfect,
                                     onCheckedChange = onDapBitPerfectChange,
-                                    shapes = ListItemDefaults.segmentedShapes(1, 5)
+                                    shapes = ListItemDefaults.segmentedShapes(1, 4)
                                 )
 
                                 ExpressiveSwitchItem(
@@ -415,15 +440,7 @@ fun SettingsScreen(
                                     subtitle = stringResource(id = R.string.usb_exclusive_subtitle),
                                     checked = usbExclusive,
                                     onCheckedChange = onUsbExclusiveChange,
-                                    shapes = ListItemDefaults.segmentedShapes(2, 5)
-                                )
-
-                                ExpressiveSwitchItem(
-                                    title = stringResource(R.string.usb_audio_auto_resume),
-                                    subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
-                                    checked = autoResumeUsbAudio,
-                                    onCheckedChange = onAutoResumeUsbAudioChange,
-                                    shapes = ListItemDefaults.segmentedShapes(3, 5)
+                                    shapes = ListItemDefaults.segmentedShapes(2, 4)
                                 )
 
                                 ExpressiveClickItem(
@@ -436,7 +453,7 @@ fun SettingsScreen(
                                         clipboard.setPrimaryClip(clip)
                                         android.widget.Toast.makeText(context, context.getString(R.string.copied_to_clipboard), android.widget.Toast.LENGTH_SHORT).show()
                                     },
-                                    shapes = ListItemDefaults.segmentedShapes(4, 5)
+                                    shapes = ListItemDefaults.segmentedShapes(3, 4)
                                 )
                             }
                         }

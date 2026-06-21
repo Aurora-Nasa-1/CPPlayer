@@ -112,7 +112,7 @@ fun PlaylistDetailScreen(
                     isSelectionMode = false
                     selectedSongs = emptySet()
                 }) {
-                    Icon(Icons.Default.Close, contentDescription = "Cancel")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
             },
             actions = {
@@ -122,7 +122,7 @@ fun PlaylistDetailScreen(
                     isSelectionMode = false
                     selectedSongs = emptySet()
                 }) {
-                    Icon(Icons.Default.Download, contentDescription = "Download")
+                    Icon(Icons.Default.Download, contentDescription = stringResource(R.string.download_action))
                 }
                 IconButton(onClick = {
                     val selectedList = sortedSongs.filter { selectedSongs.contains(it.id) }
@@ -131,17 +131,17 @@ fun PlaylistDetailScreen(
                     isSelectionMode = false
                     selectedSongs = emptySet()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Queue")
+                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.add_to_queue))
                 }
                 IconButton(onClick = { showMultiSelectAddToPlaylist = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add to Playlist")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_to_playlist))
                 }
                 IconButton(onClick = {
                     onRemoveFromPlaylist(selectedSongs.toList())
                     isSelectionMode = false
                     selectedSongs = emptySet()
                 }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove from Playlist")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.remove_from_playlist))
                 }
             }
         ) { innerPadding ->
@@ -210,7 +210,7 @@ fun PlaylistDetailScreen(
                         )
                         val displayCount = if (playlist.trackCount > 0) playlist.trackCount else songs.size
                         Text(
-                            text = "$displayCount Song${if (displayCount != 1) "s" else ""} • $durationStr",
+                            text = "${stringResource(R.string.song_count_simple, displayCount)} • $durationStr",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -227,7 +227,7 @@ fun PlaylistDetailScreen(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                 }
                 val context = androidx.compose.ui.platform.LocalContext.current
                 if (showSortMenu) {
@@ -239,10 +239,10 @@ fun PlaylistDetailScreen(
                         onShareClick = {
                             val shareIntent = android.content.Intent().apply {
                                 action = android.content.Intent.ACTION_SEND
-                                putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${playlist.name}\nhttps://music.163.com/playlist?id=${playlist.id}")
+                                putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.share_playlist_text, playlist.name, "https://music.163.com/playlist?id=${playlist.id}"))
                                 type = "text/plain"
                             }
-                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share_playlist)))
                         },
                         currentSortType = currentSortType,
                         onSortDefaultClick = {
@@ -578,12 +578,12 @@ fun PlaylistHeader(
                 ) {
                     Icon(
                         Icons.Default.PlayArrow,
-                        contentDescription = "Play",
+                        contentDescription = stringResource(R.string.play),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Play it",
+                        stringResource(R.string.play_it),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -605,12 +605,12 @@ fun PlaylistHeader(
                 ) {
                     Icon(
                         Icons.Default.Shuffle,
-                        contentDescription = "Shuffle",
+                        contentDescription = stringResource(R.string.shuffle),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Shuffle",
+                        stringResource(R.string.shuffle),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -637,9 +637,9 @@ fun PlaylistHeader(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add), tint = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.add), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                 }
             }
             
@@ -654,9 +654,9 @@ fun PlaylistHeader(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Reorder", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.reorder), tint = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Reorder", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.reorder), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                 }
             }
         }

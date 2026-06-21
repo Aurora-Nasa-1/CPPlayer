@@ -129,6 +129,8 @@
     <string name="pause_on_noisy_desc">Automatically pause when headphones/Bluetooth disconnected</string>
     <string name="auto_audio_focus">Auto Audio Focus</string>
     <string name="auto_audio_focus_desc">Let ExoPlayer handle audio focus natively</string>
+    <string name="audio_focus_engine_hint_exoplayer">ExoPlayer can manage audio focus automatically; turn off for manual control</string>
+    <string name="audio_focus_engine_hint_flick">Flick engine always uses manual audio focus management</string>
     <string name="fade_mode">Fade Mode</string>
     <string name="fade_mode_crossfade">Crossfade (Double Player)</string>
     <string name="fade_mode_single">Fade in/out (Single Player)</string>
@@ -529,4 +531,13 @@
 
     <!-- Unknown User -->
     <string name="unknown_user">Unknown User</string>
+
+    <!-- Playlist Detail -->
+    <string name="play_it">Play All</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="add">Add</string>
+    <string name="reorder">Reorder</string>
+    <string name="remove_from_playlist">Remove from Playlist</string>
+    <string name="song_count_simple">%1$d songs</string>
+    <string name="share_playlist_text">Check out this playlist: %1$s\n%2$s</string>
 </resources>

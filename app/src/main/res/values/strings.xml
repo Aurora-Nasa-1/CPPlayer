@@ -129,6 +129,8 @@
     <string name="pause_on_noisy_desc">当耳机拔出或蓝牙断开时自动暂停播放</string>
     <string name="auto_audio_focus">自动音频焦点</string>
     <string name="auto_audio_focus_desc">让 ExoPlayer 原生自动管理音频焦点</string>
+    <string name="audio_focus_engine_hint_exoplayer">ExoPlayer 可自动管理音频焦点，关闭后使用手动管理</string>
+    <string name="audio_focus_engine_hint_flick">Flick 引擎始终使用手动音频焦点管理</string>
     <string name="fade_mode">淡入淡出模式</string>
     <string name="fade_mode_crossfade">交叉淡入淡出 (双播放器)</string>
     <string name="fade_mode_single">普通淡入淡出 (单播放器)</string>
@@ -532,4 +534,13 @@
 
     <!-- 未知用户 -->
     <string name="unknown_user">未知用户</string>
+
+    <!-- 歌单详情 -->
+    <string name="play_it">播放全部</string>
+    <string name="shuffle">随机播放</string>
+    <string name="add">添加</string>
+    <string name="reorder">排序</string>
+    <string name="remove_from_playlist">从歌单移除</string>
+    <string name="song_count_simple">%1$d 首歌</string>
+    <string name="share_playlist_text">来听听这个歌单：%1$s\n%2$s</string>
 </resources>

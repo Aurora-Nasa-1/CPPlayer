@@ -129,6 +129,8 @@
     <string name="pause_on_noisy_desc">ヘッドフォンやBluetoothの切断時に自動で一時停止します</string>
     <string name="auto_audio_focus">自動オーディオフォーカス</string>
     <string name="auto_audio_focus_desc">ExoPlayerにオーディオフォーカスを自動管理させる</string>
+    <string name="audio_focus_engine_hint_exoplayer">ExoPlayerはオーディオフォーカスを自動管理できます。オフにすると手動管理になります</string>
+    <string name="audio_focus_engine_hint_flick">Flickエンジンは常に手動オーディオフォーカス管理を使用します</string>
     <string name="fade_mode">フェードモード</string>
     <string name="fade_mode_crossfade">クロスフェード (デュアルプレーヤー)</string>
     <string name="fade_mode_single">通常のフェードイン/アウト (シングルプレーヤー)</string>
@@ -533,4 +535,13 @@
 
     <!-- 不明なユーザー -->
     <string name="unknown_user">不明なユーザー</string>
+
+    <!-- プレイリスト詳細 -->
+    <string name="play_it">すべて再生</string>
+    <string name="shuffle">シャッフル</string>
+    <string name="add">追加</string>
+    <string name="reorder">並べ替え</string>
+    <string name="remove_from_playlist">プレイリストから削除</string>
+    <string name="song_count_simple">%1$d 曲</string>
+    <string name="share_playlist_text">このプレイリストをチェック：%1$s\n%2$s</string>
 </resources>

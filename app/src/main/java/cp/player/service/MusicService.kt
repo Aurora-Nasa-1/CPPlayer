@@ -190,6 +190,13 @@ class MusicService : MediaSessionService() {
             return@OnAudioFocusChangeListener
         }
 
+        // ExoPlayer 自动焦点模式下由原生处理，跳过手动逻辑
+        // Flick 引擎始终需要手动处理音频焦点
+        val isFlickEngine = UserPreferences.getAudioEngine(this@MusicService) == 1
+        if (!isFlickEngine && UserPreferences.getAutoAudioFocus(this@MusicService)) {
+            return@OnAudioFocusChangeListener
+        }
+
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 players.forEach { it?.pause() }
@@ -274,7 +281,11 @@ class MusicService : MediaSessionService() {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (player != activePlayer) return
                     if (playWhenReady) {
-                        if (!UserPreferences.getAutoAudioFocus(this@MusicService)) {
+                        val autoFocus = UserPreferences.getAutoAudioFocus(this@MusicService)
+                        val isFlick = UserPreferences.getAudioEngine(this@MusicService) == 1
+                        // Flick 引擎无原生焦点管理，始终需要手动请求
+                        // ExoPlayer 自动焦点模式下由原生处理
+                        if (!autoFocus || isFlick) {
                             if (!requestAudioFocus()) {
                                 players.forEach { it?.pause() }
                             }
@@ -465,7 +476,9 @@ class MusicService : MediaSessionService() {
             object : Player.Listener {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     if (playWhenReady) {
-                        if (!UserPreferences.getAutoAudioFocus(this@MusicService)) {
+                        val autoFocus = UserPreferences.getAutoAudioFocus(this@MusicService)
+                        val isFlick = UserPreferences.getAudioEngine(this@MusicService) == 1
+                        if (!autoFocus || isFlick) {
                             if (!requestAudioFocus()) {
                                 players.forEach { it?.pause() }
                             }

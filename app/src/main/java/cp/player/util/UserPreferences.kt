@@ -259,7 +259,7 @@ object UserPreferences {
     }
 
     fun getThemeMode(context: Context): Int {
-        return getPrefs(context).getInt(KEY_THEME_MODE, 0)
+        return getPrefs(context).getInt(KEY_THEME_MODE, 1) // 默认跟随封面
     }
 
     fun saveFollowCoverApp(context: Context, enabled: Boolean) {
@@ -391,7 +391,7 @@ object UserPreferences {
     }
 
     fun getFontRoundness(context: Context): Int {
-        return getPrefs(context).getInt(KEY_FONT_ROUNDNESS, 0) // 0: Standard, 1: Expressive
+        return getPrefs(context).getInt(KEY_FONT_ROUNDNESS, 1) // 默认 Expressive
     }
 
     fun savePlayImmediately(context: Context, enabled: Boolean) {
