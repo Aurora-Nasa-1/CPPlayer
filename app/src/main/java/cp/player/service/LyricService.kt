@@ -37,11 +37,8 @@ object LyricService {
      * @return 已合并翻译的歌词行列表
      */
     fun parseLyrics(lrc: String, yrc: String, tlyric: String, duration: Long): List<LyricLine> {
-        val lines = if (yrc.isNotEmpty()) {
-            LyricUtils.parseYrc(yrc)
-        } else {
-            LyricUtils.parseLrc(lrc, duration)
-        }
+        val yrcLines = if (yrc.isNotEmpty()) LyricUtils.parseYrc(yrc) else emptyList()
+        val lines = if (yrcLines.isNotEmpty()) yrcLines else LyricUtils.parseLrc(lrc, duration)
         return if (tlyric.isNotEmpty()) {
             mergeTranslation(lines, tlyric)
         } else {

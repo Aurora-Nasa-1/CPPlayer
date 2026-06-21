@@ -96,7 +96,7 @@ fun LyricContent(
  */
 fun SyncedLyrics?.getCurrentLineText(positionMs: Long): String? {
     this ?: return null
-    val pos = positionMs.toInt()
+    val pos = positionMs.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
     var active: com.mocharealm.accompanist.lyrics.core.model.ISyncedLine? = null
     for (line in lines) {
         if (line.start <= pos) active = line else break

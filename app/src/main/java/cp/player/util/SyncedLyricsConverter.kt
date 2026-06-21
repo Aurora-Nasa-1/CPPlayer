@@ -33,8 +33,8 @@ object SyncedLyricsConverter {
         val syllables = line.words!!.map { word ->
             KaraokeSyllable(
                 content = word.text,
-                start = word.beginTime.toInt(),
-                end = word.endTime.toInt(),
+                start = word.beginTime.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+                end = word.endTime.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
                 phonetic = ""
             )
         }
@@ -42,8 +42,8 @@ object SyncedLyricsConverter {
             syllables = syllables,
             translation = line.translation ?: "",
             alignment = KaraokeAlignment.Unspecified,
-            start = line.time.toInt(),
-            end = (line.endTime ?: (line.time + 5000)).toInt(),
+            start = line.time.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+            end = (line.endTime ?: (line.time + 5000)).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
             phonetic = line.romanization ?: "",
             accompanimentLines = emptyList()
         )
@@ -53,8 +53,8 @@ object SyncedLyricsConverter {
         return SyncedLine(
             content = line.text,
             translation = line.translation ?: "",
-            start = line.time.toInt(),
-            end = (line.endTime ?: (line.time + 5000)).toInt()
+            start = line.time.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+            end = (line.endTime ?: (line.time + 5000)).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         )
     }
 }

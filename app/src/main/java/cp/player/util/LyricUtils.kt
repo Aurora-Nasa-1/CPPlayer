@@ -41,7 +41,10 @@ object LyricUtils {
         val lines = mutableListOf<LyricLine>()
         // YRC format: [time,duration]text(time,duration,type)word...
         val linePattern = Pattern.compile("\\[(\\d+),(\\d+)](.*)")
-        val wordPattern = Pattern.compile("\\((\\d+),(\\d+),(\\d+)\\)([^\\(]*)")
+        val wordRegex = Regex("\\((\\d+),(\\d+),(\\d+)\\)")
+
+        var parsedLineCount = 0
+        var totalWordCount = 0
 
         yrc.lines().forEach { line ->
             val lineMatcher = linePattern.matcher(line)
@@ -50,39 +53,58 @@ object LyricUtils {
                 val lineDur = lineMatcher.group(2)?.toLong() ?: 0L
                 val content = lineMatcher.group(3) ?: ""
 
-                val words = mutableListOf<LyricLine.Word>()
-                val wordMatcher = wordPattern.matcher(content)
-                var fullText = ""
+                // 使用 findAll 顺序扫描 word markers
+                val markers = wordRegex.findAll(content).toList()
 
-                while (wordMatcher.find()) {
-                    val wBeginOffset = wordMatcher.group(1)?.toLong() ?: 0L
-                    val wDur = wordMatcher.group(2)?.toLong() ?: 0L
-                    val wText = wordMatcher.group(4) ?: ""
+                if (markers.isNotEmpty()) {
+                    val words = mutableListOf<LyricLine.Word>()
 
-                    words.add(LyricLine.Word(
-                        text = wText,
-                        beginTime = lineBegin + wBeginOffset,
-                        endTime = lineBegin + wBeginOffset + wDur
-                    ))
-                    fullText += wText
-                }
+                    // 自动检测时间戳类型：若第一个 word 的时间 < lineBegin，则为绝对时间戳
+                    val firstWordTime = markers.first().groupValues[1].toLong()
+                    val isAbsolute = firstWordTime < lineBegin
+                    val baseTime = if (isAbsolute) 0L else lineBegin
 
-                if (words.isNotEmpty()) {
-                    lines.add(LyricLine(
-                        time = lineBegin,
-                        endTime = lineBegin + lineDur,
-                        text = fullText,
-                        words = words
-                    ))
+                    markers.forEachIndexed { i, match ->
+                        val wBegin = match.groupValues[1].toLong()
+                        val wDur = match.groupValues[2].toLong()
+                        // 提取 word 文本：当前 marker 结束到下一个 marker 开始（或内容结尾）
+                        val textStart = match.range.last + 1
+                        val textEnd = if (i + 1 < markers.size) markers[i + 1].range.first else content.length
+                        val wText = if (textStart < textEnd) content.substring(textStart, textEnd) else ""
+
+                        if (wText.isNotEmpty()) {
+                            words.add(LyricLine.Word(
+                                text = wText,
+                                beginTime = baseTime + wBegin,
+                                endTime = baseTime + wBegin + wDur
+                            ))
+                        }
+                    }
+
+                    if (words.isNotEmpty()) {
+                        val fullText = words.joinToString("") { it.text }
+                        lines.add(LyricLine(
+                            time = lineBegin,
+                            endTime = lineBegin + lineDur,
+                            text = fullText,
+                            words = words
+                        ))
+                        parsedLineCount++
+                        totalWordCount += words.size
+                    }
                 } else if (content.isNotEmpty()) {
+                    // 无 word markers 的行，作为普通歌词行
                     lines.add(LyricLine(
                         time = lineBegin,
                         endTime = lineBegin + lineDur,
                         text = content
                     ))
+                    parsedLineCount++
                 }
             }
         }
+
+        cp.player.util.DebugLog.i("parseYrc: input=${yrc.lines().size} lines, parsed=$parsedLineCount lines, words=$totalWordCount")
         return lines.sortedBy { it.time }
     }
 
