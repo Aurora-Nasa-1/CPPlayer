@@ -501,6 +501,14 @@
     <string name="ideal_curve">Ideal Curve</string>
     <string name="actual_mix">Actual Mix</string>
     <string name="start_seamless_mix">Start Seamless Mix</string>
+    <string name="livesort_filter_hint">Filter your current queue. Only downloaded or local tracks can be analyzed.</string>
+    <string name="livesort_no_tracks_hint">No downloaded or local tracks found in the current queue. Please download some tracks first.</string>
+    <string name="livesort_song_progress">Song %1$d of %2$d</string>
+    <string name="livesort_finding_sequence">Finding the perfect sequence…</string>
+    <string name="livesort_tracks_connected">%1$d tracks seamlessly connected</string>
+    <string name="livesort_n_failed">%1$d tracks skipped (analysis failed)</string>
+    <string name="bpm_label">BPM</string>
+    <string name="energy_label">ENG</string>
 
     <!-- Login Status -->
     <string name="switched_to_provider">Switched to %1$s</string>

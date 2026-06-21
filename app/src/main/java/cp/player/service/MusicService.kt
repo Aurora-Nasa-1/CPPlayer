@@ -96,6 +96,10 @@ class MusicService : MediaSessionService() {
     }
 
     companion object {
+        /** LiveSort per-song 淡入淡出覆盖。key = song.id, value = (fadeInSec, fadeOutSec) */
+        @Volatile
+        var livesortFadeOverrides: Map<String, Pair<Float, Float>> = emptyMap()
+
         private var cache: SimpleCache? = null
         fun getCache(context: Context): SimpleCache {
             if (cache == null) {
@@ -289,7 +293,14 @@ class MusicService : MediaSessionService() {
                     if (player != activePlayer) return
 
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                        if (UserPreferences.getFadeMode(this@MusicService) == 1) {
+                        // LiveSort per-song 淡入覆盖
+                        val newSongId = mediaItem?.mediaId
+                        val override = newSongId?.let { livesortFadeOverrides[it] }
+                        val fadeInDur = override?.first?.takeIf { it > 0f }?.times(1000L)?.toLong()
+
+                        if (fadeInDur != null) {
+                            crossfadeManager.startSinglePlayerFadeIn(fadeInDur)
+                        } else if (UserPreferences.getFadeMode(this@MusicService) == 1) {
                             val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
                             crossfadeManager.startSinglePlayerFadeIn(fadeDur)
                         }
@@ -467,7 +478,14 @@ class MusicService : MediaSessionService() {
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                        if (UserPreferences.getFadeMode(this@MusicService) == 1) {
+                        // LiveSort per-song 淡入覆盖
+                        val newSongId = mediaItem?.mediaId
+                        val override = newSongId?.let { livesortFadeOverrides[it] }
+                        val fadeInDur = override?.first?.takeIf { it > 0f }?.times(1000L)?.toLong()
+
+                        if (fadeInDur != null) {
+                            crossfadeManager.startSinglePlayerFadeIn(fadeInDur)
+                        } else if (UserPreferences.getFadeMode(this@MusicService) == 1) {
                             val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
                             crossfadeManager.startSinglePlayerFadeIn(fadeDur)
                         }
@@ -547,15 +565,21 @@ class MusicService : MediaSessionService() {
                     if (!crossfadeManager.isCrossfading) {
                         val dur = p.duration
                         val pos = p.currentPosition
-                        val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
+                        val globalFadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
                         val fadeMode = UserPreferences.getFadeMode(this@MusicService)
-                        
-                        if (dur != C.TIME_UNSET && fadeDur > 0 && dur - pos <= fadeDur && dur - pos > 0) {
+
+                        // LiveSort per-song 淡出覆盖
+                        val songId = p.currentMediaItem?.mediaId
+                        val override = songId?.let { livesortFadeOverrides[it] }
+                        val effectiveFadeDur = override?.second?.takeIf { it > 0f }?.times(1000L)?.toLong()
+                            ?: if (livesortFadeOverrides.isEmpty()) globalFadeDur else 0L
+
+                        if (effectiveFadeDur > 0 && dur != C.TIME_UNSET && dur - pos <= effectiveFadeDur && dur - pos > 0) {
                             if (p.currentMediaItemIndex < p.mediaItemCount - 1) {
-                                if (fadeMode == 0) {
-                                    crossfadeManager.startCrossfade(fadeDur)
+                                if (fadeMode == 0 || (override != null && fadeMode != 2)) {
+                                    crossfadeManager.startCrossfade(effectiveFadeDur)
                                 } else if (fadeMode == 1) {
-                                    crossfadeManager.startSinglePlayerFadeOut(fadeDur)
+                                    crossfadeManager.startSinglePlayerFadeOut(effectiveFadeDur)
                                 }
                             }
                         }

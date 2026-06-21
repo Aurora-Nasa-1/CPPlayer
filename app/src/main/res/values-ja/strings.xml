@@ -505,6 +505,14 @@
     <string name="ideal_curve">理想カーブ</string>
     <string name="actual_mix">実際のミックス</string>
     <string name="start_seamless_mix">シームレスミックスを開始</string>
+    <string name="livesort_filter_hint">現在のキューをフィルタリング。ダウンロード済みまたはローカルトラックのみ分析できます。</string>
+    <string name="livesort_no_tracks_hint">ダウンロード済みまたはローカルトラックが見つかりません。先にトラックをダウンロードしてください。</string>
+    <string name="livesort_song_progress">%1$d / %2$d 曲目</string>
+    <string name="livesort_finding_sequence">最適な順序を検索中…</string>
+    <string name="livesort_tracks_connected">%1$d トラックをシームレスに接続</string>
+    <string name="livesort_n_failed">%1$d トラックをスキップ（分析失敗）</string>
+    <string name="bpm_label">BPM</string>
+    <string name="energy_label">エネルギー</string>
 
     <!-- ログインステータス -->
     <string name="switched_to_provider">%1$s に切り替えました</string>

@@ -46,6 +46,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
     var sleepTimerRemaining by mutableLongStateOf(0L)
     var extractedColor by mutableStateOf<Int?>(null)
+
+    /** LiveSort 播放时的 per-song 淡入淡出覆盖。key = song.id, value = (fadeInSec, fadeOutSec) */
+    var livesortFadeOverrides by mutableStateOf<Map<String, Pair<Float, Float>>>(emptyMap())
+
     private var sleepTimerJob: Job? = null
     private var isFetchingMoreFm = false
 

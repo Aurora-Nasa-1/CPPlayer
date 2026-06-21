@@ -34,7 +34,9 @@ data class SongWithEmotion(
     val endBpm: Double = bpm,
     val startEnergy: Double = energy,
     val endEnergy: Double = energy,
-    val emotionScore: Double = 0.0
+    val emotionScore: Double = 0.0,
+    val fadeInDuration: Float = 0f,   // 淡入时长（秒），0 = 使用全局设置
+    val fadeOutDuration: Float = 0f   // 淡出时长（秒），0 = 使用全局设置
 )
 
 sealed class LiveSortState {
@@ -44,7 +46,8 @@ sealed class LiveSortState {
     data class Completed(
         val sortedSongs: List<SongWithEmotion>,
         val actualCurve: List<Double>,
-        val idealCurve: List<Double>
+        val idealCurve: List<Double>,
+        val failedSongs: List<String> = emptyList()
     ) : LiveSortState()
     data class Error(val message: String) : LiveSortState()
 }
@@ -114,43 +117,55 @@ class LiveSortViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val analyzedSongs = mutableListOf<SongWithEmotion>()
+                val failedSongs = mutableListOf<String>()
 
                 for ((index, item) in songsWithPaths.withIndex()) {
                     val (song, path) = item
                     _sortState.value = LiveSortState.Analyzing(index + 1, total, song.name)
 
-                    val features = featuresCache[song.id] ?: run {
-                        val uri = android.net.Uri.parse(path)
-                        val f = cp.player.util.LocalAudioAnalyzer.analyze(getApplication(), uri)
-                        featuresCache[song.id] = f
-                        f
-                    }
+                    try {
+                        val features = featuresCache[song.id] ?: run {
+                            val uri = android.net.Uri.parse(path)
+                            val f = cp.player.util.LocalAudioAnalyzer.analyze(getApplication(), uri)
+                            featuresCache[song.id] = f
+                            f
+                        }
 
-                    analyzedSongs.add(
-                        SongWithEmotion(
-                            song = song,
-                            path = path,
-                            bpm = features.bpm,
-                            energy = features.energy,
-                            brightness = features.brightness,
-                            startBpm = features.startBpm,
-                            endBpm = features.endBpm,
-                            startEnergy = features.startEnergy,
-                            endEnergy = features.endEnergy
+                        analyzedSongs.add(
+                            SongWithEmotion(
+                                song = song,
+                                path = path,
+                                bpm = features.bpm,
+                                energy = features.energy,
+                                brightness = features.brightness,
+                                startBpm = features.startBpm,
+                                endBpm = features.endBpm,
+                                startEnergy = features.startEnergy,
+                                endEnergy = features.endEnergy
+                            )
                         )
-                    )
+                    } catch (e: Exception) {
+                        failedSongs.add(song.name)
+                    }
                 }
 
                 saveCache()
+
+                if (analyzedSongs.isEmpty()) {
+                    _sortState.value = LiveSortState.Error("No tracks could be analyzed")
+                    return@launch
+                }
+
                 _sortState.value = LiveSortState.Sorting
 
                 val scoredSongs = computeEmotionScores(analyzedSongs)
                 val sortedSongs = sortSongsLocallyByFlow(scoredSongs)
-                
-                val actualCurve = sortedSongs.map { it.emotionScore }
-                val idealCurve = generateIdealCurveLocal(sortedSongs.size)
+                val fadedSongs = computeFadeDurations(sortedSongs)
 
-                _sortState.value = LiveSortState.Completed(sortedSongs, actualCurve, idealCurve)
+                val actualCurve = fadedSongs.map { it.emotionScore }
+                val idealCurve = generateIdealCurveLocal(fadedSongs.size)
+
+                _sortState.value = LiveSortState.Completed(fadedSongs, actualCurve, idealCurve, failedSongs)
 
             } catch (e: Exception) {
                 _sortState.value = LiveSortState.Error(e.message ?: "Unknown error")
@@ -246,5 +261,37 @@ class LiveSortViewModel(application: Application) : BaseViewModel(application) {
         }
         
         return sorted
+    }
+
+    /**
+     * 根据相邻歌曲的 BPM 差和能量差，自动计算最佳淡入淡出时长。
+     * 差异越大 → 淡出越长（需要更平滑的过渡）。
+     * 最后一首歌曲无淡出（自然结束）。
+     */
+    private fun computeFadeDurations(sorted: List<SongWithEmotion>): List<SongWithEmotion> {
+        if (sorted.isEmpty()) return sorted
+        return sorted.mapIndexed { i, song ->
+            val nextSong = sorted.getOrNull(i + 1)
+
+            if (nextSong == null) {
+                // 最后一首：淡入 2s，无淡出
+                song.copy(fadeInDuration = 2f, fadeOutDuration = 0f)
+            } else {
+                val bpmDiff = abs(song.endBpm - nextSong.startBpm)
+                val energyDiff = abs(song.endEnergy - nextSong.startEnergy)
+
+                // 基础 2 秒，根据差异增加：BPM 每差 40 加 1s，能量每差 0.15 加 1s
+                val fadeOut = (2.0 + bpmDiff / 40.0 + energyDiff / 0.15)
+                    .coerceIn(2.0, 8.0)
+
+                // 淡入：基于前一首的淡出，略短
+                val fadeIn = (fadeOut * 0.8).coerceIn(1.5, 6.0)
+
+                song.copy(
+                    fadeInDuration = fadeIn.toFloat(),
+                    fadeOutDuration = fadeOut.toFloat()
+                )
+            }
+        }
     }
 }

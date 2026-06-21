@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
@@ -28,12 +29,16 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.material3.CircularProgressIndicator
+import cp.player.R
+import cp.player.model.Song
+import cp.player.ui.component.SongItem
 import cp.player.viewmodel.LiveSortState
 import cp.player.viewmodel.LiveSortViewModel
 import cp.player.viewmodel.PlaybackViewModel
@@ -99,10 +104,17 @@ fun LiveSortContent(
 
             is LiveSortState.Completed -> CompletedState(
                 state = state,
+                playbackViewModel = playbackViewModel,
+                liveSortViewModel = liveSortViewModel,
                 onPlay = {
-                    // Enable AutoMix/Crossfade (fadeMode = 0) with a nice duration for seamless transition
-                    cp.player.util.UserPreferences.saveFadeMode(liveSortViewModel.getApplication(), 0)
-                    cp.player.util.UserPreferences.saveFadeDuration(liveSortViewModel.getApplication(), 6f)
+                    // 构建 per-song fade override map
+                    val overrides = state.sortedSongs.associate {
+                        it.song.id to (it.fadeInDuration to it.fadeOutDuration)
+                    }
+                    // 设置到 MusicService companion object
+                    cp.player.service.MusicService.livesortFadeOverrides = overrides
+                    // 同步到 PlaybackViewModel
+                    playbackViewModel.livesortFadeOverrides = overrides
 
                     val songs = state.sortedSongs.map { it.song }
                     if (songs.isNotEmpty()) {
@@ -119,9 +131,9 @@ fun LiveSortContent(
 
 @Composable
 private fun IdleState(
-    currentQueue: List<cp.player.model.Song>, 
-    localSongs: List<Pair<cp.player.model.Song, android.net.Uri>>,
-    onStart: (List<cp.player.model.Song>) -> Unit
+    currentQueue: List<Song>,
+    localSongs: List<Pair<Song, android.net.Uri>>,
+    onStart: (List<Song>) -> Unit
 ) {
     val downloadedQueue = remember(currentQueue, localSongs) {
         currentQueue.filter { song ->
@@ -144,7 +156,7 @@ private fun IdleState(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Select Tracks to Mix",
+                text = stringResource(R.string.select_tracks_to_mix),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -154,12 +166,12 @@ private fun IdleState(
                 },
                 enabled = downloadedQueue.isNotEmpty()
             ) {
-                Text(if (selectedSongs.size == downloadedQueue.size) "Deselect All" else "Select All")
+                Text(if (selectedSongs.size == downloadedQueue.size) stringResource(R.string.deselect_all) else stringResource(R.string.select_all))
             }
         }
 
         Text(
-            text = if (downloadedQueue.isNotEmpty()) "Filter your current queue. Only downloaded or local tracks can be analyzed and seamlessly connected." else "No downloaded or local tracks found in the current queue. Please download some tracks first.",
+            text = if (downloadedQueue.isNotEmpty()) stringResource(R.string.livesort_filter_hint) else stringResource(R.string.livesort_no_tracks_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = if (downloadedQueue.isNotEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
@@ -211,7 +223,7 @@ private fun IdleState(
         ) {
             Icon(Icons.Default.AutoGraph, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Analyze & Mix ${selectedSongs.size} Tracks", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.analyze_and_mix, selectedSongs.size), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -226,7 +238,7 @@ private fun AnalyzingState(state: LiveSortState.Analyzing) {
         verticalArrangement = Arrangement.Center
     ) {
         val progress = if (state.total > 0) state.progress.toFloat() / state.total else 0f
-        
+
         Box(contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { progress },
@@ -239,17 +251,17 @@ private fun AnalyzingState(state: LiveSortState.Analyzing) {
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
-            text = "Analyzing Features",
+            text = stringResource(R.string.analyzing_features),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = state.currentSong,
             style = MaterialTheme.typography.bodyMedium,
@@ -257,11 +269,11 @@ private fun AnalyzingState(state: LiveSortState.Analyzing) {
             textAlign = TextAlign.Center,
             maxLines = 2
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
-            text = "Song ${state.progress} of ${state.total}",
+            text = stringResource(R.string.livesort_song_progress, state.progress, state.total),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
@@ -282,13 +294,13 @@ private fun SortingState() {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Optimizing Flow",
+            text = stringResource(R.string.optimizing_flow),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Finding the perfect sequence...",
+            text = stringResource(R.string.livesort_finding_sequence),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -306,13 +318,13 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.AutoGraph,
-            contentDescription = "Error",
+            contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Analysis Failed",
+            text = stringResource(R.string.analysis_failed),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.error
@@ -326,7 +338,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(onClick = onRetry) {
-            Text("Reset & Try Again")
+            Text(stringResource(R.string.reset_and_try_again))
         }
     }
 }
@@ -334,12 +346,14 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
 @Composable
 private fun CompletedState(
     state: LiveSortState.Completed,
+    playbackViewModel: PlaybackViewModel,
+    liveSortViewModel: LiveSortViewModel,
     onPlay: () -> Unit,
     onReorder: (Int, Int) -> Unit
 ) {
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dropIndex by remember { mutableStateOf<Int?>(null) }
-    
+
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -364,22 +378,47 @@ private fun CompletedState(
                 ) {
                     Column {
                         Text(
-                            text = "LiveSort Flow",
+                            text = stringResource(R.string.livesort_flow),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${state.sortedSongs.size} tracks seamlessly connected",
+                            text = stringResource(R.string.livesort_tracks_connected, state.sortedSongs.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Icon(
                         imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = "Done",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
+                }
+
+                // 分析失败提示
+                if (state.failedSongs.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.livesort_n_failed, state.failedSongs.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -392,17 +431,17 @@ private fun CompletedState(
                         .fillMaxWidth()
                         .height(120.dp)
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LegendItem("Ideal Curve", Color.Gray.copy(alpha = 0.5f))
+                    LegendItem(stringResource(R.string.ideal_curve), Color.Gray.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.width(24.dp))
-                    LegendItem("Actual Mix", MaterialTheme.colorScheme.primary)
+                    LegendItem(stringResource(R.string.actual_mix), MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -418,66 +457,144 @@ private fun CompletedState(
                 containerColor = MaterialTheme.colorScheme.primary
             )
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+            Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Start Seamless Mix", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.start_seamless_mix), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tracks List
+        // Tracks List — 使用 SongItem 组件，与本地歌曲列表一致
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 8.dp),
             contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             itemsIndexed(state.sortedSongs, key = { _, item -> item.song.id }) { index, item ->
                 val isDragged = draggedIndex == index
                 val isDropTarget = dropIndex == index && draggedIndex != index
-                
-                SongListItem(
-                    songWithEmotion = item,
-                    index = index,
-                    isDragged = isDragged,
-                    isDropTarget = isDropTarget,
+                val isCurrentlyPlaying = item.song.id == playbackViewModel.currentSong?.id
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .zIndex(if (isDragged) 1f else 0f)
-                        .pointerInput(Unit) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { draggedIndex = index },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val itemHeight = 72.dp.toPx() // Approximate item height including padding
-                                    val totalOffset = dragAmount.y
-                                    
-                                    val newDropIndex = (index + (totalOffset / itemHeight).roundToInt())
-                                        .coerceIn(0, state.sortedSongs.lastIndex)
-                                        
-                                    if (newDropIndex != dropIndex) {
-                                        dropIndex = newDropIndex
-                                        // Auto-scroll logic could be added here
+                ) {
+                    // Drop target indicator
+                    if (isDropTarget) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .align(Alignment.TopCenter)
+                        )
+                    }
+
+                    SongItem(
+                        song = item.song,
+                        isCurrentlyPlaying = isCurrentlyPlaying,
+                        onClick = {
+                            // 从该位置播放队列
+                            val songs = state.sortedSongs.map { it.song }
+                            val fromIndex = index
+                            val queueFromHere = songs.subList(fromIndex, songs.size)
+
+                            // 设置 per-song fade overrides
+                            val overrides = state.sortedSongs.associate {
+                                it.song.id to (it.fadeInDuration to it.fadeOutDuration)
+                            }
+                            cp.player.service.MusicService.livesortFadeOverrides = overrides
+                            playbackViewModel.livesortFadeOverrides = overrides
+
+                            if (queueFromHere.isNotEmpty()) {
+                                playbackViewModel.playSong(queueFromHere.first(), queueFromHere)
+                            }
+                        },
+                        index = index,
+                        total = state.sortedSongs.size,
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .pointerInput(Unit) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { draggedIndex = index },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val itemHeight = 72.dp.toPx()
+                                        val totalOffset = dragAmount.y
+
+                                        val newDropIndex = (index + (totalOffset / itemHeight).roundToInt())
+                                            .coerceIn(0, state.sortedSongs.lastIndex)
+
+                                        if (newDropIndex != dropIndex) {
+                                            dropIndex = newDropIndex
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val from = draggedIndex
+                                        val to = dropIndex
+                                        if (from != null && to != null && from != to) {
+                                            onReorder(from, to)
+                                        }
+                                        draggedIndex = null
+                                        dropIndex = null
+                                    },
+                                    onDragCancel = {
+                                        draggedIndex = null
+                                        dropIndex = null
                                     }
-                                },
-                                onDragEnd = {
-                                    val from = draggedIndex
-                                    val to = dropIndex
-                                    if (from != null && to != null && from != to) {
-                                        onReorder(from, to)
+                                )
+                            },
+                        trailingContent = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // BPM + Energy
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            text = "${item.bpm.roundToInt()}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = " ${stringResource(R.string.bpm_label)}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
-                                    draggedIndex = null
-                                    dropIndex = null
-                                },
-                                onDragCancel = {
-                                    draggedIndex = null
-                                    dropIndex = null
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            text = "${(item.energy * 100).roundToInt()}%",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                        Text(
+                                            text = " ${stringResource(R.string.energy_label)}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                            )
+                                // Drag Handle
+                                Icon(
+                                    imageVector = Icons.Default.DragHandle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
-                )
+                    )
+                }
             }
         }
     }
@@ -509,7 +626,7 @@ private fun EmotionChart(
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val surfaceColor = MaterialTheme.colorScheme.surface
-    
+
     // Animate path drawing
     val transition = rememberInfiniteTransition(label = "ChartAnim")
     val animProgress by transition.animateFloat(
@@ -529,7 +646,7 @@ private fun EmotionChart(
         val height = size.height
 
         val maxVal = 100.0 // Emotion scores are 0..100
-        
+
         fun xCoord(index: Int, size: Int): Float {
             return if (size <= 1) width / 2 else (index.toFloat() / (size - 1)) * width
         }
@@ -562,8 +679,6 @@ private fun EmotionChart(
             actualCurve.forEachIndexed { index, value ->
                 val x = xCoord(index, actualCurve.size)
                 val y = yCoord(value)
-                
-                // Curve smoothing logic could be added here, using simple lines for now
                 if (index == 0) moveTo(x, y) else lineTo(x, y)
             }
         }
@@ -582,7 +697,7 @@ private fun EmotionChart(
             ),
             alpha = animProgress
         )
-        
+
         // Draw Nodes
         actualCurve.forEachIndexed { index, value ->
             val x = xCoord(index, actualCurve.size)
@@ -597,123 +712,6 @@ private fun EmotionChart(
                 radius = 3.dp.toPx(),
                 center = Offset(x, y)
             )
-        }
-    }
-}
-
-@Composable
-private fun SongListItem(
-    songWithEmotion: SongWithEmotion,
-    index: Int,
-    isDragged: Boolean,
-    isDropTarget: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor = if (isDragged) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-    }
-
-    val elevation = if (isDragged) 8.dp else 0.dp
-
-    Surface(
-        modifier = modifier
-            .padding(horizontal = 8.dp),
-        color = backgroundColor,
-        tonalElevation = elevation,
-        shadowElevation = elevation
-    ) {
-        Column {
-            if (isDropTarget) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Index & Icon
-                Box(
-                    modifier = Modifier.width(32.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        text = "${index + 1}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Title & Artist
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 16.dp)
-                ) {
-                    Text(
-                        text = songWithEmotion.song.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = songWithEmotion.song.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-
-                // Metrics
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.padding(end = 12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "${songWithEmotion.bpm.roundToInt()}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = " BPM",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = "${(songWithEmotion.energy * 100).roundToInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        Text(
-                            text = " ENG",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Drag Handle
-                Icon(
-                    imageVector = Icons.Default.DragHandle,
-                    contentDescription = "Drag to reorder",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
         }
     }
 }

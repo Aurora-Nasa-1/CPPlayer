@@ -504,6 +504,14 @@
     <string name="ideal_curve">理想曲线</string>
     <string name="actual_mix">实际混音</string>
     <string name="start_seamless_mix">开始无缝混音</string>
+    <string name="livesort_filter_hint">筛选当前队列，仅已下载或本地曲目可分析</string>
+    <string name="livesort_no_tracks_hint">当前队列中没有已下载或本地曲目，请先下载</string>
+    <string name="livesort_song_progress">第 %1$d 首，共 %2$d 首</string>
+    <string name="livesort_finding_sequence">正在寻找最佳顺序…</string>
+    <string name="livesort_tracks_connected">%1$d 首曲目无缝连接</string>
+    <string name="livesort_n_failed">%1$d 首分析失败已跳过</string>
+    <string name="bpm_label">BPM</string>
+    <string name="energy_label">能量</string>
 
     <!-- 登录状态 -->
     <string name="switched_to_provider">已切换到 %1$s</string>
