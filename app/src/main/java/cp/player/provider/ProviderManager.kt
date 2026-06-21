@@ -59,12 +59,18 @@ object ProviderManager {
     fun switchProvider(provider: BackendProvider?, context: Context? = null, port: Int = 3000, save: Boolean = true): Boolean {
         if (provider?.id == currentProvider?.id) return true // 无需切换
 
+        // 检查 Provider 是否就绪（JNI 模块可能加载失败）
+        if (provider != null && !provider.isReady()) {
+            Log.e(TAG, "拒绝切换到未就绪的 Provider: ${provider.id}")
+            return false
+        }
+
         Log.i(TAG, "Switching provider: ${currentProvider?.id ?: "none"} → ${provider?.id ?: "none"} (save=$save)")
 
         // 停止旧 Provider
         try {
             currentProvider?.stopServer()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "Error stopping old provider", e)
         }
 
@@ -80,7 +86,8 @@ object ProviderManager {
         if (provider != null && context != null) {
             try {
                 provider.startServer(context, port)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // 捕获 Throwable 以处理 JNI 原生崩溃（如 UnsatisfiedLinkError、SIGSEGV 转换的 Error）
                 Log.e(TAG, "Error starting new provider", e)
             }
         }
@@ -89,7 +96,7 @@ object ProviderManager {
         changeListeners.forEach { listener ->
             try {
                 listener(provider)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "Error in provider change listener", e)
             }
         }

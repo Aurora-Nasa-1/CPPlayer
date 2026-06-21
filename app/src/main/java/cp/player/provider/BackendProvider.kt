@@ -78,6 +78,16 @@ interface BackendProvider {
      * @return JSON 格式的分析结果
      */
     fun analyzeAudio(path: String): String
+
+    /**
+     * 检查 Provider 是否已就绪，可以正常提供服务。
+     *
+     * 对于 JNI 类型的 Provider，此方法会在 .so 加载失败时返回 false。
+     * 调用方应在切换/使用 Provider 前检查此状态，避免使用不可用的 Provider。
+     *
+     * 默认返回 true（BinaryProvider、HttpProvider 始终就绪）。
+     */
+    fun isReady(): Boolean = true
 }
 
 /**

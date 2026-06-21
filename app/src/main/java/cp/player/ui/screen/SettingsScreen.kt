@@ -590,12 +590,18 @@ fun SettingsScreen(
                                                     input.copyTo(output)
                                                 }
                                                 val success = cp.player.provider.ModuleManager.importModule(context, tempFile)
+                                                val errorMsg = cp.player.provider.ModuleManager.lastLoadError
                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                     if (success) {
                                                         cp.player.provider.ProviderManager.startServer(context)
                                                         android.widget.Toast.makeText(context, context.getString(R.string.module_import_success), android.widget.Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        android.widget.Toast.makeText(context, context.getString(R.string.module_import_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                                        val msg = if (!errorMsg.isNullOrBlank()) {
+                                                            context.getString(R.string.module_import_failed_detail, errorMsg)
+                                                        } else {
+                                                            context.getString(R.string.module_import_failed)
+                                                        }
+                                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
                                                     }
                                                 }
                                             }
@@ -622,12 +628,18 @@ fun SettingsScreen(
                                                     input.copyTo(output)
                                                 }
                                                 val success = cp.player.provider.ModuleManager.updateModule(context, targetId, tempFile)
+                                                val errorMsg = cp.player.provider.ModuleManager.lastLoadError
                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                                     if (success) {
                                                         cp.player.provider.ProviderManager.startServer(context)
                                                         android.widget.Toast.makeText(context, context.getString(R.string.module_update_success), android.widget.Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        android.widget.Toast.makeText(context, context.getString(R.string.module_update_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                                        val msg = if (!errorMsg.isNullOrBlank()) {
+                                                            context.getString(R.string.module_update_error, errorMsg)
+                                                        } else {
+                                                            context.getString(R.string.module_update_failed)
+                                                        }
+                                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
                                                     }
                                                 }
                                             }

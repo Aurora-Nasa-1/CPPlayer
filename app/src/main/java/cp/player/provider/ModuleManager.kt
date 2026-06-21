@@ -12,6 +12,10 @@ object ModuleManager {
     private val gson = Gson()
     private val providers = mutableMapOf<String, BackendProvider>()
 
+    /** 最近一次导入/加载失败的错误信息（供 UI 展示） */
+    var lastLoadError: String? = null
+        private set
+
     private var appContext: Context? = null
 
     fun init(context: Context) {
@@ -34,6 +38,7 @@ object ModuleManager {
     fun importModule(context: Context, zipFile: File): Boolean {
         val modulesDir = File(context.filesDir, "modules")
         if (!modulesDir.exists()) modulesDir.mkdirs()
+        lastLoadError = null
 
         try {
             val tempDir = File(modulesDir, "temp_${System.currentTimeMillis()}")
@@ -64,6 +69,7 @@ object ModuleManager {
             val manifestFile = File(tempDir, "manifest.json")
             if (!manifestFile.exists()) {
                 tempDir.deleteRecursively()
+                lastLoadError = "模块包中缺少 manifest.json"
                 Log.e(TAG, "No manifest.json found in module")
                 return false
             }
@@ -74,8 +80,18 @@ object ModuleManager {
             if (targetDir.exists()) targetDir.deleteRecursively()
             tempDir.renameTo(targetDir)
 
-            return loadModule(targetDir)
+            val success = loadModule(targetDir)
+            if (!success) {
+                // 加载失败时清理已移动的目录，避免残留损坏模块
+                targetDir.deleteRecursively()
+            }
+            return success
+        } catch (e: SecurityException) {
+            lastLoadError = "ZIP 路径不安全: ${e.message}"
+            Log.e(TAG, "Failed to import module: ZIP path traversal", e)
+            return false
         } catch (e: Exception) {
+            lastLoadError = "导入失败: ${e.message}"
             Log.e(TAG, "Failed to import module", e)
             return false
         }
@@ -90,11 +106,26 @@ object ModuleManager {
             val manifest = gson.fromJson(manifestText, ModuleManifest::class.java)
             val entryPointFile = File(dir, manifest.entryPoint)
 
+            // 对 JNI 类型，预先检查 .so 文件是否存在
+            if (manifest.type == "jni" && !entryPointFile.exists()) {
+                lastLoadError = "JNI 库文件不存在: ${manifest.entryPoint}"
+                Log.e(TAG, "JNI 模块入口文件不存在: ${entryPointFile.absolutePath} (模块: ${manifest.id})")
+                return false
+            }
+
             val provider = when (manifest.type) {
                 "jni" -> JniProvider(manifest.id, manifest.name, manifest.version, entryPointFile.absolutePath, manifest.apiMap, manifest.updateUrl)
                 "binary" -> BinaryProvider(manifest.id, manifest.name, manifest.version, entryPointFile.absolutePath, manifest.apiMap, manifest.updateUrl)
                 "http" -> HttpProvider(manifest.id, manifest.name, manifest.version, manifest.entryPoint, manifest.apiMap, manifest.updateUrl)
                 else -> throw IllegalArgumentException("Unknown type: ${manifest.type}")
+            }
+
+            // 检查 Provider 是否就绪（JNI 模块可能加载失败）
+            if (!provider.isReady()) {
+                val error = if (provider is JniProvider) provider.getLoadError() else "Provider not ready"
+                lastLoadError = error
+                Log.e(TAG, "模块加载失败，Provider 未就绪: ${manifest.id} ($error)")
+                return false
             }
 
             providers[manifest.id] = provider
@@ -107,6 +138,7 @@ object ModuleManager {
 
             return true
         } catch (e: Exception) {
+            lastLoadError = "加载失败: ${e.message}"
             Log.e(TAG, "Failed to load module from ${dir.name}", e)
             return false
         }
@@ -158,6 +190,7 @@ object ModuleManager {
      */
     fun updateModule(context: Context, id: String, zipFile: File): Boolean {
         val modulesDir = File(context.filesDir, "modules")
+        lastLoadError = null
         try {
             val tempDir = File(modulesDir, "temp_update_${System.currentTimeMillis()}")
             tempDir.mkdirs()
@@ -187,6 +220,7 @@ object ModuleManager {
             val manifestFile = File(tempDir, "manifest.json")
             if (!manifestFile.exists()) {
                 tempDir.deleteRecursively()
+                lastLoadError = "更新包中缺少 manifest.json"
                 Log.e(TAG, "No manifest.json found in update zip")
                 return false
             }
@@ -194,6 +228,7 @@ object ModuleManager {
             val manifest = gson.fromJson(manifestFile.readText(), ModuleManifest::class.java)
             if (manifest.id != id) {
                 tempDir.deleteRecursively()
+                lastLoadError = "模块 ID 不匹配: 包含 ${manifest.id}，目标 $id"
                 Log.e(TAG, "Update zip id (${manifest.id}) does not match target ($id)")
                 return false
             }

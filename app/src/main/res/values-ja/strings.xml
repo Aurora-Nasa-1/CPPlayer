@@ -196,6 +196,7 @@
     <!-- Module Management -->
     <string name="module_import_success">モジュールのインポートに成功しました</string>
     <string name="module_import_failed">モジュールのインポートに失敗しました</string>
+    <string name="module_import_failed_detail">インポート失敗：%s</string>
     <string name="module_import_error">モジュールのインポート中にエラーが発生しました</string>
     <string name="provider_active">（アクティブ）</string>
     <string name="provider_info">種類: %1$s | バージョン: %2$s</string>
