@@ -212,6 +212,5 @@ sentry {
     includeSourceContext = true
 
     // CI 环境下如果没有 SENTRY_AUTH_TOKEN 则跳过上传，避免构建失败
-    autoUploadProguardMapping = System.getenv("SENTRY_AUTH_TOKEN") != null
-    uploadSourceBundle = System.getenv("SENTRY_AUTH_TOKEN") != null
+    autoUpload = System.getenv("SENTRY_AUTH_TOKEN") != null
 }
