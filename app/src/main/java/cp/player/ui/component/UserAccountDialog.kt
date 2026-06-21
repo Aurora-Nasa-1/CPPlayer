@@ -181,7 +181,7 @@ fun UserAccountDialog(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     currentProviderAccounts.forEach { account ->
-                        val isActive = account.cookie == loginViewModel.cookie && loginViewModel.isLogged
+                        val isActive = account.cookie == loginViewModel.loginCookie && loginViewModel.isLogged
                         cp.player.ui.component.UnifiedListItem(
                             onClick = {
                                 if (!isActive) {

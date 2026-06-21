@@ -41,8 +41,6 @@ fun PlaylistOptionsBottomSheet(
     onSortByNameClick: (() -> Unit)? = null,
     onSortByArtistClick: (() -> Unit)? = null
 ) {
-    val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    
     val playColor = MaterialTheme.colorScheme.primaryContainer
     val playOnColor = MaterialTheme.colorScheme.onPrimaryContainer
     
@@ -52,17 +50,8 @@ fun PlaylistOptionsBottomSheet(
     val circleBtnColor = MaterialTheme.colorScheme.secondaryContainer
     val circleBtnOnColor = MaterialTheme.colorScheme.onSecondaryContainer
 
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        containerColor = sheetContainerColor,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                width = 48.dp,
-                height = 4.dp
-            )
-        }
+    StyledModalBottomSheet(
+        onDismissRequest = onDismissRequest
     ) {
         Column(
             modifier = Modifier

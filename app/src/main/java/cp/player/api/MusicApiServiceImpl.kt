@@ -8,6 +8,7 @@ import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
 import cp.player.util.DebugLog
 import cp.player.util.UserPreferences
+import kotlinx.coroutines.delay
 
 /**
  * [MusicApiService] 的默认实现。
@@ -28,7 +29,7 @@ class MusicApiServiceImpl(
 
     // ======================== 通用 ========================
 
-    override fun callApi(
+    override suspend fun callApi(
         method: String,
         params: Map<String, String>,
         cookie: String?
@@ -83,22 +84,22 @@ class MusicApiServiceImpl(
 
     // ======================== 认证 Auth ========================
 
-    override fun getQrKey(): JsonObject =
+    override suspend fun getQrKey(): JsonObject =
         callApi(MusicApiMethod.AUTH_QR_KEY)
 
-    override fun createQrCode(key: String): JsonObject =
+    override suspend fun createQrCode(key: String): JsonObject =
         callApi(MusicApiMethod.AUTH_QR_CREATE, mapOf("key" to key, "qrimg" to "true"))
 
-    override fun checkQrStatus(key: String): JsonObject =
+    override suspend fun checkQrStatus(key: String): JsonObject =
         callApi(MusicApiMethod.AUTH_QR_CHECK, mapOf("key" to key))
 
-    override fun login(email: String, password: String, md5: Boolean): JsonObject {
+    override suspend fun login(email: String, password: String, md5: Boolean): JsonObject {
         val params = mutableMapOf("email" to email)
         if (md5) params["md5_password"] = password else params["password"] = password
         return callApi(MusicApiMethod.AUTH_LOGIN, params)
     }
 
-    override fun loginWithPhone(
+    override suspend fun loginWithPhone(
         phone: String,
         password: String,
         captcha: Boolean,
@@ -113,112 +114,112 @@ class MusicApiServiceImpl(
         return callApi(MusicApiMethod.AUTH_LOGIN_PHONE, params)
     }
 
-    override fun sendCaptcha(phone: String): JsonObject =
+    override suspend fun sendCaptcha(phone: String): JsonObject =
         callApi(MusicApiMethod.AUTH_CAPTCHA_SENT, mapOf("phone" to phone))
 
-    override fun logout(): JsonObject =
+    override suspend fun logout(): JsonObject =
         callApi(MusicApiMethod.AUTH_LOGOUT)
 
-    override fun loginAnonymous(): JsonObject =
+    override suspend fun loginAnonymous(): JsonObject =
         callApi(MusicApiMethod.AUTH_ANONYMOUS)
 
-    override fun getLoginStatus(cookie: String?): JsonObject =
+    override suspend fun getLoginStatus(cookie: String?): JsonObject =
         callApi(MusicApiMethod.AUTH_LOGIN_STATUS, cookie = cookie)
 
     // ======================== 用户 User ========================
 
-    override fun getUserPlaylists(uid: Long): JsonObject =
+    override suspend fun getUserPlaylists(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_PLAYLIST, mapOf("uid" to uid.toString()))
 
-    override fun getUserCreatedPlaylists(uid: Long): JsonObject =
+    override suspend fun getUserCreatedPlaylists(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_PLAYLIST_CREATE, mapOf("uid" to uid.toString()))
 
-    override fun getUserCollectedPlaylists(uid: Long): JsonObject =
+    override suspend fun getUserCollectedPlaylists(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_PLAYLIST_COLLECT, mapOf("uid" to uid.toString()))
 
-    override fun getUserDetail(uid: Long): JsonObject =
+    override suspend fun getUserDetail(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_DETAIL, mapOf("uid" to uid.toString()))
 
-    override fun getUserCloud(limit: Int): JsonObject =
+    override suspend fun getUserCloud(limit: Int): JsonObject =
         callApi(MusicApiMethod.USER_CLOUD, mapOf("limit" to limit.toString()))
 
-    override fun getLikeList(uid: Long): JsonObject =
+    override suspend fun getLikeList(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_LIKE_LIST, mapOf("uid" to uid.toString()))
 
-    override fun likeSong(id: String, like: Boolean): JsonObject =
+    override suspend fun likeSong(id: String, like: Boolean): JsonObject =
         callApi(MusicApiMethod.USER_LIKE, mapOf("id" to id, "like" to like.toString()))
 
-    override fun getRecommendedSongs(): JsonObject =
+    override suspend fun getRecommendedSongs(): JsonObject =
         callApi(MusicApiMethod.USER_RECOMMEND_SONGS)
 
-    override fun getRecommendedPlaylists(): JsonObject =
+    override suspend fun getRecommendedPlaylists(): JsonObject =
         callApi(MusicApiMethod.USER_RECOMMEND_RESOURCE)
 
-    override fun dislikeSong(id: String): JsonObject =
+    override suspend fun dislikeSong(id: String): JsonObject =
         callApi(MusicApiMethod.USER_DISLIKE_SONG, mapOf("id" to id))
 
     // ======================== 歌单 Playlist ========================
 
-    override fun getPlaylistDetail(id: Long): JsonObject =
+    override suspend fun getPlaylistDetail(id: Long): JsonObject =
         callApi(MusicApiMethod.PLAYLIST_DETAIL, mapOf("id" to id.toString()))
 
-    override fun getPlaylistTracks(id: Long, limit: Int, offset: Int): JsonObject =
+    override suspend fun getPlaylistTracks(id: Long, limit: Int, offset: Int): JsonObject =
         callApi(
             MusicApiMethod.PLAYLIST_TRACK_ALL,
             mapOf("id" to id.toString(), "limit" to limit.toString(), "offset" to offset.toString())
         )
 
-    override fun addTracksToPlaylist(pid: Long, trackIds: List<String>): JsonObject =
+    override suspend fun addTracksToPlaylist(pid: Long, trackIds: List<String>): JsonObject =
         callApi(
             MusicApiMethod.PLAYLIST_TRACKS,
             mapOf("op" to "add", "pid" to pid.toString(), "tracks" to trackIds.joinToString(","))
         )
 
-    override fun removeTracksFromPlaylist(pid: Long, trackIds: List<String>): JsonObject =
+    override suspend fun removeTracksFromPlaylist(pid: Long, trackIds: List<String>): JsonObject =
         callApi(
             MusicApiMethod.PLAYLIST_TRACKS,
             mapOf("op" to "del", "pid" to pid.toString(), "tracks" to trackIds.joinToString(","))
         )
 
-    override fun createPlaylist(name: String, privacy: Int): JsonObject =
+    override suspend fun createPlaylist(name: String, privacy: Int): JsonObject =
         callApi(MusicApiMethod.PLAYLIST_CREATE, mapOf("name" to name, "privacy" to privacy.toString()))
 
-    override fun deletePlaylist(id: Long): JsonObject =
+    override suspend fun deletePlaylist(id: Long): JsonObject =
         callApi(MusicApiMethod.PLAYLIST_DELETE, mapOf("id" to id.toString()))
 
-    override fun subscribePlaylist(id: Long, t: Int): JsonObject =
+    override suspend fun subscribePlaylist(id: Long, t: Int): JsonObject =
         callApi(MusicApiMethod.PLAYLIST_SUBSCRIBE, mapOf("id" to id.toString(), "t" to t.toString()))
 
     // ======================== 专辑 Album ========================
 
-    override fun getAlbumDetail(id: Long): JsonObject =
+    override suspend fun getAlbumDetail(id: Long): JsonObject =
         callApi(MusicApiMethod.ALBUM_DETAIL, mapOf("id" to id.toString()))
 
     // ======================== 歌手 Artist ========================
 
-    override fun getArtistDetail(id: Long): JsonObject =
+    override suspend fun getArtistDetail(id: Long): JsonObject =
         callApi(MusicApiMethod.ARTIST_DETAIL, mapOf("id" to id.toString()))
 
-    override fun getArtistSongs(id: Long, limit: Int): JsonObject =
+    override suspend fun getArtistSongs(id: Long, limit: Int): JsonObject =
         callApi(MusicApiMethod.ARTIST_SONGS, mapOf("id" to id.toString(), "limit" to limit.toString()))
 
-    override fun getArtistAlbums(id: Long, limit: Int): JsonObject =
+    override suspend fun getArtistAlbums(id: Long, limit: Int): JsonObject =
         callApi(MusicApiMethod.ARTIST_ALBUM, mapOf("id" to id.toString(), "limit" to limit.toString()))
 
     // ======================== 搜索 Search ========================
 
-    override fun search(keywords: String, type: Int): JsonObject =
+    override suspend fun search(keywords: String, type: Int): JsonObject =
         callApi(MusicApiMethod.SEARCH_CLOUD, mapOf("keywords" to keywords, "type" to type.toString()))
 
-    override fun getHotSearches(): JsonObject =
+    override suspend fun getHotSearches(): JsonObject =
         callApi(MusicApiMethod.SEARCH_HOT_DETAIL)
 
-    override fun getSearchSuggestions(keywords: String): JsonObject =
+    override suspend fun getSearchSuggestions(keywords: String): JsonObject =
         callApi(MusicApiMethod.SEARCH_SUGGEST, mapOf("keywords" to keywords, "type" to "mobile"))
 
     // ======================== 播放 Playback ========================
 
-    override fun getSongUrl(songId: String, level: String): JsonObject {
+    override suspend fun getSongUrl(songId: String, level: String): JsonObject {
         val params = mutableMapOf("id" to songId, "level" to level)
         // 优先尝试 302 重定向版本
         val result = callApi(MusicApiMethod.SONG_URL_V1_302, params)
@@ -245,19 +246,19 @@ class MusicApiServiceImpl(
         return callApi(MusicApiMethod.SONG_URL_V1, params)
     }
 
-    override fun getSongUrlFallback(songId: String, level: String): JsonObject =
+    override suspend fun getSongUrlFallback(songId: String, level: String): JsonObject =
         callApi(MusicApiMethod.SONG_URL_V1, mapOf("id" to songId, "level" to level))
 
-    override fun getSongDownloadUrl(songId: String, level: String): JsonObject =
+    override suspend fun getSongDownloadUrl(songId: String, level: String): JsonObject =
         callApi(MusicApiMethod.SONG_DOWNLOAD_URL, mapOf("id" to songId, "level" to level))
 
-    override fun getSongDetail(ids: List<String>): JsonObject =
+    override suspend fun getSongDetail(ids: List<String>): JsonObject =
         callApi(MusicApiMethod.SONG_DETAIL, mapOf("ids" to ids.joinToString(",")))
 
-    override fun getPersonalFm(): JsonObject =
+    override suspend fun getPersonalFm(): JsonObject =
         callApi(MusicApiMethod.PERSONAL_FM, mapOf("timestamp" to System.currentTimeMillis().toString()))
 
-    override fun getIntelligenceList(songId: String, playlistId: Long): JsonObject =
+    override suspend fun getIntelligenceList(songId: String, playlistId: Long): JsonObject =
         callApi(
             MusicApiMethod.INTELLIGENCE_LIST,
             mapOf(
@@ -268,18 +269,18 @@ class MusicApiServiceImpl(
             )
         )
 
-    override fun getLyric(songId: String): JsonObject =
+    override suspend fun getLyric(songId: String): JsonObject =
         callApi(MusicApiMethod.LYRIC_NEW, mapOf("id" to songId))
 
     // ======================== 社交 Social ========================
 
-    override fun getComments(id: String, type: String, limit: Int, offset: Int, sortType: Int): JsonObject =
+    override suspend fun getComments(id: String, type: String, limit: Int, offset: Int, sortType: Int): JsonObject =
         callApi(
             getCommentMethod(type),
             mapOf("id" to id, "limit" to limit.toString(), "offset" to offset.toString(), "sortType" to sortType.toString())
         )
 
-    override fun getFloorComments(
+    override suspend fun getFloorComments(
         id: String,
         parentCommentId: Long,
         type: String,
@@ -301,7 +302,7 @@ class MusicApiServiceImpl(
         return callApi(MusicApiMethod.COMMENT_FLOOR, params)
     }
 
-    override fun likeComment(id: String, cid: Long, type: String, liked: Boolean): JsonObject {
+    override suspend fun likeComment(id: String, cid: Long, type: String, liked: Boolean): JsonObject {
         val t = when (type) {
             "music" -> "0"; "mv" -> "1"; "playlist" -> "2"
             "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"
@@ -313,7 +314,7 @@ class MusicApiServiceImpl(
         )
     }
 
-    override fun postComment(id: String, type: String, content: String, replyId: Long?): JsonObject {
+    override suspend fun postComment(id: String, type: String, content: String, replyId: Long?): JsonObject {
         val t = when (type) {
             "music" -> "0"; "mv" -> "1"; "playlist" -> "2"
             "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"
@@ -329,22 +330,22 @@ class MusicApiServiceImpl(
         return callApi(MusicApiMethod.COMMENT_POST, params)
     }
 
-    override fun getUnreadCount(): JsonObject =
+    override suspend fun getUnreadCount(): JsonObject =
         callApi(MusicApiMethod.MESSAGE_UNREAD_COUNT)
 
-    override fun getRecentContacts(): JsonObject =
+    override suspend fun getRecentContacts(): JsonObject =
         callApi(MusicApiMethod.MESSAGE_RECENT_CONTACT)
 
-    override fun getPrivateMessages(): JsonObject =
+    override suspend fun getPrivateMessages(): JsonObject =
         callApi(MusicApiMethod.MESSAGE_PRIVATE, mapOf("limit" to "50"))
 
-    override fun getMessageHistory(uid: Long): JsonObject =
+    override suspend fun getMessageHistory(uid: Long): JsonObject =
         callApi(MusicApiMethod.MESSAGE_PRIVATE_HISTORY, mapOf("uid" to uid.toString()))
 
-    override fun markMessageAsRead(uid: Long): JsonObject =
+    override suspend fun markMessageAsRead(uid: Long): JsonObject =
         callApi(MusicApiMethod.MESSAGE_MARK_READ, mapOf("uid" to uid.toString()))
 
-    override fun sendMessage(uid: Long, text: String): JsonObject =
+    override suspend fun sendMessage(uid: Long, text: String): JsonObject =
         callApi(MusicApiMethod.MESSAGE_SEND_TEXT, mapOf("user_ids" to uid.toString(), "msg" to text))
 
     // ======================== 多 Provider 容灾 ========================
@@ -354,13 +355,14 @@ class MusicApiServiceImpl(
      * 用于 URL 解析等需要容灾的场景。
      *
      * 自动通过每个 Provider 的 apiMap 映射方法名。
+     * 内部使用 [delay] 代替 Thread.sleep，不阻塞调用线程。
      *
      * @param method API 方法名（内部标准名）
      * @param params 请求参数
      * @param predicate 判断返回结果是否成功的谓词
      * @return 第一个成功的结果，全部失败则返回最后一个结果
      */
-    fun <T> callWithAllProviders(
+    suspend fun <T> callWithAllProviders(
         method: String,
         params: Map<String, String>,
         predicate: (JsonObject) -> T?
@@ -412,7 +414,7 @@ class MusicApiServiceImpl(
                         fallbackFrom = if (provider.id != current?.id) current?.id else null
                     ))
                 }
-                if (attempt < 2) Thread.sleep(200L)
+                if (attempt < 2) delay(200L)
             }
         }
         return null

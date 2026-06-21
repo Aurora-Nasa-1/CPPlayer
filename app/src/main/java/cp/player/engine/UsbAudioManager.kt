@@ -14,6 +14,7 @@ import android.util.Log
 import cp.player.util.UserPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class UsbAudioManager(private val context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
@@ -99,6 +100,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
     }
 
     fun stop() {
+        scope.cancel()
         try {
             context.unregisterReceiver(usbReceiver)
         } catch (e: Exception) {

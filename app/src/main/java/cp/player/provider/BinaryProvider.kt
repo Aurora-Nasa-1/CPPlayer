@@ -20,6 +20,7 @@ class BinaryProvider(
     private var process: Process? = null
     private var port: Int = 3000
     private val client = OkHttpClient()
+    private val gson = com.google.gson.Gson()
 
     override fun startServer(context: Context, port: Int) {
         this.port = port
@@ -46,7 +47,7 @@ class BinaryProvider(
     }
 
     override fun callApi(method: String, params: Map<String, String>): String {
-        val json = com.google.gson.Gson().toJson(params)
+        val json = gson.toJson(params)
         val body = json.toRequestBody("application/json".toMediaType())
         val req = Request.Builder()
             .url("http://127.0.0.1:$port/api/$method")

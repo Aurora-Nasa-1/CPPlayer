@@ -13,6 +13,7 @@ import cp.player.api.MusicApiServiceFactory
 import cp.player.manager.DownloadRegistry
 import cp.player.monitor.HealthMonitor
 import cp.player.provider.ProviderManager
+import kotlinx.coroutines.runBlocking
 import cp.player.util.JsonUtils
 import cp.player.util.DebugLog
 import cp.player.util.UserPreferences
@@ -100,12 +101,15 @@ class BackendDataSource(
 
                 val resolveStartTime = System.currentTimeMillis()
                 // 使用 callWithAllProviders 进行多 Provider 容灾
-                val resolvedUrl = api.callWithAllProviders(
-                    cp.player.api.MusicApiMethod.SONG_URL_V1,
-                    params
-                ) { body ->
-                    val url = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
-                    if (!url.isNullOrEmpty() && url.startsWith("http")) url else null
+                // open() 在 Media3 IO 线程调用，用 runBlocking 桥接 suspend 函数
+                val resolvedUrl = runBlocking {
+                    api.callWithAllProviders(
+                        cp.player.api.MusicApiMethod.SONG_URL_V1,
+                        params
+                    ) { body ->
+                        val url = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
+                        if (!url.isNullOrEmpty() && url.startsWith("http")) url else null
+                    }
                 }
 
                 if (resolvedUrl != null) {

@@ -16,12 +16,13 @@ class HttpProvider(
 ) : BackendProvider {
     override val type = ProviderType.HTTP
     private val client = OkHttpClient()
+    private val gson = com.google.gson.Gson()
 
     override fun startServer(context: Context, port: Int) {}
     override fun stopServer() {}
 
     override fun callApi(method: String, params: Map<String, String>): String {
-        val json = com.google.gson.Gson().toJson(params)
+        val json = gson.toJson(params)
         val body = json.toRequestBody("application/json".toMediaType())
         val req = Request.Builder()
             .url("${baseUrl.trimEnd('/')}/$method")

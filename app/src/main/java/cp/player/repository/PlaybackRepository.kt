@@ -34,7 +34,7 @@ class PlaybackRepository(
      * @param cookie 认证 cookie
      * @return 已合并翻译的歌词行列表
      */
-    fun fetchLyrics(songId: String, duration: Long, cookie: String?): List<LyricLine> {
+    suspend fun fetchLyrics(songId: String, duration: Long, cookie: String?): List<LyricLine> {
         val body = api.getLyric(songId)
         return LyricService.parseFromJson(body, duration)
     }
@@ -45,7 +45,7 @@ class PlaybackRepository(
      * @param cookie 认证 cookie
      * @return 歌曲列表
      */
-    fun getPersonalFm(cookie: String?): List<Song> {
+    suspend fun getPersonalFm(cookie: String?): List<Song> {
         val body = api.callApi(MusicApiMethod.PERSONAL_FM, mapOf("timestamp" to System.currentTimeMillis().toString()), cookie)
         return (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
             ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
@@ -59,7 +59,7 @@ class PlaybackRepository(
      * @param cookie 认证 cookie
      * @return 歌曲列表
      */
-    fun getHeartbeatSongs(songId: String, playlistId: Long, cookie: String?): List<Song> {
+    suspend fun getHeartbeatSongs(songId: String, playlistId: Long, cookie: String?): List<Song> {
         val body = api.callApi(
             MusicApiMethod.INTELLIGENCE_LIST,
             mapOf(

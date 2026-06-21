@@ -9,11 +9,8 @@ import java.net.URLEncoder
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonObject
-import cp.player.api.MusicApiService
-import cp.player.api.MusicApiServiceFactory
 import cp.player.provider.BackendProvider
 import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
@@ -30,9 +27,9 @@ import kotlinx.coroutines.withContext
  * 管理登录流程（扫码/邮箱/手机/游客）以及账号切换。
  * 提供商感知：所有操作都绑定到当前活跃的 [ProviderManager.currentProvider]。
  */
-class LoginViewModel(application: Application) : AndroidViewModel(application) {
+class LoginViewModel(application: Application) : BaseViewModel(application) {
 
-    private val api: MusicApiService = MusicApiServiceFactory.instance
+    // api 已由 BaseViewModel 提供，无需重复声明
 
     // ======================== UI 状态 ========================
 
@@ -40,7 +37,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var qrUrl by mutableStateOf<String?>(null)
     var loginStatus by mutableStateOf("Initializing...")
     var isLogged by mutableStateOf(false)
-    var cookie by mutableStateOf<String?>(null)
+    var loginCookie by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
 
     /** 当前 Provider 的显示名称（用于 LoginScreen 显示） */
@@ -63,8 +60,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private var fetchJob: Job? = null
 
     init {
-        cookie = UserPreferences.getCookie(application)
-        if (cookie != null) {
+        loginCookie = UserPreferences.getCookie(application)
+        if (loginCookie != null) {
             isLogged = true
             loginStatus = "Already logged in"
         }
@@ -75,21 +72,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * 切换当前 Provider。
-     * 切换后刷新 UI 状态、cookie 和 Provider 信息。
+     * 切换后刷新 UI 状态、loginCookie 和 Provider 信息。
      */
     fun switchProvider(provider: BackendProvider) {
         val context = getApplication<Application>()
         ProviderManager.switchProvider(provider, context)
         refreshProviderState()
 
-        // 切换 Provider 后，加载该 Provider 的 cookie
-        cookie = UserPreferences.getCookie(context)
-        if (cookie != null) {
+        // 切换 Provider 后，加载该 Provider 的 loginCookie
+        loginCookie = UserPreferences.getCookie(context)
+        if (loginCookie != null) {
             isLogged = true
             loginStatus = "已切换到 ${provider.name}"
         } else {
             isLogged = false
-            cookie = null
+            loginCookie = null
             loginStatus = "请登录 ${provider.name}"
         }
 
@@ -246,7 +243,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         isLoading = true
         loginStatus = "Logging out..."
-        val currentCookie = cookie
+        val currentCookie = loginCookie
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { api.logout() }
@@ -259,7 +256,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         UserPreferences.removeAccount(getApplication(), acc.uid)
                     }
                 }
-                cookie = null
+                loginCookie = null
                 UserPreferences.saveCookie(getApplication(), "")
                 isLogged = false
                 loginStatus = "Logged out"
@@ -289,7 +286,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             refreshProviderState()
         }
 
-        cookie = account.cookie
+        loginCookie = account.cookie
         UserPreferences.saveCookie(context, account.cookie)
         isLogged = true
         loginStatus = "已切换到 ${account.nickname}"
@@ -328,7 +325,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun prepareForNewAccount() {
         isLogged = false
-        cookie = null
+        loginCookie = null
         UserPreferences.saveCookie(getApplication(), "")
         qrCodeBitmap = null
         qrUrl = null
@@ -356,7 +353,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun onLoginSuccess(newCookie: String) {
-        cookie = newCookie
+        loginCookie = newCookie
         UserPreferences.saveCookie(getApplication(), newCookie)
 
         viewModelScope.launch {

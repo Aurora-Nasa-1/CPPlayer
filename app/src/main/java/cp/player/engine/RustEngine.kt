@@ -2,9 +2,12 @@ package cp.player.engine
 
 import android.util.Log
 import cp.player.util.DebugLog
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +17,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.concurrent.Executors
 
 sealed class AudioEvent {
     /** @param path 引擎发送的路径（可能为空），用于过滤旧曲目的状态事件 */
@@ -35,6 +40,14 @@ object RustEngine {
     private const val TAG = "RustEngine"
     private var isInitialized = false
 
+    /**
+     * 专用引擎线程调度器。
+     * 所有 JNI 调用通过此调度器序列化执行，避免锁竞争和主线程阻塞。
+     */
+    val engineDispatcher: CoroutineDispatcher =
+        Executors.newSingleThreadExecutor { r -> Thread(r, "RustEngine-JNI") }
+            .asCoroutineDispatcher()
+
     private val _engineState = MutableStateFlow("Idle")
     val engineState: StateFlow<String> = _engineState.asStateFlow()
 
@@ -45,7 +58,7 @@ object RustEngine {
     val audioEvents: SharedFlow<AudioEvent> = _audioEvents.asSharedFlow()
 
     private var pollJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         try {
@@ -130,6 +143,31 @@ object RustEngine {
         }
         return null
     }
+
+    // ═══════════════════════════════════════════════
+    // Suspend 版本 — 通过 engineDispatcher 序列化执行，不阻塞调用线程
+    // ═══════════════════════════════════════════════
+
+    /** suspend 版 [play]，在引擎专用线程执行 */
+    suspend fun playAsync(path: String): Boolean = withContext(engineDispatcher) { play(path) }
+
+    /** suspend 版 [pause]，在引擎专用线程执行 */
+    suspend fun pauseAsync(): Boolean = withContext(engineDispatcher) { pause() }
+
+    /** suspend 版 [resume]，在引擎专用线程执行 */
+    suspend fun resumeAsync(): Boolean = withContext(engineDispatcher) { resume() }
+
+    /** suspend 版 [stop]，在引擎专用线程执行 */
+    suspend fun stopAsync(): Boolean = withContext(engineDispatcher) { stop() }
+
+    /** suspend 版 [seek]，在引擎专用线程执行 */
+    suspend fun seekAsync(positionSecs: Double): Boolean = withContext(engineDispatcher) { seek(positionSecs) }
+
+    /** suspend 版 [setVolume]，在引擎专用线程执行 */
+    suspend fun setVolumeAsync(volume: Float): Boolean = withContext(engineDispatcher) { setVolume(volume) }
+
+    /** suspend 版 [stopEngine]，在引擎专用线程执行 */
+    suspend fun stopEngineAsync() = withContext(engineDispatcher) { stopEngine() }
 
     private fun startPolling() {
         if (pollJob?.isActive == true) return

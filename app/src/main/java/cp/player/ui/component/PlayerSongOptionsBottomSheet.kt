@@ -77,19 +77,8 @@ fun PlayerSongOptionsBottomSheet(
         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
     }
 
-    val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        containerColor = sheetContainerColor,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                width = 48.dp,
-                height = 4.dp
-            )
-        }
+    StyledModalBottomSheet(
+        onDismissRequest = onDismissRequest
     ) {
         LazyColumn(
             modifier = Modifier
@@ -99,64 +88,27 @@ fun PlayerSongOptionsBottomSheet(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                // Header: Cover, Title
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        modifier = Modifier.size(72.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        if (song.albumArtUrl != null) {
-                            AsyncImage(
-                                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 200),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Default.MusicNote, null, modifier = Modifier.padding(16.dp))
+                SongHeader(
+                    song = song,
+                    trailingContent = {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clickable(onClick = handleShare)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Share,
+                                    contentDescription = stringResource(R.string.share),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = song.name,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = song.artist,
-                            fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable(onClick = handleShare)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Share,
-                                contentDescription = stringResource(R.string.share),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
+                )
             }
 
             item {
@@ -166,20 +118,22 @@ fun PlayerSongOptionsBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PlayerPillButton(
+                        PillButton(
                             modifier = Modifier.weight(1f),
                             text = stringResource(R.string.add_to_playlist_action),
                             icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
                             bgColor = MaterialTheme.colorScheme.primaryContainer,
                             textColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            height = 56.dp,
                             onClick = onPlaylistClick ?: { showPlaylistDialog = true }
                         )
-                        PlayerPillButton(
+                        PillButton(
                             modifier = Modifier.weight(1f),
                             text = if (isDownloaded) stringResource(R.string.downloaded_action) else stringResource(R.string.download_action),
                             icon = if (isDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
                             bgColor = MaterialTheme.colorScheme.secondaryContainer,
                             textColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            height = 56.dp,
                             onClick = {
                                 onDownloadClick?.invoke()
                                 onDismissRequest()
@@ -188,23 +142,25 @@ fun PlayerSongOptionsBottomSheet(
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PlayerPillButton(
+                        PillButton(
                             modifier = Modifier.weight(1f),
                             text = stringResource(R.string.sleep_timer),
                             icon = Icons.Rounded.Timer,
                             bgColor = MaterialTheme.colorScheme.tertiaryContainer,
                             textColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            height = 56.dp,
                             onClick = {
                                 onSleepTimerClick?.invoke()
                                 onDismissRequest()
                             }
                         )
-                        PlayerPillButton(
+                        PillButton(
                             modifier = Modifier.weight(1f),
                             text = stringResource(R.string.not_interested_action),
                             icon = Icons.Rounded.Block,
                             bgColor = MaterialTheme.colorScheme.errorContainer,
                             textColor = MaterialTheme.colorScheme.onErrorContainer,
+                            height = 56.dp,
                             onClick = {
                                 onDislikeClick?.invoke()
                                 onDismissRequest()
@@ -352,33 +308,5 @@ fun PlayerSongOptionsBottomSheet(
                 onDismissRequest()
             }
         )
-    }
-}
-
-@Composable
-private fun PlayerPillButton(
-    modifier: Modifier,
-    text: String,
-    icon: ImageVector,
-    bgColor: Color,
-    textColor: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = bgColor,
-        modifier = modifier
-            .height(56.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = text, tint = textColor, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-        }
     }
 }

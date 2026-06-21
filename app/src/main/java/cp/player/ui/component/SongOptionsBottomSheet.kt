@@ -116,8 +116,6 @@ fun SongOptionsBottomSheet(
     }
 
     // Monet dynamic colors using MaterialTheme.colorScheme
-    val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-
     val playColor = MaterialTheme.colorScheme.primaryContainer
     val playOnColor = MaterialTheme.colorScheme.onPrimaryContainer
 
@@ -136,17 +134,8 @@ fun SongOptionsBottomSheet(
     val infoBtnColor = MaterialTheme.colorScheme.secondaryContainer
     val infoBtnOnColor = MaterialTheme.colorScheme.onSecondaryContainer
 
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        containerColor = sheetContainerColor,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                width = 48.dp,
-                height = 4.dp
-            )
-        }
+    StyledModalBottomSheet(
+        onDismissRequest = onDismissRequest
     ) {
         Column(
             modifier = Modifier
@@ -155,49 +144,7 @@ fun SongOptionsBottomSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header: Cover, Title
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Cover
-                Surface(
-                    shape = CircleShape,
-                    modifier = Modifier.size(72.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    if (song.albumArtUrl != null) {
-                        AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 200),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(Icons.Default.MusicNote, null, modifier = Modifier.padding(16.dp))
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // Title and Artist
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.name,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song.artist,
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            SongHeader(song = song)
 
             // Row 1: Play, Favorite (optional), Share (optional)
             Row(
@@ -484,35 +431,5 @@ fun SongOptionsBottomSheet(
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun PillButton(
-    modifier: Modifier,
-    text: String,
-    icon: ImageVector,
-    bgColor: Color,
-    textColor: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = bgColor,
-        modifier = modifier
-            .height(64.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = text.ifEmpty { null }, tint = textColor)
-            if (text.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text, color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            }
-        }
     }
 }

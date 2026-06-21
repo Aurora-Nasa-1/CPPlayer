@@ -62,7 +62,6 @@ fun ProviderOptionsBottomSheet(
     // 删除确认对话框
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    val sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
     val checkUpdateColor = MaterialTheme.colorScheme.primaryContainer
     val checkUpdateOnColor = MaterialTheme.colorScheme.onPrimaryContainer
     val manualUpdateColor = MaterialTheme.colorScheme.secondaryContainer
@@ -70,17 +69,8 @@ fun ProviderOptionsBottomSheet(
     val deleteColor = MaterialTheme.colorScheme.errorContainer
     val deleteOnColor = MaterialTheme.colorScheme.onErrorContainer
 
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        containerColor = sheetContainerColor,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                width = 48.dp,
-                height = 4.dp
-            )
-        }
+    StyledModalBottomSheet(
+        onDismissRequest = onDismissRequest
     ) {
         Column(
             modifier = Modifier
@@ -208,7 +198,7 @@ fun ProviderOptionsBottomSheet(
                 // 检查更新（需要 updateUrl）
                 val updateUrl = provider.updateUrl
                 if (updateUrl != null) {
-                    ProviderPillButton(
+                    PillButton(
                         modifier = Modifier.weight(1f),
                         text = stringResource(R.string.check_update),
                         icon = Icons.Rounded.SystemUpdate,
@@ -232,7 +222,7 @@ fun ProviderOptionsBottomSheet(
                 }
 
                 // 手动更新
-                ProviderPillButton(
+                PillButton(
                     modifier = Modifier.weight(1f),
                     text = stringResource(R.string.manual_update),
                     icon = Icons.Rounded.FolderZip,
@@ -246,7 +236,7 @@ fun ProviderOptionsBottomSheet(
             }
 
             // 删除按钮
-            ProviderPillButton(
+            PillButton(
                 modifier = Modifier.fillMaxWidth(),
                 text = stringResource(R.string.delete_provider),
                 icon = Icons.Rounded.Delete,
@@ -309,38 +299,4 @@ private sealed class UpdateCheckState {
     data class HasUpdate(val info: ProviderUpdateChecker.UpdateInfo) : UpdateCheckState()
     data object NoUpdate : UpdateCheckState()
     data class Error(val message: String) : UpdateCheckState()
-}
-
-@Composable
-private fun ProviderPillButton(
-    modifier: Modifier,
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    bgColor: Color,
-    textColor: Color,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = if (enabled) bgColor else bgColor.copy(alpha = 0.5f),
-        modifier = modifier
-            .height(64.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = text, tint = if (enabled) textColor else textColor.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text,
-                color = if (enabled) textColor else textColor.copy(alpha = 0.5f),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
 }

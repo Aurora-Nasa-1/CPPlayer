@@ -3,9 +3,11 @@ package cp.player.provider
 import android.content.Context
 import android.util.Log
 import cp.player.util.DebugLog
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 /**
  * 提供商管理器。
@@ -138,14 +140,15 @@ object ProviderManager {
     }
 
     /**
-     * 调用当前 Provider 的 API。
+     * 调用当前 Provider 的 API（suspend 版本）。
      *
+     * 自动在 [Dispatchers.IO] 上执行，避免阻塞调用线程。
      * 自动通过 [BackendProvider.apiMap] 映射方法名。
      * 如果方法被映射为 "unsupported"，返回不支持提示。
      * 监控记录由上层 [cp.player.api.MusicApiServiceImpl.callApi] 统一处理。
      */
-    fun callApi(method: String, params: Map<String, String>): String {
-        val provider = currentProvider ?: return """{"code": 500, "msg": "No active provider"}"""
+    suspend fun callApi(method: String, params: Map<String, String>): String = withContext(Dispatchers.IO) {
+        val provider = currentProvider ?: return@withContext """{"code": 500, "msg": "No active provider"}"""
         val mappedMethod = provider.apiMap?.get(method) ?: method
 
         // API 调用调试日志：追踪方法名映射
@@ -158,10 +161,10 @@ object ProviderManager {
 
         if (mappedMethod.isEmpty() || mappedMethod.equals("unsupported", ignoreCase = true)) {
             Log.w(TAG, "API不支持: $method → $mappedMethod (provider: ${provider.id})")
-            return """{"code": -1, "msg": "该提供商不支持此功能"}"""
+            return@withContext """{"code": -1, "msg": "该提供商不支持此功能"}"""
         }
 
-        return try {
+        return@withContext try {
             provider.callApi(mappedMethod, params)
         } catch (e: Exception) {
             DebugLog.e("Provider callApi 异常: $method (provider: ${provider.id})", e)
