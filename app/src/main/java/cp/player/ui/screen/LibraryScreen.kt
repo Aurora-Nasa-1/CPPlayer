@@ -39,6 +39,7 @@ import cp.player.model.LocalSongMetadata
 
 import cp.player.viewmodel.LiveSortViewModel
 import cp.player.viewmodel.PlaybackViewModel
+import cp.player.viewmodel.DownloadViewModel
 
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -70,6 +71,7 @@ fun LibraryScreen(
     liveSortViewModel: LiveSortViewModel,
     playbackViewModel: PlaybackViewModel,
     userViewModel: UserViewModel,
+    downloadViewModel: DownloadViewModel? = null,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val filters = listOf(
@@ -195,12 +197,17 @@ fun LibraryScreen(
                                 )
                             }
                             2 -> { // Cloud
+                                val downloadedSongIds by remember(downloadedSongs) {
+                                    derivedStateOf { downloadedSongs.map { it.song.id }.toSet() }
+                                }
                                 cp.player.ui.screen.CloudMusicContent(
                                     songs = cloudSongs,
                                     favoriteSongs = favoriteSongs,
                                     isLoading = isCloudLoading,
                                     onSongClick = onCloudSongClick,
                                     onLikeClick = onCloudLikeClick,
+                                    onDownloadClick = downloadViewModel?.let { vm -> { s -> vm.downloadSong(s) } },
+                                    downloadedSongIds = downloadedSongIds,
                                     playbackViewModel = playbackViewModel,
                                     bottomContentPadding = PaddingValues(bottom = 100.dp)
                                 )

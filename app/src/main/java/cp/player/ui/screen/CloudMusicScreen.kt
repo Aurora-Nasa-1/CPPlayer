@@ -21,6 +21,8 @@ fun CloudMusicContent(
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onLikeClick: (Song) -> Unit,
+    onDownloadClick: ((Song) -> Unit)? = null,
+    downloadedSongIds: Set<String> = emptySet(),
     playbackViewModel: PlaybackViewModel? = null,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
@@ -83,6 +85,8 @@ fun CloudMusicContent(
                 playbackViewModel?.insertNext(song)
                 selectedSongForOptions = null
             },
+            onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } },
+            isDownloaded = downloadedSongIds.contains(song.id),
             showFavorite = false,
             showShare = false,
             showPlaylist = false,

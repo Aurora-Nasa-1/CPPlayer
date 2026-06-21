@@ -486,6 +486,7 @@ fun AppMainContent(
                                 liveSortViewModel = liveSortViewModel,
                                 playbackViewModel = playbackViewModel,
                                 userViewModel = userViewModel,
+                                downloadViewModel = downloadViewModel,
 
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
