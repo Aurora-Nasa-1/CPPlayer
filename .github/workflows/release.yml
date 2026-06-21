@@ -66,6 +66,8 @@ jobs:
         -PRELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}
         -PRELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}
         assembleRelease
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     - name: Get version info
       id: version

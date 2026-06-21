@@ -53,6 +53,8 @@ jobs:
 
     - name: Build with Gradle
       run: ./gradlew assembleRelease --no-daemon
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
