@@ -43,3 +43,6 @@ obj/
 
 # Un-ignore vendored Rust deps (global gitignore has vendor/)
 !app/src/main/rust/vendor/
+# Sentry Config File
+sentry.properties
+sentry-wizard
