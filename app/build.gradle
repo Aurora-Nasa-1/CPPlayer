@@ -210,7 +210,8 @@ sentry {
     org = "aurora-9i"
     projectName = "android"
 
-    def hasAuthToken = System.getenv("SENTRY_AUTH_TOKEN") != null
+    // 确保 SENTRY_AUTH_TOKEN 既不为 null 也不为空字符串
+    def hasAuthToken = (System.getenv("SENTRY_AUTH_TOKEN") ?: "").trim() != ""
 
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
