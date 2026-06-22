@@ -178,6 +178,9 @@ dependencies {
     androidTestImplementation libs.androidx.compose.ui.test.junit4
     debugImplementation libs.androidx.compose.ui.tooling
     debugImplementation libs.androidx.compose.ui.test.manifest
+
+    // For Sentry ASM instrumentation to resolve window classes on some devices
+    compileOnly libs.androidx.window
 }
 
 tasks.register('buildRust', Exec) {
@@ -207,10 +210,17 @@ sentry {
     org = "aurora-9i"
     projectName = "android"
 
+    // 确保 SENTRY_AUTH_TOKEN 既不为 null 也不为空字符串
+    def hasAuthToken = (System.getenv("SENTRY_AUTH_TOKEN") ?: "").trim() != ""
+
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
-    includeSourceContext = true
+    includeSourceContext = hasAuthToken
 
     // CI 环境下如果没有 SENTRY_AUTH_TOKEN 则跳过上传，避免构建失败
-    autoUpload = System.getenv("SENTRY_AUTH_TOKEN") != null
+    autoUpload = hasAuthToken
+
+    // 禁用所有可能在没有 token 时导致失败的任务
+    uploadNativeSymbols = hasAuthToken
+    includeProguardMapping = hasAuthToken
 }
