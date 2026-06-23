@@ -40,7 +40,7 @@ pub enum AudioCommand {
     /// Set playback speed (0.5 to 2.0)
     SetPlaybackSpeed { speed: f32 },
     /// Set graphic EQ: enabled and 10 band gains in dB.
-    SetEqualizer { enabled: bool, gains_db: [f32; 10] },
+    SetEqualizer { enabled: bool, bands: Vec<crate::audio::equalizer::PeqBand> },
     /// Configure compressor settings.
     SetCompressor {
         enabled: bool,

@@ -8,6 +8,7 @@ use crate::api::audio_api::{
     audio_init, audio_pause, audio_play, audio_resume, audio_seek, audio_set_volume, audio_stop,
     audio_get_state, audio_get_progress, audio_poll_event,
 };
+use crate::audio::equalizer::PeqBand;
 
 #[no_mangle]
 pub extern "system" fn Java_cp_player_engine_RustEngine_nativeInit(
@@ -105,6 +106,76 @@ pub extern "system" fn Java_cp_player_engine_RustEngine_nativeSeek(
             log::error!("Audio seek failed: {}", e);
             0
         }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_cp_player_engine_RustEngine_nativeSetEqualizer(
+    mut env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+    freqs: jni::objects::JFloatArray,
+    gains: jni::objects::JFloatArray,
+    qs: jni::objects::JFloatArray,
+) -> jboolean {
+    let len = match env.get_array_length(&freqs) {
+        Ok(l) => l as usize,
+        Err(_) => return 0,
+    };
+    let mut freqs_vec = vec![0.0f32; len];
+    let mut gains_vec = vec![0.0f32; len];
+    let mut qs_vec = vec![0.0f32; len];
+
+    if env.get_float_array_region(&freqs, 0, &mut freqs_vec).is_err() ||
+       env.get_float_array_region(&gains, 0, &mut gains_vec).is_err() ||
+       env.get_float_array_region(&qs, 0, &mut qs_vec).is_err() {
+        return 0;
+    }
+
+    let mut bands = Vec::with_capacity(len);
+    for i in 0..len {
+        bands.push(PeqBand {
+            freq_hz: freqs_vec[i],
+            gain_db: gains_vec[i],
+            q: qs_vec[i],
+        });
+    }
+
+    match crate::api::audio_api::audio_set_equalizer(enabled != 0, bands) {
+        Ok(_) => 1,
+        Err(_) => 0,
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_cp_player_engine_RustEngine_nativeSetFx(
+    mut _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+    balance: jfloat,
+    tempo: jfloat,
+    damp: jfloat,
+    filter_hz: jfloat,
+    delay_ms: jfloat,
+    size: jfloat,
+    mix: jfloat,
+    feedback: jfloat,
+    width: jfloat,
+) -> jboolean {
+    match crate::api::audio_api::audio_set_fx(
+        enabled != 0,
+        balance,
+        tempo,
+        damp,
+        filter_hz,
+        delay_ms,
+        size,
+        mix,
+        feedback,
+        width,
+    ) {
+        Ok(_) => 1,
+        Err(_) => 0,
     }
 }
 

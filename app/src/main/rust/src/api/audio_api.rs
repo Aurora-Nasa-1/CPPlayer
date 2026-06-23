@@ -993,14 +993,9 @@ pub fn audio_set_volume(volume: f32) -> Result<(), String> {
     Ok(())
 }
 
-/// Set graphic EQ: enabled and 10 band gains in dB (order = 32,64,125,250,500,1k,2k,4k,8k,16k Hz).
-pub fn audio_set_equalizer(enabled: bool, gains_db: Vec<f32>) -> Result<(), String> {
-    if gains_db.len() != 10 {
-        return Err("Equalizer requires exactly 10 band gains".to_string());
-    }
-    let mut arr = [0.0f32; 10];
-    arr.copy_from_slice(&gains_db[..10]);
-    with_audio_engine(|handle| handle.set_equalizer(enabled, arr))
+/// Set PEQ equalizer: enabled and a list of PeqBand.
+pub fn audio_set_equalizer(enabled: bool, bands: Vec<crate::audio::equalizer::PeqBand>) -> Result<(), String> {
+    with_audio_engine(|handle| handle.set_equalizer(enabled, bands))
 }
 
 /// Configure compressor settings for the native audio engine.

@@ -134,6 +134,7 @@ fun SettingsScreen(
         "provider" -> R.string.provider_management
         "about" -> R.string.about
         "health" -> R.string.health_status
+        "dsp" -> R.string.dsp_equalizer // Just a fallback, handled in DspSettingsScreen
         "logViewer" -> R.string.app_logs
         else -> R.string.settings
     }
@@ -456,6 +457,16 @@ fun SettingsScreen(
                                     shapes = ListItemDefaults.segmentedShapes(3, 4)
                                 )
                             }
+                        }
+
+                        SettingsSection(title = "DSP & Effects") {
+                            ExpressiveClickItem(
+                                title = "DSP & Equalizer",
+                                subtitle = "Configure Equalizer and Spatial FX",
+                                icon = { MonetIcon(Icons.Default.Tune, Color(0xFFE8EAF6), Color(0xFF283593)) },
+                                onClick = { currentScreen = "dsp" },
+                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                            )
                         }
 
                         // 流媒体音质设置
