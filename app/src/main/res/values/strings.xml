@@ -1,4 +1,5 @@
 <resources>
+
     <string name="app_name">CPPlayer</string>
     <string name="no_lyrics">暂无歌词</string>
     <string name="add_comment">发表评论...</string>
@@ -544,4 +545,8 @@
     <string name="remove_from_playlist">从歌单移除</string>
     <string name="song_count_simple">%1$d 首歌</string>
     <string name="share_playlist_text">来听听这个歌单：%1$s\n%2$s</string>
+
+
+    <string name="dsp_equalizer">DSP &amp; Equalizer</string>
+
 </resources>

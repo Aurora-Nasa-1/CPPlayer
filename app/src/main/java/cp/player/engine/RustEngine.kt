@@ -122,6 +122,29 @@ object RustEngine {
         return nativeSetVolume(volume)
     }
 
+    fun setEqualizer(enabled: Boolean, freqs: FloatArray, gains: FloatArray, qs: FloatArray): Boolean {
+        if (!isInitialized) return false
+        return nativeSetEqualizer(enabled, freqs, gains, qs)
+    }
+
+    fun setFx(
+        enabled: Boolean,
+        balance: Float,
+        tempo: Float,
+        damp: Float,
+        filterHz: Float,
+        delayMs: Float,
+        size: Float,
+        mix: Float,
+        feedback: Float,
+        width: Float
+    ): Boolean {
+        if (!isInitialized) return false
+        return nativeSetFx(
+            enabled, balance, tempo, damp, filterHz, delayMs, size, mix, feedback, width
+        )
+    }
+
     fun getState(): String {
         if (!isInitialized) return "Uninitialized"
         return nativeGetState()
@@ -294,6 +317,12 @@ object RustEngine {
     private external fun nativeStop(): Boolean
     private external fun nativeSeek(secs: Double): Boolean
     private external fun nativeSetVolume(vol: Float): Boolean
+    private external fun nativeSetEqualizer(enabled: Boolean, freqs: FloatArray, gains: FloatArray, qs: FloatArray): Boolean
+    private external fun nativeSetFx(
+        enabled: Boolean, balance: Float, tempo: Float, damp: Float,
+        filterHz: Float, delayMs: Float, size: Float, mix: Float,
+        feedback: Float, width: Float
+    ): Boolean
     private external fun nativeGetState(): String
     private external fun nativeGetProgress(): String?
     private external fun nativePollEvent(): String?

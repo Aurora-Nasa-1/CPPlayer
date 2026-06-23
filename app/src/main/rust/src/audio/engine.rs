@@ -374,8 +374,8 @@ impl AudioEngineHandle {
     }
 
     /// Set graphic EQ: enabled and 10 band gains in dB (order matches EqualizerState.defaultGraphicFrequenciesHz).
-    pub fn set_equalizer(&self, enabled: bool, gains_db: [f32; 10]) -> Result<(), String> {
-        self.send_command(AudioCommand::SetEqualizer { enabled, gains_db })
+    pub fn set_equalizer(&self, enabled: bool, bands: Vec<crate::audio::equalizer::PeqBand>) -> Result<(), String> {
+        self.send_command(AudioCommand::SetEqualizer { enabled, bands })
     }
 
     /// Configure compressor settings.
@@ -2368,9 +2368,9 @@ fn command_processing_loop(
                         callback_data.set_playback_speed(speed);
                         *callback_data.speed_frac_pos.lock() = 0.0;
                     }
-                    AudioCommand::SetEqualizer { enabled, gains_db } => {
+                    AudioCommand::SetEqualizer { enabled, bands } => {
                         if let Some(mut eq) = callback_data.equalizer.try_lock() {
-                            eq.set(enabled, &gains_db, sample_rate);
+                            eq.set(enabled, &bands, sample_rate);
                         }
                     }
                     AudioCommand::SetCompressor {

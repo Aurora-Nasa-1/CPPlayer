@@ -1,44 +1,61 @@
-//! Graphic EQ: 10 peaking biquad bands at fixed frequencies.
+//! Parametric EQ: Configurable peaking biquad bands at variable frequencies, gains, and Q values.
 //! Single responsibility: apply band gains to interleaved f32 samples.
 
 use std::f32::consts::PI;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// Fixed center frequencies (Hz) matching Dart EqualizerState.defaultGraphicFrequenciesHz.
-pub const BAND_FREQS_HZ: [f32; 10] = [
-    32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
-];
-
-const Q: f32 = 1.0;
-const NUM_BANDS: usize = 10;
+pub const MAX_BANDS: usize = 30; // Support up to 30 custom bands
 const COEFFS_PER_BAND: usize = 5;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PeqBand {
+    pub freq_hz: f32,
+    pub gain_db: f32,
+    pub q: f32,
+}
+
+impl Default for PeqBand {
+    fn default() -> Self {
+        Self {
+            freq_hz: 1000.0,
+            gain_db: 0.0,
+            q: 1.0,
+        }
+    }
+}
 
 /// Biquad coeffs per band: b0, b1, b2, a1, a2 (a0 normalized to 1).
 #[derive(Clone, Copy)]
 pub struct EqParams {
     pub enabled: bool,
-    pub coeffs: [[f32; COEFFS_PER_BAND]; NUM_BANDS],
+    pub num_bands: usize,
+    pub coeffs: [[f32; COEFFS_PER_BAND]; MAX_BANDS],
 }
 
 impl EqParams {
     pub fn disabled() -> Self {
         Self {
             enabled: false,
-            coeffs: [[1.0, 0.0, 0.0, 0.0, 0.0]; NUM_BANDS],
+            num_bands: 0,
+            coeffs: [[1.0, 0.0, 0.0, 0.0, 0.0]; MAX_BANDS],
         }
     }
 
-    /// Build from band gains in dB and sample rate.
-    pub fn from_gains_db(gains_db: &[f32; NUM_BANDS], sample_rate: u32) -> Self {
+    /// Build from dynamic PEQ bands and sample rate.
+    pub fn from_peq_bands(bands: &[PeqBand], sample_rate: u32) -> Self {
         let fs = sample_rate as f32;
-        let mut coeffs = [[0.0f32; COEFFS_PER_BAND]; NUM_BANDS];
-        for (i, &gain_db) in gains_db.iter().enumerate() {
-            let f0 = BAND_FREQS_HZ[i];
-            let (b0, b1, b2, a1, a2) = peaking_coeffs(f0, gain_db, Q, fs);
+        let mut coeffs = [[1.0, 0.0, 0.0, 0.0, 0.0]; MAX_BANDS];
+        let num_bands = bands.len().min(MAX_BANDS);
+
+        for i in 0..num_bands {
+            let band = &bands[i];
+            let (b0, b1, b2, a1, a2) = peaking_coeffs(band.freq_hz, band.gain_db, band.q, fs);
             coeffs[i] = [b0, b1, b2, a1, a2];
         }
+
         Self {
             enabled: true,
+            num_bands,
             coeffs,
         }
     }
@@ -62,7 +79,7 @@ fn peaking_coeffs(f0: f32, gain_db: f32, q: f32, fs: f32) -> (f32, f32, f32, f32
 
 /// Per-channel, per-band biquad state: x1, x2, y1, y2.
 type BandState = [f32; 4];
-type ChannelState = [BandState; NUM_BANDS];
+type ChannelState = [BandState; MAX_BANDS];
 
 /// Double-buffered params for lock-free updates from command thread.
 /// State is per-channel (not double-buffered) for stereo processing.
@@ -78,20 +95,21 @@ impl Equalizer {
         Self {
             params: [EqParams::disabled(), EqParams::disabled()],
             index: AtomicU8::new(0),
-            state: [[[0.0; 4]; NUM_BANDS]; 2],
+            state: [[[0.0; 4]; MAX_BANDS]; 2],
         }
     }
 
     /// Called from command thread. sample_rate must match engine.
-    pub fn set(&mut self, enabled: bool, gains_db: &[f32; NUM_BANDS], sample_rate: u32) {
+    pub fn set(&mut self, enabled: bool, bands: &[PeqBand], sample_rate: u32) {
         let next = if enabled {
-            EqParams::from_gains_db(gains_db, sample_rate)
+            EqParams::from_peq_bands(bands, sample_rate)
         } else {
             EqParams::disabled()
         };
         let idx = self.index.load(Ordering::Relaxed);
         self.params[1 - idx as usize] = next;
         self.index.store(1 - idx, Ordering::Release);
+
         // Reset state when disabling to avoid artifacts when re-enabling
         if !enabled {
             for ch_state in &mut self.state {
@@ -110,29 +128,34 @@ impl Equalizer {
     /// Process interleaved buffer in place. channels = 2.
     pub fn process(&mut self, buf: &mut [f32], channels: usize) {
         let p = self.current_params();
-        if !p.enabled {
+        if !p.enabled || p.num_bands == 0 {
             return;
         }
         // Clamp channels to available state buffers (typically 2 for stereo)
         let max_channels = self.state.len().min(channels);
         let frames = buf.len() / channels;
+        let active_coeffs = &p.coeffs[..p.num_bands];
+
         for f in 0..frames {
             for ch in 0..max_channels {
                 let idx = f * channels + ch;
                 let x0 = buf[idx];
-                buf[idx] = process_sample_chain(x0, &p.coeffs, &mut self.state[ch]);
+                buf[idx] = process_sample_chain(x0, active_coeffs, &mut self.state[ch]);
             }
         }
     }
 }
 
+#[inline(always)]
 fn process_sample_chain(
     x0: f32,
-    coeffs: &[[f32; COEFFS_PER_BAND]; NUM_BANDS],
+    coeffs: &[[f32; COEFFS_PER_BAND]],
     state: &mut ChannelState,
 ) -> f32 {
     let mut x = x0;
-    for (b, s) in coeffs.iter().zip(state.iter_mut()) {
+    // Only process up to coeffs.len() bands
+    for (i, b) in coeffs.iter().enumerate() {
+        let s = &mut state[i];
         let (b0, b1, b2, a1, a2) = (b[0], b[1], b[2], b[3], b[4]);
         let (x1, x2, y1, y2) = (s[0], s[1], s[2], s[3]);
         let y0 = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;

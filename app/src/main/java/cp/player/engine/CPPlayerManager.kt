@@ -25,16 +25,24 @@ object CPPlayerManager {
             val playerBuilder = ExoPlayer.Builder(context, renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
 
+            val player = playerBuilder.build()
+
+            player.addListener(object : Player.Listener {
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    ExoAudioFxManager.init(audioSessionId)
+                }
+            })
+
             if (UserPreferences.getAutoAudioFocus(context)) {
                 val audioAttributes = AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build()
-                playerBuilder.setAudioAttributes(audioAttributes, true)
-                playerBuilder.setHandleAudioBecomingNoisy(true)
+                player.setAudioAttributes(audioAttributes, true)
+                player.setHandleAudioBecomingNoisy(true)
             }
 
-            playerBuilder.build()
+            player
         }
     }
 }
