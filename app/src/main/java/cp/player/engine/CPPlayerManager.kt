@@ -15,6 +15,7 @@ object CPPlayerManager {
         return if (engineType == 1) {
             FlickPlayer(context)
         } else {
+            ExoAudioFxManager.initPrefs(context)
             val renderersFactory = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
 
             val dataSourceFactory = DataSourceFactoryProvider.createCacheDataSourceFactory(context)
@@ -28,8 +29,22 @@ object CPPlayerManager {
             val player = playerBuilder.build()
 
             player.addListener(object : Player.Listener {
+                private var currentSessionId: Int = 0
+
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    if (currentSessionId != 0 && currentSessionId != audioSessionId) {
+                        ExoAudioFxManager.release(currentSessionId)
+                    }
+                    currentSessionId = audioSessionId
                     ExoAudioFxManager.init(audioSessionId)
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_IDLE && currentSessionId != 0) {
+                        // The player is stopped or released
+                        ExoAudioFxManager.release(currentSessionId)
+                        currentSessionId = 0
+                    }
                 }
             })
 

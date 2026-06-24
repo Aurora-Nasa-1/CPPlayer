@@ -4,24 +4,43 @@ import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import android.util.Log
 
+import android.content.Context
+import cp.player.util.DspPreferences
+
 object ExoAudioFxManager {
     private const val TAG = "ExoAudioFxManager"
 
-    private var equalizer: Equalizer? = null
-    private var virtualizer: Virtualizer? = null
+    private data class SessionFx(
+        val equalizer: Equalizer?,
+        val virtualizer: Virtualizer?
+    )
+
+    private val activeSessions = mutableMapOf<Int, SessionFx>()
 
     // For preserving settings between sessions
     var eqEnabled = false
     private var internalVirtualizerEnabled = false
     val eqGains = mutableMapOf<Short, Short>() // band -> millibels
     private var internalVirtualizerStrength: Short = 0
+    private var isInitializedFromPrefs = false
+
+    fun initPrefs(context: Context) {
+        if (isInitializedFromPrefs) return
+        eqEnabled = DspPreferences.getExoEqEnabled(context)
+        internalVirtualizerEnabled = DspPreferences.getExoVirtualizerEnabled(context)
+        internalVirtualizerStrength = DspPreferences.getExoVirtualizerStrength(context)
+        eqGains.clear()
+        eqGains.putAll(DspPreferences.getExoEqGains(context))
+        isInitializedFromPrefs = true
+    }
 
     fun init(audioSessionId: Int) {
-        release()
         if (audioSessionId == 0) return
+        if (activeSessions.containsKey(audioSessionId)) return
 
+        var eq: Equalizer? = null
         try {
-            equalizer = Equalizer(0, audioSessionId).apply {
+            eq = Equalizer(0, audioSessionId).apply {
                 enabled = eqEnabled
                 for ((band, gain) in eqGains) {
                     if (band < numberOfBands) {
@@ -33,8 +52,9 @@ object ExoAudioFxManager {
             Log.e(TAG, "Failed to init Equalizer", e)
         }
 
+        var virt: Virtualizer? = null
         try {
-            virtualizer = Virtualizer(0, audioSessionId).apply {
+            virt = Virtualizer(0, audioSessionId).apply {
                 enabled = internalVirtualizerEnabled
                 if (internalVirtualizerStrength > 0) {
                     setStrength(internalVirtualizerStrength)
@@ -43,49 +63,73 @@ object ExoAudioFxManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to init Virtualizer", e)
         }
+
+        activeSessions[audioSessionId] = SessionFx(eq, virt)
     }
 
-    fun release() {
-        equalizer?.release()
-        equalizer = null
-        virtualizer?.release()
-        virtualizer = null
+    fun release(audioSessionId: Int) {
+        activeSessions.remove(audioSessionId)?.let { fx ->
+            fx.equalizer?.release()
+            fx.virtualizer?.release()
+        }
+    }
+
+    fun releaseAll() {
+        activeSessions.values.forEach { fx ->
+            fx.equalizer?.release()
+            fx.virtualizer?.release()
+        }
+        activeSessions.clear()
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {
         eqEnabled = enabled
-        equalizer?.enabled = enabled
+        activeSessions.values.forEach { fx ->
+            fx.equalizer?.enabled = enabled
+        }
     }
 
     fun getEqualizerEnabled(): Boolean = eqEnabled
 
-    fun getNumberOfBands(): Short = equalizer?.numberOfBands ?: 0
+    fun getNumberOfBands(): Short {
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfBands ?: 0
+    }
 
-    fun getCenterFreq(band: Short): Int = equalizer?.getCenterFreq(band) ?: 0
+    fun getCenterFreq(band: Short): Int {
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getCenterFreq(band) ?: 0
+    }
 
-    fun getBandLevelRange(): ShortArray = equalizer?.bandLevelRange ?: shortArrayOf(0, 0)
+    fun getBandLevelRange(): ShortArray {
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.bandLevelRange ?: shortArrayOf(0, 0)
+    }
 
     fun setBandLevel(band: Short, level: Short) {
         eqGains[band] = level
-        if (equalizer != null && band < (equalizer?.numberOfBands ?: 0)) {
-            equalizer?.setBandLevel(band, level)
+        activeSessions.values.forEach { fx ->
+            if (fx.equalizer != null && band < fx.equalizer.numberOfBands) {
+                fx.equalizer.setBandLevel(band, level)
+            }
         }
     }
 
     fun getBandLevel(band: Short): Short {
-        return equalizer?.getBandLevel(band) ?: eqGains[band] ?: 0
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getBandLevel(band) ?: eqGains[band] ?: 0
     }
 
     fun setVirtualizerEnabled(enabled: Boolean) {
         internalVirtualizerEnabled = enabled
-        virtualizer?.enabled = enabled
+        activeSessions.values.forEach { fx ->
+            fx.virtualizer?.enabled = enabled
+        }
     }
 
     fun getVirtualizerEnabled(): Boolean = internalVirtualizerEnabled
 
     fun setVirtualizerStrength(strength: Short) {
         internalVirtualizerStrength = strength
-        virtualizer?.setStrength(strength)
+        activeSessions.values.forEach { fx ->
+            fx.virtualizer?.setStrength(strength)
+        }
     }
 
     fun getVirtualizerStrength(): Short = internalVirtualizerStrength

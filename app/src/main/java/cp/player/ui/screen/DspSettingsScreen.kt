@@ -50,6 +50,9 @@ fun DspSettingsScreen(
 
 @Composable
 fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    ExoAudioFxManager.initPrefs(context)
+
     var eqEnabled by remember { mutableStateOf(ExoAudioFxManager.getEqualizerEnabled()) }
     var virtualizerEnabled by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerEnabled()) }
     var virtualizerStrength by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerStrength().toFloat()) }
@@ -86,6 +89,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                     onCheckedChange = {
                         eqEnabled = it
                         ExoAudioFxManager.setEqualizerEnabled(it)
+                        DspPreferences.setExoEqEnabled(context, it)
                     }
                 )
             }
@@ -112,6 +116,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                             val newLevel = it.toInt().toShort()
                             bandLevels[band] = newLevel
                             ExoAudioFxManager.setBandLevel(band, newLevel)
+                            DspPreferences.setExoEqGains(context, ExoAudioFxManager.eqGains)
                         },
                         valueRange = range[0].toFloat()..range[1].toFloat()
                     )
@@ -135,6 +140,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                     onCheckedChange = {
                         virtualizerEnabled = it
                         ExoAudioFxManager.setVirtualizerEnabled(it)
+                        DspPreferences.setExoVirtualizerEnabled(context, it)
                     }
                 )
             }
@@ -149,6 +155,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                         onValueChange = {
                             virtualizerStrength = it
                             ExoAudioFxManager.setVirtualizerStrength(it.toInt().toShort())
+                            DspPreferences.setExoVirtualizerStrength(context, it.toInt().toShort())
                         },
                         valueRange = 0f..1000f
                     )
@@ -177,6 +184,8 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
     var fxWidth by remember { mutableStateOf(DspPreferences.getFxWidth(context)) }
 
     fun applyRustEq() {
+        DspPreferences.setEqEnabled(context, eqEnabled)
+        DspPreferences.setPeqBands(context, peqBands.toList())
         if (peqBands.isEmpty()) {
             RustEngine.setEqualizer(eqEnabled, floatArrayOf(), floatArrayOf(), floatArrayOf())
             return
