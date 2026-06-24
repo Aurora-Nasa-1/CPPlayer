@@ -64,7 +64,9 @@ object ExoAudioFxManager {
             Log.e(TAG, "Failed to init Virtualizer", e)
         }
 
-        activeSessions[audioSessionId] = SessionFx(eq, virt)
+        if (eq != null || virt != null) {
+            activeSessions[audioSessionId] = SessionFx(eq, virt)
+        }
     }
 
     fun release(audioSessionId: Int) {

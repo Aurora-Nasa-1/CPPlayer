@@ -28,7 +28,6 @@ import cp.player.util.PeqBand
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DspSettingsScreen(
     onNavigateBack: () -> Unit
@@ -36,15 +35,10 @@ fun DspSettingsScreen(
     val context = LocalContext.current
     val engineType = UserPreferences.getAudioEngine(context) // 0: ExoPlayer, 1: FlickPlayer
 
-    AppScaffold(
-        title = "DSP & Equalizer",
-        onBackPressed = onNavigateBack
-    ) { innerPadding ->
-        if (engineType == 0) {
-            ExoPlayerDspConfig(Modifier.padding(innerPadding))
-        } else {
-            FlickPlayerDspConfig(Modifier.padding(innerPadding))
-        }
+    if (engineType == 0) {
+        ExoPlayerDspConfig()
+    } else {
+        FlickPlayerDspConfig()
     }
 }
 
