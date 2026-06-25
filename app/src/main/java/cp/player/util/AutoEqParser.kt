@@ -15,8 +15,8 @@ data class PeqBand(
 object AutoEqParser {
     private const val TAG = "AutoEqParser"
 
-    // Parses a standard AutoEQ txt file.
-    // Handles GraphicEQ and ParametricEQ formats.
+    // 解析标准的 AutoEQ txt 文件。
+    // 支持 GraphicEQ 和 ParametricEQ 格式。
     fun parse(context: Context, uri: Uri): List<PeqBand>? {
         try {
             val bands = mutableListOf<PeqBand>()
@@ -52,12 +52,11 @@ object AutoEqParser {
                 try {
                     val freq = parts[0].toFloat()
                     val gain = parts[1].toFloat()
-                    // GraphicEQ essentially has fixed Q depending on band spacing,
-                    // but we'll default to 1.41 (sqrt(2)) which is a common 1-octave Q,
-                    // or maybe 1.0. Let's use 1.41.
+                    // GraphicEQ 的 Q 值实际上取决于频段间距，
+                    // 这里默认使用 1.41 (sqrt(2))，这是一个常见的1倍频程 Q 值。
                     bands.add(PeqBand(freq, gain, 1.41f))
                 } catch (e: Exception) {
-                    // ignore format errors for single bands
+                    // 忽略单个频段的格式错误
                 }
             }
         }
@@ -65,7 +64,7 @@ object AutoEqParser {
     }
 
     private fun parseParametricEqLine(line: String): PeqBand? {
-        // Example: Filter 1: ON PK Fc 32 Hz Gain 1.5 dB Q 0.8
+        // 示例：Filter 1: ON PK Fc 32 Hz Gain 1.5 dB Q 0.8
         try {
             val parts = line.split("\\s+".toRegex())
             val fcIndex = parts.indexOf("Fc")
@@ -82,7 +81,7 @@ object AutoEqParser {
                 return PeqBand(freq, gain, q)
             }
         } catch (e: Exception) {
-            // ignore malformed lines
+            // 忽略格式错误的行
         }
         return null
     }

@@ -83,6 +83,12 @@ class CrossfadeManager(
             old.pause()
             old.volume = 1.0f
             old.clearMediaItems()
+            if (old is ExoPlayer) {
+                val currentSessionId = old.audioSessionId
+                if (currentSessionId != 0 && currentSessionId != activePlayer?.audioSessionId) {
+                    ExoAudioFxManager.release(currentSessionId)
+                }
+            }
         }
         activePlayer?.volume = 1.0f
         isCrossfading = false
@@ -184,6 +190,12 @@ class CrossfadeManager(
             oldPlayer.pause()
             oldPlayer.volume = 1.0f
             oldPlayer.clearMediaItems()
+            if (oldPlayer is ExoPlayer) {
+                val currentSessionId = oldPlayer.audioSessionId
+                if (currentSessionId != 0 && currentSessionId != newPlayer.audioSessionId) {
+                    ExoAudioFxManager.release(currentSessionId)
+                }
+            }
 
             releaseAudioFx()
             isCrossfading = false

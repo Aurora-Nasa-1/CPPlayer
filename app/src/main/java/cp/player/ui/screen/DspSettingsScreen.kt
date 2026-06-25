@@ -28,7 +28,6 @@ import cp.player.util.PeqBand
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DspSettingsScreen(
     onNavigateBack: () -> Unit
@@ -36,20 +35,18 @@ fun DspSettingsScreen(
     val context = LocalContext.current
     val engineType = UserPreferences.getAudioEngine(context) // 0: ExoPlayer, 1: FlickPlayer
 
-    AppScaffold(
-        title = "DSP & Equalizer",
-        onBackPressed = onNavigateBack
-    ) { innerPadding ->
-        if (engineType == 0) {
-            ExoPlayerDspConfig(Modifier.padding(innerPadding))
-        } else {
-            FlickPlayerDspConfig(Modifier.padding(innerPadding))
-        }
+    if (engineType == 0) {
+        ExoPlayerDspConfig()
+    } else {
+        FlickPlayerDspConfig()
     }
 }
 
 @Composable
 fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    ExoAudioFxManager.initPrefs(context)
+
     var eqEnabled by remember { mutableStateOf(ExoAudioFxManager.getEqualizerEnabled()) }
     var virtualizerEnabled by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerEnabled()) }
     var virtualizerStrength by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerStrength().toFloat()) }
@@ -86,6 +83,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                     onCheckedChange = {
                         eqEnabled = it
                         ExoAudioFxManager.setEqualizerEnabled(it)
+                        DspPreferences.setExoEqEnabled(context, it)
                     }
                 )
             }
@@ -112,6 +110,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                             val newLevel = it.toInt().toShort()
                             bandLevels[band] = newLevel
                             ExoAudioFxManager.setBandLevel(band, newLevel)
+                            DspPreferences.setExoEqGains(context, ExoAudioFxManager.eqGains)
                         },
                         valueRange = range[0].toFloat()..range[1].toFloat()
                     )
@@ -135,6 +134,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                     onCheckedChange = {
                         virtualizerEnabled = it
                         ExoAudioFxManager.setVirtualizerEnabled(it)
+                        DspPreferences.setExoVirtualizerEnabled(context, it)
                     }
                 )
             }
@@ -149,6 +149,7 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                         onValueChange = {
                             virtualizerStrength = it
                             ExoAudioFxManager.setVirtualizerStrength(it.toInt().toShort())
+                            DspPreferences.setExoVirtualizerStrength(context, it.toInt().toShort())
                         },
                         valueRange = 0f..1000f
                     )
@@ -177,6 +178,8 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
     var fxWidth by remember { mutableStateOf(DspPreferences.getFxWidth(context)) }
 
     fun applyRustEq() {
+        DspPreferences.setEqEnabled(context, eqEnabled)
+        DspPreferences.setPeqBands(context, peqBands.toList())
         if (peqBands.isEmpty()) {
             RustEngine.setEqualizer(eqEnabled, floatArrayOf(), floatArrayOf(), floatArrayOf())
             return

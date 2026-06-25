@@ -108,7 +108,7 @@ fun SettingsScreen(
 
     var currentScreen by rememberSaveable { mutableStateOf("main") }
     // 子页面的父页面映射（debug 的子页面返回到 debug，其他返回到 main）
-    val parentScreen = mapOf("health" to "debug", "logViewer" to "debug", "providerTest" to "debug", "about" to "main")
+    val parentScreen = mapOf("health" to "debug", "logViewer" to "debug", "providerTest" to "debug", "about" to "main", "dsp" to "audio")
 
     val dirPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -163,7 +163,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .then(if (screen != "dsp") Modifier.verticalScroll(rememberScrollState()) else Modifier)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -843,6 +843,12 @@ fun SettingsScreen(
                     "logViewer" -> {
                         // 日志查看器 - 内嵌在设置中
                         cp.player.ui.screen.LogViewerInline()
+                    }
+                    "dsp" -> {
+                        // DSP & Equalizer
+                        cp.player.ui.screen.DspSettingsScreen(
+                            onNavigateBack = { currentScreen = parentScreen["dsp"] ?: "main" }
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
