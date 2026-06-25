@@ -20,6 +20,9 @@ object DspPreferences {
     private const val KEY_EXO_VIRTUALIZER_STRENGTH = "exo_virtualizer_strength"
     private const val KEY_EXO_EQ_GAINS = "exo_eq_gains"
 
+    private const val KEY_PREAMP_ENABLED = "preamp_enabled"
+    private const val KEY_PREAMP_GAIN = "preamp_gain"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -76,5 +79,28 @@ object DspPreferences {
     fun setExoEqGains(context: Context, gains: Map<Short, Short>) {
         val json = gson.toJson(gains)
         getPrefs(context).edit().putString(KEY_EXO_EQ_GAINS, json).apply()
+    }
+
+    fun getPreamplifierEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_PREAMP_ENABLED, false)
+    fun setPreamplifierEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_PREAMP_ENABLED, enabled).apply()
+
+    fun getPreamplifierGain(context: Context): Float = getPrefs(context).getFloat(KEY_PREAMP_GAIN, 0f)
+    fun setPreamplifierGain(context: Context, gain: Float) = getPrefs(context).edit().putFloat(KEY_PREAMP_GAIN, gain).apply()
+
+    fun resetAllDspSettings(context: Context) {
+        val editor = getPrefs(context).edit()
+        editor.remove(KEY_EQ_ENABLED)
+        editor.remove(KEY_PEQ_BANDS)
+        editor.remove(KEY_FX_ENABLED)
+        editor.remove(KEY_FX_SIZE)
+        editor.remove(KEY_FX_MIX)
+        editor.remove(KEY_FX_WIDTH)
+        editor.remove(KEY_EXO_EQ_ENABLED)
+        editor.remove(KEY_EXO_VIRTUALIZER_ENABLED)
+        editor.remove(KEY_EXO_VIRTUALIZER_STRENGTH)
+        editor.remove(KEY_EXO_EQ_GAINS)
+        editor.remove(KEY_PREAMP_ENABLED)
+        editor.remove(KEY_PREAMP_GAIN)
+        editor.apply()
     }
 }
