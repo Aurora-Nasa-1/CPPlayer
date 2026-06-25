@@ -381,37 +381,38 @@ fun UserAccountDialog(
 
     // ======================== 提供商切换对话框 ========================
     if (showProviderPicker) {
-        AlertDialog(
-            onDismissRequest = { showProviderPicker = false },
-            title = { Text(stringResource(R.string.switch_provider_label)) },
-            text = {
-                Column {
-                    loginViewModel.availableProviders.forEach { provider ->
-                        val isCurrent = provider.id == loginViewModel.currentProviderId
-                        cp.player.ui.component.UnifiedListItem(
-                            onClick = {
-                                loginViewModel.switchProvider(provider)
-                                showProviderPicker = false
-                            },
-                            headlineContent = { Text(provider.name) },
-                            supportingContent = { Text("v${provider.version} · ${provider.type.name}") },
-                            trailingContent = {
-                                if (isCurrent) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            },
-                            colors = ListItemDefaults.colors(
-                                containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                else MaterialTheme.colorScheme.surfaceContainerLow
-                            )
+        StyledModalBottomSheet(onDismissRequest = { showProviderPicker = false }) {
+            Text(
+                stringResource(R.string.switch_provider_label),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                loginViewModel.availableProviders.forEach { provider ->
+                    val isCurrent = provider.id == loginViewModel.currentProviderId
+                    cp.player.ui.component.UnifiedListItem(
+                        onClick = {
+                            loginViewModel.switchProvider(provider)
+                            showProviderPicker = false
+                        },
+                        headlineContent = { Text(provider.name) },
+                        supportingContent = { Text("v${provider.version} · ${provider.type.name}") },
+                        trailingContent = {
+                            if (isCurrent) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            else MaterialTheme.colorScheme.surfaceContainerLow
                         )
-                    }
+                    )
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showProviderPicker = false }) { Text(stringResource(R.string.cancel)) }
             }
-        )
+            Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
+        }
     }
 }
 

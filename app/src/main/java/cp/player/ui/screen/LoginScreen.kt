@@ -32,6 +32,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import cp.player.R
+import cp.player.ui.component.StyledModalBottomSheet
 import cp.player.viewmodel.LoginViewModel
 
 /**
@@ -404,35 +405,39 @@ private fun ProviderSelector(
     }
 
     if (showPicker && availableProviders.size > 1) {
-        AlertDialog(
-            onDismissRequest = { onShowPickerChange(false) },
-            title = { Text(stringResource(R.string.switch_provider_label)) },
-            text = {
-                Column {
-                    availableProviders.forEach { provider ->
-                        val isCurrent = provider.name == currentProviderName
-                        cp.player.ui.component.UnifiedListItem(
-                            onClick = { onProviderSelected(provider) },
-                            headlineContent = { Text(provider.name) },
-                            supportingContent = { Text("v${provider.version} · ${provider.type.name}") },
-                            trailingContent = {
-                                if (isCurrent) {
-                                    Icon(Icons.Default.Check, contentDescription = "Current", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            },
-                            colors = ListItemDefaults.colors(
-                                containerColor = if (isCurrent)
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                else MaterialTheme.colorScheme.surfaceContainerLow
-                            )
+        StyledModalBottomSheet(onDismissRequest = { onShowPickerChange(false) }) {
+            Text(
+                stringResource(R.string.switch_provider_label),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                availableProviders.forEach { provider ->
+                    val isCurrent = provider.name == currentProviderName
+                    cp.player.ui.component.UnifiedListItem(
+                        onClick = {
+                            onProviderSelected(provider)
+                            onShowPickerChange(false)
+                        },
+                        headlineContent = { Text(provider.name) },
+                        supportingContent = { Text("v${provider.version} · ${provider.type.name}") },
+                        trailingContent = {
+                            if (isCurrent) {
+                                Icon(Icons.Default.Check, contentDescription = "Current", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (isCurrent)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            else MaterialTheme.colorScheme.surfaceContainerLow
                         )
-                    }
+                    )
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { onShowPickerChange(false) }) { Text(stringResource(R.string.cancel)) }
             }
-        )
+            Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
+        }
     }
 }
 

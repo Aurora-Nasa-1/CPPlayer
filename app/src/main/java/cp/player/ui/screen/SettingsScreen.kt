@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import cp.player.R
 import androidx.compose.material3.ListItemDefaults
 import cp.player.ui.component.AppScaffold
+import cp.player.ui.component.StyledModalBottomSheet
 import cp.player.util.LogManager
 import cp.player.viewmodel.LoginViewModel
 import kotlinx.coroutines.launch
@@ -975,41 +976,42 @@ fun ExpressiveDropdownItem(
     )
 
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(title) },
-            text = {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    options.forEachIndexed { index, option ->
-                        val isSelected = index == selectedIndex
-                        Surface(
-                            onClick = {
-                                onSelect(index)
-                                showDialog = false
-                            },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            modifier = Modifier.fillMaxWidth()
+        StyledModalBottomSheet(onDismissRequest = { showDialog = false }) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                options.forEachIndexed { index, option ->
+                    val isSelected = index == selectedIndex
+                    Surface(
+                        onClick = {
+                            onSelect(index)
+                            showDialog = false
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                RadioButton(selected = isSelected, onClick = null)
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    option, 
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
+                            RadioButton(selected = isSelected, onClick = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                option,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
-        )
+            Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
+        }
     }
 }
 

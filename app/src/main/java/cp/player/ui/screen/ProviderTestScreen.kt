@@ -2,12 +2,18 @@ package cp.player.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
@@ -26,6 +32,7 @@ import cp.player.api.MusicApiMethod
 import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
 import cp.player.ui.component.AppScaffold
+import cp.player.ui.component.StyledModalBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -120,7 +127,7 @@ private fun ApiTestTab() {
     }
 
     var selectedMethod by remember { mutableStateOf(allMethods[0]) }
-    var expanded by remember { mutableStateOf(false) }
+    var showMethodSheet by remember { mutableStateOf(false) }
     var paramsText by remember { mutableStateOf("{\n  \"id\": \"\"\n}") }
     var responseText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -135,48 +142,25 @@ private fun ApiTestTab() {
     ) {
         // 方法选择
         Text("选择 API 方法", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = selectedMethod,
                 onValueChange = {},
                 readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                shape = RoundedCornerShape(12.dp)
-            )
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                allMethods.forEach { method ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(method, style = MaterialTheme.typography.bodyMedium)
-                                // 显示映射后的名称
-                                val provider = ProviderManager.currentProvider
-                                val mapped = provider?.apiMap?.get(method)
-                                if (mapped != null) {
-                                    Text(
-                                        "→ $mapped",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (mapped.equals("unsupported", ignoreCase = true))
-                                            MaterialTheme.colorScheme.error
-                                        else
-                                            MaterialTheme.colorScheme.primary
-                                    )
-                                } else if (provider?.apiMap != null) {
-                                    Text("(未映射，直通)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                interactionSource = remember { MutableInteractionSource() }
+                    .also { interactionSource ->
+                        LaunchedEffect(interactionSource) {
+                            interactionSource.interactions.collect { interaction ->
+                                if (interaction is PressInteraction.Release) {
+                                    showMethodSheet = true
                                 }
                             }
-                        },
-                        onClick = {
-                            selectedMethod = method
-                            expanded = false
                         }
-                    )
-                }
-            }
+                    }
+            )
         }
 
         // 参数编辑
@@ -248,6 +232,59 @@ private fun ApiTestTab() {
                     )
                 }
             }
+        }
+    }
+
+    if (showMethodSheet) {
+        StyledModalBottomSheet(onDismissRequest = { showMethodSheet = false }) {
+            Text(
+                "选择 API 方法",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
+                items(allMethods) { method ->
+                    val isSelected = method == selectedMethod
+                    Surface(
+                        onClick = {
+                            selectedMethod = method
+                            showMethodSheet = false
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(method, style = MaterialTheme.typography.bodyMedium)
+                                val provider = ProviderManager.currentProvider
+                                val mapped = provider?.apiMap?.get(method)
+                                if (mapped != null) {
+                                    Text(
+                                        "→ $mapped",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (mapped.equals("unsupported", ignoreCase = true))
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.primary
+                                    )
+                                } else if (provider?.apiMap != null) {
+                                    Text("(未映射，直通)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp).navigationBarsPadding())
         }
     }
 }
