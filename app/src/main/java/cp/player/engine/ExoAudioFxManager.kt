@@ -22,6 +22,8 @@ object ExoAudioFxManager {
     private var internalVirtualizerEnabled = false
     val eqGains = mutableMapOf<Short, Short>() // band -> millibels
     private var internalVirtualizerStrength: Short = 0
+    var preampEnabled = false
+    var preampGain = 0f // in dB
     private var isInitializedFromPrefs = false
 
     fun initPrefs(context: Context) {
@@ -31,6 +33,9 @@ object ExoAudioFxManager {
         internalVirtualizerStrength = DspPreferences.getExoVirtualizerStrength(context)
         eqGains.clear()
         eqGains.putAll(DspPreferences.getExoEqGains(context))
+        // Load preamplifier settings
+        preampEnabled = DspPreferences.getPreamplifierEnabled(context)
+        preampGain = DspPreferences.getPreamplifierGain(context)
         isInitializedFromPrefs = true
     }
 
@@ -135,4 +140,18 @@ object ExoAudioFxManager {
     }
 
     fun getVirtualizerStrength(): Short = internalVirtualizerStrength
+
+    fun setPreamplifierEnabled(enabled: Boolean) {
+        preampEnabled = enabled
+        // Preamplifier is applied through volume control or EQ gains
+    }
+
+    fun setPreamplifierGain(gain: Float) {
+        preampGain = gain
+        // Preamplifier is applied through volume control or EQ gains
+    }
+
+    fun getPreamplifierEnabled(): Boolean = preampEnabled
+
+    fun getPreamplifierGain(): Float = preampGain
 }
