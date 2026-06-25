@@ -50,6 +50,8 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
     var eqEnabled by remember { mutableStateOf(ExoAudioFxManager.getEqualizerEnabled()) }
     var virtualizerEnabled by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerEnabled()) }
     var virtualizerStrength by remember { mutableStateOf(ExoAudioFxManager.getVirtualizerStrength().toFloat()) }
+    var preampEnabled by remember { mutableStateOf(DspPreferences.getPreamplifierEnabled(context)) }
+    var preampGain by remember { mutableStateOf(DspPreferences.getPreamplifierGain(context)) }
 
     val numBands = ExoAudioFxManager.getNumberOfBands()
     val bandLevels = remember { mutableStateMapOf<Short, Short>() }
@@ -86,6 +88,42 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                         DspPreferences.setExoEqEnabled(context, it)
                     }
                 )
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Preamplifier Enabled")
+                Switch(
+                    checked = preampEnabled,
+                    onCheckedChange = {
+                        preampEnabled = it
+                        ExoAudioFxManager.setPreamplifierEnabled(it)
+                        DspPreferences.setPreamplifierEnabled(context, it)
+                    }
+                )
+            }
+        }
+
+        if (preampEnabled) {
+            item {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Text("Preamplifier Gain: ${String.format("%.1f", preampGain)} dB")
+                    Slider(
+                        value = preampGain,
+                        onValueChange = {
+                            preampGain = it
+                            ExoAudioFxManager.setPreamplifierGain(it)
+                            DspPreferences.setPreamplifierGain(context, it)
+                        },
+                        valueRange = -24f..24f
+                    )
+                }
             }
         }
 
@@ -156,6 +194,36 @@ fun ExoPlayerDspConfig(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    DspPreferences.resetAllDspSettings(context)
+                    eqEnabled = false
+                    virtualizerEnabled = false
+                    virtualizerStrength = 0f
+                    preampEnabled = false
+                    preampGain = 0f
+                    bandLevels.clear()
+                    for (i in 0 until numBands) {
+                        val band = i.toShort()
+                        bandLevels[band] = 0
+                    }
+                    ExoAudioFxManager.setEqualizerEnabled(false)
+                    ExoAudioFxManager.setVirtualizerEnabled(false)
+                    ExoAudioFxManager.setVirtualizerStrength(0)
+                    ExoAudioFxManager.setPreamplifierEnabled(false)
+                    ExoAudioFxManager.setPreamplifierGain(0f)
+                    for (i in 0 until numBands) {
+                        ExoAudioFxManager.setBandLevel(i.toShort(), 0)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Reset All Settings")
+            }
+        }
     }
 }
 
@@ -176,6 +244,8 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
     var fxMix by remember { mutableStateOf(DspPreferences.getFxMix(context)) }
     var fxFeedback by remember { mutableStateOf(0.35f) }
     var fxWidth by remember { mutableStateOf(DspPreferences.getFxWidth(context)) }
+    var preampEnabled by remember { mutableStateOf(DspPreferences.getPreamplifierEnabled(context)) }
+    var preampGain by remember { mutableStateOf(DspPreferences.getPreamplifierGain(context)) }
 
     fun applyRustEq() {
         DspPreferences.setEqEnabled(context, eqEnabled)
@@ -185,7 +255,9 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
             return
         }
         val freqs = peqBands.map { it.freq }.toFloatArray()
-        val gains = peqBands.map { it.gain }.toFloatArray()
+        val gains = peqBands.map { band ->
+            if (preampEnabled) band.gain + preampGain else band.gain
+        }.toFloatArray()
         val qs = peqBands.map { it.q }.toFloatArray()
         RustEngine.setEqualizer(eqEnabled, freqs, gains, qs)
     }
@@ -235,6 +307,42 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
                         applyRustEq()
                     }
                 )
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Preamplifier Enabled")
+                Switch(
+                    checked = preampEnabled,
+                    onCheckedChange = {
+                        preampEnabled = it
+                        DspPreferences.setPreamplifierEnabled(context, it)
+                        applyRustEq()
+                    }
+                )
+            }
+        }
+
+        if (preampEnabled) {
+            item {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Text("Preamplifier Gain: ${String.format("%.1f", preampGain)} dB")
+                    Slider(
+                        value = preampGain,
+                        onValueChange = {
+                            preampGain = it
+                            DspPreferences.setPreamplifierGain(context, it)
+                            applyRustEq()
+                        },
+                        valueRange = -24f..24f
+                    )
+                }
             }
         }
 
@@ -362,6 +470,34 @@ fun FlickPlayerDspConfig(modifier: Modifier = Modifier) {
                         valueRange = 0f..2f
                     )
                 }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    DspPreferences.resetAllDspSettings(context)
+                    eqEnabled = false
+                    fxEnabled = false
+                    fxBalance = 0f
+                    fxTempo = 1f
+                    fxDamp = 0.35f
+                    fxFilterHz = 6800f
+                    fxDelayMs = 240f
+                    fxSize = 0.55f
+                    fxMix = 0.25f
+                    fxFeedback = 0.35f
+                    fxWidth = 1f
+                    preampEnabled = false
+                    preampGain = 0f
+                    peqBands.clear()
+                    applyRustEq()
+                    applyRustFx()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Reset All Settings")
             }
         }
     }
