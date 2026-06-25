@@ -2,6 +2,8 @@ package cp.player.engine
 
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
+import android.media.audiofx.BassBoost
+import android.media.audiofx.LoudnessEnhancer
 import android.util.Log
 
 import android.content.Context
@@ -12,16 +14,23 @@ object ExoAudioFxManager {
 
     private data class SessionFx(
         val equalizer: Equalizer?,
-        val virtualizer: Virtualizer?
+        val virtualizer: Virtualizer?,
+        val bassBoost: BassBoost?,
+        val loudnessEnhancer: LoudnessEnhancer?
     )
 
     private val activeSessions = mutableMapOf<Int, SessionFx>()
 
     // For preserving settings between sessions
     var eqEnabled = false
+    var currentPreset: Short = -1
     private var internalVirtualizerEnabled = false
     val eqGains = mutableMapOf<Short, Short>() // band -> millibels
     private var internalVirtualizerStrength: Short = 0
+    private var internalBassBoostEnabled = false
+    private var internalBassBoostStrength: Short = 0
+    private var internalLoudnessEnabled = false
+    private var internalLoudnessGain: Int = 0
     var preampEnabled = false
     var preampGain = 0f // in dB
     private var isInitializedFromPrefs = false
@@ -29,8 +38,13 @@ object ExoAudioFxManager {
     fun initPrefs(context: Context) {
         if (isInitializedFromPrefs) return
         eqEnabled = DspPreferences.getExoEqEnabled(context)
+        currentPreset = DspPreferences.getExoPreset(context)
         internalVirtualizerEnabled = DspPreferences.getExoVirtualizerEnabled(context)
         internalVirtualizerStrength = DspPreferences.getExoVirtualizerStrength(context)
+        internalBassBoostEnabled = DspPreferences.getExoBassBoostEnabled(context)
+        internalBassBoostStrength = DspPreferences.getExoBassBoostStrength(context)
+        internalLoudnessEnabled = DspPreferences.getExoLoudnessEnabled(context)
+        internalLoudnessGain = DspPreferences.getExoLoudnessGain(context)
         eqGains.clear()
         eqGains.putAll(DspPreferences.getExoEqGains(context))
         // Load preamplifier settings
@@ -47,9 +61,13 @@ object ExoAudioFxManager {
         try {
             eq = Equalizer(0, audioSessionId).apply {
                 enabled = eqEnabled
-                for ((band, gain) in eqGains) {
-                    if (band < numberOfBands) {
-                        setBandLevel(band, gain)
+                if (currentPreset >= 0 && currentPreset < numberOfPresets) {
+                    usePreset(currentPreset)
+                } else {
+                    for ((band, gain) in eqGains) {
+                        if (band < numberOfBands) {
+                            setBandLevel(band, gain)
+                        }
                     }
                 }
             }
@@ -69,8 +87,32 @@ object ExoAudioFxManager {
             Log.e(TAG, "Failed to init Virtualizer", e)
         }
 
-        if (eq != null || virt != null) {
-            activeSessions[audioSessionId] = SessionFx(eq, virt)
+        var bassBoost: BassBoost? = null
+        try {
+            bassBoost = BassBoost(0, audioSessionId).apply {
+                enabled = internalBassBoostEnabled
+                if (internalBassBoostStrength > 0 && strengthSupported) {
+                    setStrength(internalBassBoostStrength)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init BassBoost", e)
+        }
+
+        var loudness: LoudnessEnhancer? = null
+        try {
+            loudness = LoudnessEnhancer(audioSessionId).apply {
+                enabled = internalLoudnessEnabled
+                if (internalLoudnessGain != 0) {
+                    setTargetGain(internalLoudnessGain)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init LoudnessEnhancer", e)
+        }
+
+        if (eq != null || virt != null || bassBoost != null || loudness != null) {
+            activeSessions[audioSessionId] = SessionFx(eq, virt, bassBoost, loudness)
         }
     }
 
@@ -78,6 +120,8 @@ object ExoAudioFxManager {
         activeSessions.remove(audioSessionId)?.let { fx ->
             fx.equalizer?.release()
             fx.virtualizer?.release()
+            fx.bassBoost?.release()
+            fx.loudnessEnhancer?.release()
         }
     }
 
@@ -85,6 +129,8 @@ object ExoAudioFxManager {
         activeSessions.values.forEach { fx ->
             fx.equalizer?.release()
             fx.virtualizer?.release()
+            fx.bassBoost?.release()
+            fx.loudnessEnhancer?.release()
         }
         activeSessions.clear()
     }
@@ -111,6 +157,7 @@ object ExoAudioFxManager {
     }
 
     fun setBandLevel(band: Short, level: Short) {
+        currentPreset = -1 // User customized
         eqGains[band] = level
         activeSessions.values.forEach { fx ->
             if (fx.equalizer != null && band < fx.equalizer.numberOfBands) {
@@ -130,6 +177,27 @@ object ExoAudioFxManager {
         }
     }
 
+    fun getNumberOfPresets(): Short {
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfPresets ?: 0
+    }
+
+    fun getPresetName(preset: Short): String {
+        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getPresetName(preset) ?: ""
+    }
+
+    fun usePreset(preset: Short) {
+        currentPreset = preset
+        activeSessions.values.forEach { fx ->
+            fx.equalizer?.usePreset(preset)
+            // Need to sync eqGains
+            if (fx.equalizer != null) {
+                for (band in 0 until fx.equalizer.numberOfBands) {
+                    eqGains[band.toShort()] = fx.equalizer.getBandLevel(band.toShort())
+                }
+            }
+        }
+    }
+
     fun getVirtualizerEnabled(): Boolean = internalVirtualizerEnabled
 
     fun setVirtualizerStrength(strength: Short) {
@@ -140,6 +208,44 @@ object ExoAudioFxManager {
     }
 
     fun getVirtualizerStrength(): Short = internalVirtualizerStrength
+
+    fun setBassBoostEnabled(enabled: Boolean) {
+        internalBassBoostEnabled = enabled
+        activeSessions.values.forEach { fx ->
+            fx.bassBoost?.enabled = enabled
+        }
+    }
+
+    fun getBassBoostEnabled(): Boolean = internalBassBoostEnabled
+
+    fun setBassBoostStrength(strength: Short) {
+        internalBassBoostStrength = strength
+        activeSessions.values.forEach { fx ->
+            if (fx.bassBoost?.strengthSupported == true) {
+                fx.bassBoost.setStrength(strength)
+            }
+        }
+    }
+
+    fun getBassBoostStrength(): Short = internalBassBoostStrength
+
+    fun setLoudnessEnabled(enabled: Boolean) {
+        internalLoudnessEnabled = enabled
+        activeSessions.values.forEach { fx ->
+            fx.loudnessEnhancer?.enabled = enabled
+        }
+    }
+
+    fun getLoudnessEnabled(): Boolean = internalLoudnessEnabled
+
+    fun setLoudnessGain(gain: Int) {
+        internalLoudnessGain = gain
+        activeSessions.values.forEach { fx ->
+            fx.loudnessEnhancer?.setTargetGain(gain)
+        }
+    }
+
+    fun getLoudnessGain(): Int = internalLoudnessGain
 
     fun setPreamplifierEnabled(enabled: Boolean) {
         preampEnabled = enabled

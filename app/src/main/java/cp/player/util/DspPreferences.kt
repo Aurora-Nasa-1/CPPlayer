@@ -18,6 +18,11 @@ object DspPreferences {
     private const val KEY_EXO_EQ_ENABLED = "exo_eq_enabled"
     private const val KEY_EXO_VIRTUALIZER_ENABLED = "exo_virtualizer_enabled"
     private const val KEY_EXO_VIRTUALIZER_STRENGTH = "exo_virtualizer_strength"
+    private const val KEY_EXO_BASS_BOOST_ENABLED = "exo_bass_boost_enabled"
+    private const val KEY_EXO_BASS_BOOST_STRENGTH = "exo_bass_boost_strength"
+    private const val KEY_EXO_LOUDNESS_ENABLED = "exo_loudness_enabled"
+    private const val KEY_EXO_LOUDNESS_GAIN = "exo_loudness_gain"
+    private const val KEY_EXO_PRESET = "exo_preset"
     private const val KEY_EXO_EQ_GAINS = "exo_eq_gains"
 
     private const val KEY_PREAMP_ENABLED = "preamp_enabled"
@@ -66,6 +71,21 @@ object DspPreferences {
     fun getExoVirtualizerStrength(context: Context): Short = getPrefs(context).getInt(KEY_EXO_VIRTUALIZER_STRENGTH, 0).toShort()
     fun setExoVirtualizerStrength(context: Context, strength: Short) = getPrefs(context).edit().putInt(KEY_EXO_VIRTUALIZER_STRENGTH, strength.toInt()).apply()
 
+    fun getExoBassBoostEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_EXO_BASS_BOOST_ENABLED, false)
+    fun setExoBassBoostEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_EXO_BASS_BOOST_ENABLED, enabled).apply()
+
+    fun getExoBassBoostStrength(context: Context): Short = getPrefs(context).getInt(KEY_EXO_BASS_BOOST_STRENGTH, 0).toShort()
+    fun setExoBassBoostStrength(context: Context, strength: Short) = getPrefs(context).edit().putInt(KEY_EXO_BASS_BOOST_STRENGTH, strength.toInt()).apply()
+
+    fun getExoLoudnessEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_EXO_LOUDNESS_ENABLED, false)
+    fun setExoLoudnessEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_EXO_LOUDNESS_ENABLED, enabled).apply()
+
+    fun getExoLoudnessGain(context: Context): Int = getPrefs(context).getInt(KEY_EXO_LOUDNESS_GAIN, 0)
+    fun setExoLoudnessGain(context: Context, gain: Int) = getPrefs(context).edit().putInt(KEY_EXO_LOUDNESS_GAIN, gain).apply()
+
+    fun getExoPreset(context: Context): Short = getPrefs(context).getInt(KEY_EXO_PRESET, -1).toShort()
+    fun setExoPreset(context: Context, preset: Short) = getPrefs(context).edit().putInt(KEY_EXO_PRESET, preset.toInt()).apply()
+
     fun getExoEqGains(context: Context): Map<Short, Short> {
         val json = getPrefs(context).getString(KEY_EXO_EQ_GAINS, null) ?: return emptyMap()
         val type = object : TypeToken<Map<Short, Short>>() {}.type
@@ -98,6 +118,11 @@ object DspPreferences {
         editor.remove(KEY_EXO_EQ_ENABLED)
         editor.remove(KEY_EXO_VIRTUALIZER_ENABLED)
         editor.remove(KEY_EXO_VIRTUALIZER_STRENGTH)
+        editor.remove(KEY_EXO_BASS_BOOST_ENABLED)
+        editor.remove(KEY_EXO_BASS_BOOST_STRENGTH)
+        editor.remove(KEY_EXO_LOUDNESS_ENABLED)
+        editor.remove(KEY_EXO_LOUDNESS_GAIN)
+        editor.remove(KEY_EXO_PRESET)
         editor.remove(KEY_EXO_EQ_GAINS)
         editor.remove(KEY_PREAMP_ENABLED)
         editor.remove(KEY_PREAMP_GAIN)
