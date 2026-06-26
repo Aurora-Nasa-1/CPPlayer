@@ -174,8 +174,16 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         when (state.lowercase()) {
             "playing" -> {
                 // 暂停请求进行中时，忽略引擎的 "playing" 状态事件，
-                // 防止旧事件覆盖用户的暂停意图
-                if (pauseRequested) return
+                // 防止旧事件覆盖用户的暂停意图。但如果此时 playWhenReady 也是 true，
+                // 说明用户可能在短暂暂停后又立刻点击了播放，或者是底层的其他播放恢复动作。
+                // 这时我们需要清除 pauseRequested 并接受 playing 状态。
+                if (pauseRequested) {
+                    if (playWhenReady) {
+                        pauseRequested = false
+                    } else {
+                        return
+                    }
+                }
                 isPlaying = true
                 playbackState = Player.STATE_READY
                 positionUpdateTimeMs.set(System.currentTimeMillis())
@@ -297,10 +305,28 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     private fun startUnderrunWatch() {
         underrunWatchJob?.cancel()
         underrunWatchJob = scope.launch {
+            var targetReached = false
             while (isActive && isDownloading && !downloadComplete) {
                 delay(UNDERRUN_POLL_MS)
+
+                // 提前恢复播放：计算 underrunPositionMs 对应的字节数
+                // 加上预留的安全缓冲量（例如 5 秒的数据），如果当前下载量大于这个值，则可以提前恢复播放。
+                val bufferTargetMs = underrunPositionMs + (TARGET_PRE_BUFFER_SECS * 1000L / 3) // 等待约5秒数据
+                val targetBytes = if (lastBitrate > 0) {
+                    (lastBitrate.toLong() * bufferTargetMs) / 8000
+                } else {
+                    MIN_PRE_BUFFER_BYTES // 如果没有 bitrate 兜底
+                }
+
+                if (bytesDownloaded > targetBytes) {
+                    Log.i(TAG, "Underrun recovered at ${underrunPositionMs}ms, bytesDownloaded: $bytesDownloaded > targetBytes: $targetBytes")
+                    targetReached = true
+                    break
+                }
             }
-            if (downloadComplete && playbackState == Player.STATE_BUFFERING && playWhenReady) {
+
+            // 如果下载已完成或由于数据量已达标而跳出循环，且不是因为被取消或出错
+            if (isActive && (downloadComplete || targetReached) && playbackState == Player.STATE_BUFFERING && playWhenReady) {
                 val path = currentPlayingPath ?: return@launch
                 // JNI 调用移到引擎线程
                 withContext(RustEngine.engineDispatcher) {
@@ -542,6 +568,11 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         positionMs: Long,
         seekCommand: Int
     ): ListenableFuture<*> {
+        // 如果用户执行了 Seek，并且 playWhenReady 是 true，我们认为用户希望继续播放
+        // 这时清除 pauseRequested，防止之前可能残留的 pause 状态影响后续的 "playing" 事件
+        if (playWhenReady) {
+            pauseRequested = false
+        }
         val targetPosition = if (positionMs == C.TIME_UNSET) 0L else positionMs
         if (mediaItemIndex != currentMediaItemIndex && mediaItemIndex in playlist.indices) {
             currentMediaItemIndex = mediaItemIndex
