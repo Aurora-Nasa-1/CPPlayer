@@ -154,15 +154,12 @@ fun AboutScreenInline() {
             shapes = ListItemDefaults.segmentedShapes(0, 2)
         )
 
-        // QQ 群（占位）
+        // QQ 群
         ExpressiveClickItem(
             title = stringResource(R.string.qq_group),
             subtitle = stringResource(R.string.qq_group_placeholder),
             icon = { MonetIcon(Icons.Default.Group, Color(0xFFE3F2FD), Color(0xFF1565C0)) },
-            onClick = {
-                // TODO: 用户输入 QQ 群链接后替换
-                Toast.makeText(context, context.getString(R.string.qq_group_link_pending), Toast.LENGTH_SHORT).show()
-            },
+            onClick = { openUrl(context, "https://qm.qq.com/q/lqmb3YoIgg") },
             shapes = ListItemDefaults.segmentedShapes(1, 2)
         )
     }
