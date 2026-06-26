@@ -27,7 +27,7 @@ fun AddToPlaylistBottomSheet(
     StyledModalBottomSheet(
         onDismissRequest = onDismissRequest
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,

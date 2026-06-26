@@ -36,6 +36,7 @@ fun SleepTimerBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(bottom = 32.dp)
         ) {
             Text(

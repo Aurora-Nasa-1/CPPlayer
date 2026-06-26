@@ -84,7 +84,6 @@ fun BindCloudSongSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
         ) {
             // 标题
             Text(

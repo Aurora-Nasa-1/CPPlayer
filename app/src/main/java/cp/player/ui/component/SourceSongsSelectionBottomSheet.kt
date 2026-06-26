@@ -48,7 +48,7 @@ fun SourceSongsSelectionBottomSheet(
     StyledModalBottomSheet(
         onDismissRequest = onDismissRequest
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,

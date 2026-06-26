@@ -135,7 +135,8 @@ fun SongOptionsBottomSheet(
     val infoBtnOnColor = MaterialTheme.colorScheme.onSecondaryContainer
 
     StyledModalBottomSheet(
-        onDismissRequest = onDismissRequest
+        onDismissRequest = onDismissRequest,
+        bottomPadding = 0.dp
     ) {
         Column(
             modifier = Modifier
