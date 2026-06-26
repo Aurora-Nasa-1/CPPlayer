@@ -21,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import cp.player.util.DspPreferences
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -92,14 +93,46 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     /** 时长缓存，避免重复创建 MediaMetadataRetriever */
     private val durationCache = ConcurrentHashMap<String, Long>()
 
+    /** DSP 设置是否已同步到引擎（首次播放后自动应用） */
+    private var dspApplied = false
+
     init {
         RustEngine.initEngine(context)
         // setVolume 移到引擎线程
-        scope.launch(Dispatchers.IO) { RustEngine.setVolume(1.0f) }
+        scope.launch(RustEngine.engineDispatcher) { RustEngine.setVolume(1.0f) }
         observeRustEvents()
     }
 
     fun getFormatInfo(): Pair<Int, Int> = lastSampleRate to lastBitrate
+
+    /** 首次 play 后同步 DSP 设置（仅执行一次） */
+    private fun applyDspOnce() {
+        if (!dspApplied) {
+            dspApplied = true
+            initDspFromPrefs(context)
+        }
+    }
+
+    /** 从 SharedPreferences 加载 DSP 设置并同步到 Rust 引擎 */
+    private fun initDspFromPrefs(ctx: Context) {
+        try {
+            val eqEnabled = DspPreferences.getEqEnabled(ctx)
+            val bands = DspPreferences.getPeqBands(ctx)
+            Log.i(TAG, "initDspFromPrefs: eqEnabled=$eqEnabled, bands=${bands.size}")
+            if (eqEnabled) {
+                val result = if (bands.isEmpty()) RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
+                else RustEngine.setEqualizer(true, bands.map { it.freq }.toFloatArray(), bands.map { it.gain }.toFloatArray(), bands.map { it.q }.toFloatArray())
+                Log.i(TAG, "initDspFromPrefs: setEqualizer result=$result")
+            }
+            val fxEnabled = DspPreferences.getFxEnabled(ctx)
+            if (fxEnabled) {
+                val result = RustEngine.setFx(true, 0f, 1f, 0.35f, 6800f, 240f, DspPreferences.getFxSize(ctx), DspPreferences.getFxMix(ctx), 0.35f, DspPreferences.getFxWidth(ctx))
+                Log.i(TAG, "initDspFromPrefs: setFx result=$result")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "initDspFromPrefs failed", e)
+        }
+    }
 
     private fun calculatePreBufferBytes(item: MediaItem): Long {
         val bitrate = item.mediaMetadata.extras?.getInt("bitrate") ?: 0
@@ -272,6 +305,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 // JNI 调用移到引擎线程
                 withContext(RustEngine.engineDispatcher) {
                     RustEngine.play(path)
+                    applyDspOnce()
                     if (underrunPositionMs > 0) {
                         delay(100)
                         RustEngine.seek(underrunPositionMs / 1000.0)
@@ -614,7 +648,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 preCachedPath = null
                 preCachedItemIndex = -1
                 // JNI 调用移到引擎线程
-                scope.launch(Dispatchers.IO) { RustEngine.play(currentPlayingPath!!) }
+                scope.launch(Dispatchers.IO) {
+                    RustEngine.play(currentPlayingPath!!)
+                    applyDspOnce()
+                }
                 startPreCacheNextTrack()
             } else {
                 streamToRustEngine(item)
@@ -627,6 +664,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         scope.launch(Dispatchers.IO) {
             RustEngine.stop()
             RustEngine.play(actualPath)
+            applyDspOnce()
         }
         startPreCacheNextTrack()
     }
@@ -662,7 +700,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                                 currentPlayingPath = readyFile.absolutePath
                                 Log.i(TAG, "Pre-buffer ready, starting playback: ${readyFile.name}")
                                 // JNI 调用在 IO 线程执行
-                                scope.launch(Dispatchers.IO) { RustEngine.play(readyFile.absolutePath) }
+                                scope.launch(Dispatchers.IO) { RustEngine.play(readyFile.absolutePath); applyDspOnce() }
                                 startPreCacheNextTrack()
                             }
                         },
@@ -676,6 +714,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                         // JNI 调用移到引擎线程
                         withContext(RustEngine.engineDispatcher) {
                             RustEngine.play(tempFile.absolutePath)
+                            applyDspOnce()
                             if (underrunPositionMs > 0) {
                                 RustEngine.seek(underrunPositionMs / 1000.0)
                             }
