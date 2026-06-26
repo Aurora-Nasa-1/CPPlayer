@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 
 /**
  * 共用的歌曲头部组件：封面 + 标题 + 歌手。
@@ -42,7 +42,7 @@ fun SongHeader(
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 200),
+                    model = song.albumArtUrl.resized(200),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )

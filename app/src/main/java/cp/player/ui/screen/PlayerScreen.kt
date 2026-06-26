@@ -1,5 +1,6 @@
 package cp.player.ui.screen
 
+import cp.player.util.formatAsTime
 import android.app.Activity
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
@@ -44,7 +45,7 @@ import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.model.*
 import cp.player.ui.component.*
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.IntOffset
@@ -624,7 +625,7 @@ private fun PlayerWideLayout(
                 ) {
                     if (song.albumArtUrl != null) {
                         AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                            model = song.albumArtUrl.resized(800),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -722,8 +723,8 @@ private fun PlayerWideLayout(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(cp.player.util.FormatUtils.formatTime(currentPosition), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(cp.player.util.FormatUtils.formatTime(duration), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(currentPosition.formatAsTime(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(duration.formatAsTime(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -981,7 +982,7 @@ private fun PlayerMobileLayout(
                             ) {
                                 if (song.albumArtUrl != null) {
                                     AsyncImage(
-                                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                                        model = song.albumArtUrl.resized(800),
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
@@ -1021,7 +1022,7 @@ private fun PlayerMobileLayout(
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     if (song.albumArtUrl != null) {
                                         AsyncImage(
-                                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                                            model = song.albumArtUrl.resized(800),
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
@@ -1108,7 +1109,7 @@ private fun PlayerMobileLayout(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                cp.player.util.FormatUtils.formatTime(currentPosition),
+                                currentPosition.formatAsTime(),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -1128,7 +1129,7 @@ private fun PlayerMobileLayout(
                                 )
                             }
                             Text(
-                                cp.player.util.FormatUtils.formatTime(duration),
+                                duration.formatAsTime(),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )

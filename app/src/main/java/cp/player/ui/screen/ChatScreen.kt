@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.model.Message
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.ui.component.AppScaffold
 import java.text.SimpleDateFormat
 import java.util.*
@@ -170,7 +170,7 @@ fun MessageBubble(
         ) {
             if (!isMe) {
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(message.fromAvatarUrl, 100),
+                    model = message.fromAvatarUrl.resized(100),
                     contentDescription = null,
                     modifier = Modifier
                         .size(32.dp)
@@ -206,7 +206,7 @@ fun MessageBubble(
             if (isMe) {
                 Spacer(modifier = Modifier.width(8.dp))
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(message.fromAvatarUrl, 100),
+                    model = message.fromAvatarUrl.resized(100),
                     contentDescription = null,
                     modifier = Modifier
                         .size(32.dp)

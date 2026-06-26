@@ -26,7 +26,7 @@ import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.api.MusicApiServiceFactory
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.util.JsonUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -203,7 +203,7 @@ private fun CloudSongResultItem(
             ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
-                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 120),
+                        model = song.albumArtUrl.resized(120),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )

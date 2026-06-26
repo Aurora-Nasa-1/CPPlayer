@@ -5,7 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cp.player.util.FormatUtils
+import cp.player.util.formatAsTime
 
 /**
  * 播放进度条 + 时间标签。
@@ -30,12 +30,12 @@ fun ProgressSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                FormatUtils.formatTime(currentPosition),
+                currentPosition.formatAsTime(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                FormatUtils.formatTime(duration),
+                duration.formatAsTime(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

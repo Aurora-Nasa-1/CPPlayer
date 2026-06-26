@@ -16,7 +16,9 @@ import cp.player.model.Song
 import cp.player.service.MusicService
 import cp.player.lyrics.LyricsManager
 import cp.player.util.DebugLog
-import cp.player.util.MediaItemMapper
+import cp.player.util.toMediaItem
+import cp.player.util.toSong
+import cp.player.util.buildLocalContentUri
 import cp.player.util.UserPreferences
 import cp.player.manager.DownloadRegistry
 import cp.player.repository.PlaybackRepository
@@ -161,7 +163,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         val currentMediaId = currentItem?.mediaId
                         if (currentMediaId != null && currentMediaId != lastMediaId) {
                             lastMediaId = currentMediaId
-                            val song = MediaItemMapper.toSong(currentItem)
+                            val song = currentItem.toSong()
                             if (currentSong?.id != song.id) {
                                 DebugLog.i("PlaybackVM: poll detected song change → ${song.id} ${song.name}")
                                 currentSong = song
@@ -188,7 +190,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     private fun updateSongFromMediaItem(mediaItem: MediaItem?) {
         mediaItem?.let {
-            val song = MediaItemMapper.toSong(it)
+            val song = it.toSong()
             DebugLog.i("PlaybackVM: updateSong id=${song.id} name=${song.name}")
             currentSong = song
             // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，此处不重复调用
@@ -214,7 +216,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     fun updateQueue() {
         mediaController?.let { controller ->
             val list = (0 until controller.mediaItemCount).map { i ->
-                MediaItemMapper.toSong(controller.getMediaItemAt(i))
+                controller.getMediaItemAt(i).toSong()
             }
             currentQueue = list
         }
@@ -241,9 +243,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         val localUri = localSongs.find { (s, _) ->
             @Suppress("SENSELESS_COMPARISON")
             s != null && s.id == song.id
-        }?.second ?: MediaItemMapper.buildLocalContentUri(song)
+        }?.second ?: song.buildLocalContentUri()
         val quality = UserPreferences.getQualityWifi(getApplication())
-        return MediaItemMapper.toMediaItem(song, localUri, quality, cookie)
+        return song.toMediaItem(localUri, quality, cookie)
     }
 
     fun togglePlayPause() = runWithController { if (it.isPlaying) it.pause() else it.play() }

@@ -32,7 +32,7 @@ import cp.player.ui.component.SongItem
 import cp.player.ui.component.PlaylistItem
 import cp.player.ui.component.AppScaffold
 import androidx.compose.material3.ListItemDefaults
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 
 @Composable
 fun UserProfileScreen(
@@ -123,7 +123,7 @@ fun UserProfileScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(userProfile.avatarUrl, 300),
+                            model = userProfile.avatarUrl.resized(300),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(120.dp)

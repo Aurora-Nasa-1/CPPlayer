@@ -22,7 +22,7 @@ import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.ui.component.AppScaffold
 import cp.player.model.Contact
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -125,7 +125,7 @@ fun ContactItem(
         },
         leadingContent = {
             AsyncImage(
-                model = ImageUtils.getResizedImageUrl(contact.avatarUrl, 120),
+                model = contact.avatarUrl.resized(120),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

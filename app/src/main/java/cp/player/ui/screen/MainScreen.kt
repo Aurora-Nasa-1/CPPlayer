@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
 import coil3.compose.AsyncImage
 import cp.player.R
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.model.Song
 import cp.player.model.Playlist
 import cp.player.model.UserProfile
@@ -174,7 +174,7 @@ fun MainScreen(
                                 title = p.name,
                                 icon = {
                                     AsyncImage(
-                                        model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 150),
+                                        model = (p.coverImgUrl ?: "").resized(150),
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize().clip(CircleShape),
                                         contentScale = ContentScale.Crop
@@ -341,7 +341,7 @@ fun RecommendedPlaylistCard(playlist: Playlist, onClick: () -> Unit) {
     ) {
         Box(modifier = Modifier.size(160.dp)) {
             AsyncImage(
-                model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl ?: "", 400),
+                model = (playlist.coverImgUrl ?: "").resized(400),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -436,7 +436,7 @@ fun DailyMixCard(
                                 val offset = (index * 20).dp
                                 val size = 64.dp
                                 AsyncImage(
-                                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl ?: "", 300),
+                                    model = (song.albumArtUrl ?: "").resized(300),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(size)
@@ -474,7 +474,7 @@ fun DailyMixCard(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl ?: "", 150),
+                            model = (song.albumArtUrl ?: "").resized(150),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(48.dp)
