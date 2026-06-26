@@ -112,6 +112,8 @@ pub struct AudioCallbackData {
     fx: Mutex<SpatialFx>,
     /// Lightweight compressor + limiter chain.
     dynamics: Mutex<DynamicsChain>,
+    /// 双通道配对 WAV 录制器（DSP 处理前后对比）
+    wav_pair_recorder: Mutex<crate::audio::wav_recorder::WavPairRecorder>,
     /// Channel for sending finished tracks to command thread
     finished_tracks: Sender<AudioSource>,
 }
@@ -146,6 +148,9 @@ impl AudioCallbackData {
             equalizer: Mutex::new(Equalizer::new()),
             fx: Mutex::new(SpatialFx::new(sample_rate)),
             dynamics: Mutex::new(DynamicsChain::new(sample_rate)),
+            wav_pair_recorder: Mutex::new(crate::audio::wav_recorder::WavPairRecorder::new(
+                String::new(), sample_rate, channels,
+            )),
             finished_tracks,
         }
     }
@@ -2028,6 +2033,7 @@ pub(crate) fn audio_callback(
         if read < output.len() {
             output[read..].fill(0.0);
         }
+        // DoP 路径无 DSP 处理，跳过配对录制
         return;
     }
 
@@ -2054,6 +2060,7 @@ pub(crate) fn audio_callback(
         for sample in output[..read].iter_mut() {
             *sample *= gain;
         }
+        // Passthrough 路径无 DSP 处理，跳过配对录制
         return;
     }
 
@@ -2232,8 +2239,19 @@ pub(crate) fn audio_callback(
     if let Some(mut fx) = data.fx.try_lock() {
         fx.process(output, channels);
     }
+
+    // 配对录制：DSP 处理前
+    if let Some(mut recorder) = data.wav_pair_recorder.try_lock() {
+        recorder.write_before(output);
+    }
+
     if let Some(mut dynamics) = data.dynamics.try_lock() {
         dynamics.process(output, channels);
+    }
+
+    // 配对录制：DSP 处理后
+    if let Some(mut recorder) = data.wav_pair_recorder.try_lock() {
+        recorder.write_after(output);
     }
 
     // Volume is always applied last, after all DSP processing.
@@ -2262,7 +2280,15 @@ fn command_processing_loop(
         // Check for finished tracks
         while let Ok(source) = finished_rx.try_recv() {
             let path = source.info.path.to_string_lossy().to_string();
-            let _ = event_tx.try_send(AudioEvent::TrackEnded { path });
+            let _ = event_tx.try_send(AudioEvent::TrackEnded { path: path.clone() });
+
+            // 配对录制：曲目结束时保存当前片段，开始下一首
+            if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                if let Some((before, after)) = recorder.save_pair() {
+                    log::info!("[WavPairRecorder] 曲目结束，已保存: {} / {}", before, after);
+                }
+                recorder.start_track(&path);
+            }
 
             // Crossfade completed — restore Playing state. This is the
             // natural bookend: a crossfade always ends with advance_to_next()
@@ -2287,6 +2313,10 @@ fn command_processing_loop(
             Ok(command) => {
                 match command {
                     AudioCommand::Play { path } => {
+                        // 配对录制：新曲目开始
+                        if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                            recorder.start_track(&path.to_string_lossy());
+                        }
                         handle_play(
                             path,
                             &callback_data,
@@ -2300,6 +2330,10 @@ fn command_processing_loop(
                         source,
                         decoder_handle,
                     } => {
+                        // 配对录制：新曲目开始
+                        if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                            recorder.start_track(&source.info.path.to_string_lossy());
+                        }
                         handle_play_prepared(
                             source,
                             decoder_handle,
@@ -2335,6 +2369,12 @@ fn command_processing_loop(
                         let _ = event_tx.try_send(AudioEvent::StateChanged(PlaybackState::Playing));
                     }
                     AudioCommand::Stop => {
+                        // 配对录制：停止时保存当前片段
+                        if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                            if let Some((before, after)) = recorder.save_pair() {
+                                log::info!("[WavPairRecorder] 停止播放，已保存: {} / {}", before, after);
+                            }
+                        }
                         callback_data.sources.lock().stop();
                         callback_data.crossfader.lock().reset();
                         state.store(PlaybackState::Stopped as u8, Ordering::Relaxed);
@@ -2369,9 +2409,8 @@ fn command_processing_loop(
                         *callback_data.speed_frac_pos.lock() = 0.0;
                     }
                     AudioCommand::SetEqualizer { enabled, bands } => {
-                        if let Some(mut eq) = callback_data.equalizer.try_lock() {
-                            eq.set(enabled, &bands, sample_rate);
-                        }
+                        let mut eq = callback_data.equalizer.lock();
+                        eq.set(enabled, &bands, sample_rate);
                     }
                     AudioCommand::SetCompressor {
                         enabled,
@@ -2442,9 +2481,21 @@ fn command_processing_loop(
                         );
                     }
                     AudioCommand::CrossfadeToNext | AudioCommand::SkipToNext => {
+                        // 配对录制：跳过时保存当前片段
+                        if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                            if let Some((before, after)) = recorder.save_pair() {
+                                log::info!("[WavPairRecorder] 跳过歌曲，已保存: {} / {}", before, after);
+                            }
+                        }
                         handle_skip_to_next(&callback_data, &state, &event_tx);
                     }
                     AudioCommand::Shutdown => {
+                        // 配对录制：关闭时保存当前片段
+                        if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                            if let Some((before, after)) = recorder.save_pair() {
+                                log::info!("[WavPairRecorder] 引擎关闭，已保存: {} / {}", before, after);
+                            }
+                        }
                         // Stop everything and exit
                         callback_data.sources.lock().stop();
                         for decoder in decoders.lock().drain(..) {
@@ -2455,7 +2506,14 @@ fn command_processing_loop(
                 }
             }
             Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
-                // No command - continue loop
+                // 配对录制：检查缓冲区是否已满，需要保存
+                if let Some(mut recorder) = callback_data.wav_pair_recorder.try_lock() {
+                    if recorder.needs_save() {
+                        if let Some((before, after)) = recorder.save_pair() {
+                            log::info!("[WavPairRecorder] 自动保存片段: {} / {}", before, after);
+                        }
+                    }
+                }
             }
             Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
                 // Channel closed - exit

@@ -33,6 +33,7 @@ pub mod resampler;
 pub mod source;
 pub mod strategy;
 pub mod verifier;
+pub mod wav_recorder;
 pub mod wavpack_thread;
 
 pub use alac_converter::{AudioMetadata, ConversionSession};

@@ -1,7 +1,7 @@
 #![cfg(target_os = "android")]
 
-use jni::objects::{JClass, JString};
-use jni::sys::{jboolean, jdouble, jfloat, jstring};
+use jni::objects::{JClass, JObject, JString};
+use jni::sys::{jboolean, jbyte, jdouble, jfloat, jstring};
 use jni::JNIEnv;
 
 use crate::api::audio_api::{
