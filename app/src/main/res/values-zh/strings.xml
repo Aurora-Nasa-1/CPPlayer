@@ -229,9 +229,16 @@
     <string name="already_latest">已是最新版本</string>
     <string name="project_address">项目地址</string>
     <string name="qq_group">QQ 群</string>
-    <string name="qq_group_placeholder">链接待添加</string>
+    <string name="qq_group_placeholder">1095919920</string>
     <string name="update_changelog">更新日志</string>
     <string name="update_download">下载更新</string>
+
+    <!-- 赞助页面 -->
+    <string name="sponsor">赞助</string>
+    <string name="settings_sponsor_desc">支持项目发展</string>
+    <string name="sponsor_alipay">支付宝</string>
+    <string name="sponsor_scan_to_pay">扫码请作者喝杯咖啡 ☕</string>
+    <string name="sponsor_thanks">感谢您的支持 ❤️</string>
     <string name="copied">已复制</string>
 
     <!-- 播放引擎 -->

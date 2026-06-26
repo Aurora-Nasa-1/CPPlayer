@@ -229,10 +229,17 @@
     <string name="already_latest">Already up to date</string>
     <string name="project_address">Project Repository</string>
     <string name="qq_group">QQ Group</string>
-    <string name="qq_group_placeholder">Link to be added</string>
+    <string name="qq_group_placeholder">1095919920</string>
     <string name="update_changelog">Changelog</string>
     <string name="update_download">Download Update</string>
     <string name="copied">Copied</string>
+
+    <!-- Sponsor -->
+    <string name="sponsor">Sponsor</string>
+    <string name="settings_sponsor_desc">Support the project</string>
+    <string name="sponsor_alipay">Alipay</string>
+    <string name="sponsor_scan_to_pay">Scan to buy the dev a coffee ☕</string>
+    <string name="sponsor_thanks">Thank you for your support ❤️</string>
 
     <!-- Playback Engine -->
     <string name="playback_engine">Playback Engine</string>

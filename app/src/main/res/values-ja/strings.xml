@@ -233,10 +233,17 @@
     <string name="already_latest">最新バージョンです</string>
     <string name="project_address">プロジェクトリポジトリ</string>
     <string name="qq_group">QQグループ</string>
-    <string name="qq_group_placeholder">リンクを追加予定</string>
+    <string name="qq_group_placeholder">1095919920</string>
     <string name="update_changelog">変更履歴</string>
     <string name="update_download">アップデートをダウンロード</string>
     <string name="copied">コピーしました</string>
+
+    <!-- スポンサー -->
+    <string name="sponsor">スポンサー</string>
+    <string name="settings_sponsor_desc">プロジェクトを支援</string>
+    <string name="sponsor_alipay">Alipay</string>
+    <string name="sponsor_scan_to_pay">開発者にコーヒーを奢る ☕</string>
+    <string name="sponsor_thanks">ご支援ありがとうございます ❤️</string>
 
     <!-- 再生エンジン -->
     <string name="playback_engine">再生エンジン</string>

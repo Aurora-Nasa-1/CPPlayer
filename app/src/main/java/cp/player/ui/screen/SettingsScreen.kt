@@ -134,6 +134,7 @@ fun SettingsScreen(
         "debug" -> R.string.debug
         "provider" -> R.string.provider_management
         "about" -> R.string.about
+        "sponsor" -> R.string.sponsor
         "health" -> R.string.health_status
         "dsp" -> R.string.dsp_equalizer // Just a fallback, handled in DspSettingsScreen
         "logViewer" -> R.string.app_logs
@@ -214,7 +215,14 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_about_desc),
                                 icon = { MonetIcon(Icons.Default.HelpOutline, Color(0xFFEFEBE9), Color(0xFF4E342E)) },
                                 onClick = { currentScreen = "about" },
-                                shapes = ListItemDefaults.segmentedShapes(5, 6)
+                                shapes = ListItemDefaults.segmentedShapes(5, 7)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.sponsor),
+                                subtitle = stringResource(R.string.settings_sponsor_desc),
+                                icon = { MonetIcon(Icons.Default.Favorite, Color(0xFFFCE4EC), Color(0xFFE91E63)) },
+                                onClick = { currentScreen = "sponsor" },
+                                shapes = ListItemDefaults.segmentedShapes(6, 7)
                             )
                         }
                     }
@@ -808,6 +816,10 @@ fun SettingsScreen(
                     "about" -> {
                         // 关于
                         AboutScreenInline()
+                    }
+                    "sponsor" -> {
+                        // 赞助
+                        SponsorScreen()
                     }
                     "debug" -> {
                         // Debug
