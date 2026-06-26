@@ -88,6 +88,19 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
     var fxMix by remember { mutableStateOf(DspPreferences.getFxMix(context)) }
     var fxWidth by remember { mutableStateOf(DspPreferences.getFxWidth(context)) }
 
+    // 进入屏幕时同步 DSP 状态到引擎（上次退出时可能已启用）
+    LaunchedEffect(Unit) {
+        // EQ
+        if (flickEqEnabled) {
+            if (peqBands.isEmpty()) RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
+            else RustEngine.setEqualizer(true, peqBands.map { it.freq }.toFloatArray(), peqBands.map { it.gain }.toFloatArray(), peqBands.map { it.q }.toFloatArray())
+        }
+        // FX
+        if (fxEnabled) {
+            RustEngine.setFx(true, 0f, 1f, 0.35f, 6800f, 240f, fxSize, fxMix, 0.35f, fxWidth)
+        }
+    }
+
     var selectedBandIndex by remember { mutableIntStateOf(0) }
     if (selectedBandIndex >= peqBands.size) {
         selectedBandIndex = maxOf(0, peqBands.size - 1)
@@ -248,7 +261,16 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
                             }
                             FreqSliderItem("频率", formatFreq(band.freq), band.freq, { peqBands[selectedBandIndex] = band.copy(freq = it); applyEq() }, valueRange = 20f..20000f)
                             SliderItem("增益", "${"%.1f".format(band.gain)}dB", band.gain, { peqBands[selectedBandIndex] = band.copy(gain = it); applyEq() }, valueRange = -24f..24f)
-                            SliderItem("Q 值", "${"%.2f".format(band.q)}", band.q, { peqBands[selectedBandIndex] = band.copy(q = it); applyEq() }, valueRange = 0.1f..10f)
+                            // Q 值使用对数刻度滑块（0.1~10 跨两个数量级）
+                            val qMinLog = log10(0.1f); val qMaxLog = log10(10f)
+                            val qSliderPos = (log10(band.q.coerceIn(0.1f, 10f)) - qMinLog) / (qMaxLog - qMinLog)
+                            Column {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Q 值", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                                    Text("${"%.2f".format(band.q)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+                                }
+                                Slider(qSliderPos, { pos -> peqBands[selectedBandIndex] = band.copy(q = 10f.pow(qMinLog + pos * (qMaxLog - qMinLog))); applyEq() }, Modifier.fillMaxWidth(), valueRange = 0f..1f)
+                            }
                         }
                     }
                 }
@@ -277,6 +299,7 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
                     }
                 }
             }
+
         }
 
         item(key = "spacer") { Spacer(Modifier.height(16.dp)) }
@@ -365,11 +388,7 @@ private fun CompactAction(
 }
 
 // ═══════════════════════════════════════════════════════
-// Biquad Peaking EQ 频响计算
-// ═══════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════
-// Bell Curve 近似（对数频率对称，无低频精度问题）
+// Bell Curve 频响计算
 // gain(f) = Σ gain_i · exp(-C_i · ln²(f/f0_i))
 // C = 8·ln2·Q² → -3dB 带宽 = f0/Q
 // ═══════════════════════════════════════════════════════
