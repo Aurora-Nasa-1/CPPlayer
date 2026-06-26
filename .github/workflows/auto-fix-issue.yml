@@ -1,0 +1,43 @@
+name: Trigger Jules Auto-Fix
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  dispatch-agent:
+    # 仅当 Sentry 自动生成的 Issue 包含 bug 标签时才触发
+    if: contains(github.event.issue.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Extract Issue Context
+        id: extract
+        run: |
+          # 提取 Sentry 传过来的报错标题和堆栈信息
+          echo "ISSUE_TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
+          # 把多行 body 转换为一行，方便 JSON 拼装（简单处理，实际可使用 jq 优化）
+          BODY_CONTENT=$(echo "${{ github.event.issue.body }}" | tr '\n' ' ')
+          echo "ISSUE_BODY=$BODY_CONTENT" >> $GITHUB_ENV
+
+      - name: Create Jules Session & Auto-Fix
+        run: |
+          
+          REPO_OWNER="Aurora-Nasa-1"
+          REPO_NAME="CPPlayer"
+          
+          curl 'https://jules.googleapis.com/v1alpha/sessions' \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-Api-Key: ${{ secrets.JULES_API_KEY }}" \
+            -d "{
+              \"title\": \"Sentry Auto-fix: ${{ env.ISSUE_TITLE }}\",
+              \"prompt\": \"Fix this bug reported by Sentry. Title: ${{ env.ISSUE_TITLE }}. Details and Stack Trace: ${{ env.ISSUE_BODY }}\",
+              \"sourceContext\": {
+                \"source\": \"sources/github/$REPO_OWNER/$REPO_NAME\",
+                \"githubRepoContext\": {
+                  \"startingBranch\": \"main\"
+                }
+              },
+              \"automationMode\": \"AUTO_CREATE_PR\"
+            }"
