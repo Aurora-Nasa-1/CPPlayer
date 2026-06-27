@@ -210,15 +210,18 @@ sentry {
     org = "aurora-9i"
     projectName = "android"
 
-    // 确保 SENTRY_AUTH_TOKEN 既不为 null 也不为空字符串
-    def hasAuthToken = (System.getenv("SENTRY_AUTH_TOKEN") ?: "").trim() != ""
+    // 确保 SENTRY_AUTH_TOKEN 存在且看起来像一个有效的令牌（长度 > 32）
+    // 这样可以避免在 CI 中使用了无效或虚拟的令牌导致 403 错误
+    def sentryToken = System.getenv("SENTRY_AUTH_TOKEN")
+    def hasAuthToken = sentryToken != null && sentryToken.trim().length() > 32
 
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
     includeSourceContext = hasAuthToken
 
-    // CI 环境下如果没有 SENTRY_AUTH_TOKEN 则跳过上传，避免构建失败
+    // CI 环境下如果没有有效的 SENTRY_AUTH_TOKEN 则跳过上传，避免构建失败
     autoUpload = hasAuthToken
+    autoUploadSourceContext = hasAuthToken
 
     // 禁用所有可能在没有 token 时导致失败的任务
     uploadNativeSymbols = hasAuthToken
