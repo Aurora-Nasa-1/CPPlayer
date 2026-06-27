@@ -63,6 +63,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var lastSampleRate = 0
     @Volatile private var lastBitrate = 0
     @Volatile private var currentPlayingPath: String? = null
+    @Volatile private var recoveryPlayIssued = false
 
     /**
      * 暂停请求标志。
@@ -202,6 +203,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             }
             "buffering" -> {
                 if (isDownloading && !downloadComplete) {
+                    underrunPositionMs = Math.max(underrunPositionMs, currentPositionMs.get())
                     isPlaying = false
                     playbackState = Player.STATE_BUFFERING
                     invalidateState()
@@ -306,12 +308,14 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         underrunWatchJob?.cancel()
         underrunWatchJob = scope.launch {
             var targetReached = false
+            val positionToRecover = if (underrunPositionMs > 0) underrunPositionMs else currentPositionMs.get()
+
             while (isActive && isDownloading && !downloadComplete) {
                 delay(UNDERRUN_POLL_MS)
 
-                // 提前恢复播放：计算 underrunPositionMs 对应的字节数
+                // 提前恢复播放：计算 positionToRecover 对应的字节数
                 // 加上预留的安全缓冲量（例如 5 秒的数据），如果当前下载量大于这个值，则可以提前恢复播放。
-                val bufferTargetMs = underrunPositionMs + (TARGET_PRE_BUFFER_SECS * 1000L / 3) // 等待约5秒数据
+                val bufferTargetMs = positionToRecover + (TARGET_PRE_BUFFER_SECS * 1000L / 3) // 等待约5秒数据
                 val targetBytes = if (lastBitrate > 0) {
                     (lastBitrate.toLong() * bufferTargetMs) / 8000
                 } else {
@@ -319,7 +323,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 }
 
                 if (bytesDownloaded > targetBytes) {
-                    Log.i(TAG, "Underrun recovered at ${underrunPositionMs}ms, bytesDownloaded: $bytesDownloaded > targetBytes: $targetBytes")
+                    Log.i(TAG, "Underrun recovered at ${positionToRecover}ms, bytesDownloaded: $bytesDownloaded > targetBytes: $targetBytes")
                     targetReached = true
                     break
                 }
@@ -327,14 +331,17 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
             // 如果下载已完成或由于数据量已达标而跳出循环，且不是因为被取消或出错
             if (isActive && (downloadComplete || targetReached) && playbackState == Player.STATE_BUFFERING && playWhenReady) {
-                val path = currentPlayingPath ?: return@launch
-                // JNI 调用移到引擎线程
-                withContext(RustEngine.engineDispatcher) {
-                    RustEngine.play(path)
-                    applyDspOnce()
-                    if (underrunPositionMs > 0) {
-                        delay(100)
-                        RustEngine.seek(underrunPositionMs / 1000.0)
+                if (!recoveryPlayIssued) {
+                    recoveryPlayIssued = true
+                    val path = currentPlayingPath ?: return@launch
+                    // JNI 调用移到引擎线程
+                    withContext(RustEngine.engineDispatcher) {
+                        RustEngine.play(path)
+                        applyDspOnce()
+                        if (positionToRecover > 0) {
+                            delay(100)
+                            RustEngine.seek(positionToRecover / 1000.0)
+                        }
                     }
                 }
             }
@@ -655,6 +662,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         downloadComplete = false
         bytesDownloaded = 0L
         underrunPositionMs = 0L
+        recoveryPlayIssued = false
         underrunWatchJob?.cancel()
 
         playbackState = Player.STATE_BUFFERING
@@ -719,6 +727,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             downloadComplete = false
             bytesDownloaded = 0
             underrunPositionMs = 0L
+            recoveryPlayIssued = false
 
             try {
                 val tempFile = withContext(Dispatchers.IO) {
@@ -742,12 +751,15 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 if (tempFile != null) {
                     downloadComplete = true
                     if (playbackState == Player.STATE_BUFFERING && playWhenReady) {
-                        // JNI 调用移到引擎线程
-                        withContext(RustEngine.engineDispatcher) {
-                            RustEngine.play(tempFile.absolutePath)
-                            applyDspOnce()
-                            if (underrunPositionMs > 0) {
-                                RustEngine.seek(underrunPositionMs / 1000.0)
+                        if (!recoveryPlayIssued) {
+                            recoveryPlayIssued = true
+                            // JNI 调用移到引擎线程
+                            withContext(RustEngine.engineDispatcher) {
+                                RustEngine.play(tempFile.absolutePath)
+                                applyDspOnce()
+                                if (underrunPositionMs > 0) {
+                                    RustEngine.seek(underrunPositionMs / 1000.0)
+                                }
                             }
                         }
                     }
