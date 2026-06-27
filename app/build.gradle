@@ -216,12 +216,15 @@ sentry {
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
     includeSourceContext = hasAuthToken
+    includeNativeSources = hasAuthToken
 
     // CI 环境下如果没有 SENTRY_AUTH_TOKEN 则跳过上传，避免构建失败
     autoUpload = hasAuthToken
 
     // 禁用所有可能在没有 token 时导致失败的任务
     uploadNativeSymbols = hasAuthToken
+    autoUploadNativeSymbols = hasAuthToken
     autoUploadSourceContext = hasAuthToken
+    autoUploadProguardMapping = hasAuthToken
     includeProguardMapping = hasAuthToken
 }
