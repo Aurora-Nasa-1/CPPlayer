@@ -1,5 +1,7 @@
 package cp.player.util
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import java.util.Locale
 
 /**
@@ -17,4 +19,8 @@ import java.util.Locale
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+    @Composable
+    fun formatTime(millis: Long): String {
+        return formatTime(millis, LocalConfiguration.current.locales[0])
     }
+     }
