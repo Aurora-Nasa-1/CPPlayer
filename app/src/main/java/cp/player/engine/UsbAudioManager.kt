@@ -50,7 +50,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
                         }
 
                         if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                            device?.let { registerDevice(it) }
+                            device?.let { checkAndRequestPermission(it) }
                         } else {
                             Log.d(TAG, "permission denied for device $device")
                         }
@@ -167,6 +167,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
 
     private fun registerDevice(device: UsbDevice) {
         if (registeredDevice == device) return
+        if (!UserPreferences.getUsbExclusive(context) || UserPreferences.getAudioEngine(context) != 1) return
 
         scope.launch(Dispatchers.IO) {
             try {
