@@ -8,7 +8,9 @@ import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
 import cp.player.util.DebugLog
 import cp.player.util.UserPreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * [MusicApiService] 的默认实现。
@@ -385,7 +387,9 @@ class MusicApiServiceImpl(
                         DebugLog.d("callWithAllProviders: ${provider.id} 不支持 $actualMethod")
                         continue
                     }
-                    val result = provider.callApi(mappedMethod, params)
+                    val result = withContext(Dispatchers.IO) {
+                        provider.callApi(mappedMethod, params)
+                    }
                     val body = JsonParser.parseString(result).asJsonObject
                     val value = predicate(body)
                     if (value != null) {
