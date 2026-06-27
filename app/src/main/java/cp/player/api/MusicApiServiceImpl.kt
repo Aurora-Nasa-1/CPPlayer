@@ -385,7 +385,7 @@ class MusicApiServiceImpl(
                         DebugLog.d("callWithAllProviders: ${provider.id} 不支持 $actualMethod")
                         continue
                     }
-                    val result = provider.callApi(mappedMethod, params)
+                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { provider.callApi(mappedMethod, params) }
                     val body = JsonParser.parseString(result).asJsonObject
                     val value = predicate(body)
                     if (value != null) {
