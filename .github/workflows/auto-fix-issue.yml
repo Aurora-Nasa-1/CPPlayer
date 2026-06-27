@@ -6,38 +6,116 @@ on:
 
 jobs:
   dispatch-agent:
-    # 仅当 Sentry 自动生成的 Issue 包含 bug 标签时才触发
+    # 仅当 Issue 包含 bug 标签时才触发
     if: contains(github.event.issue.labels.*.name, 'bug')
     runs-on: ubuntu-latest
     
     steps:
-      - name: Extract Issue Context
+      - name: 🔍 Fetch Full Context (Sentry Details)
         id: extract
-        run: |
-          # 提取 Sentry 传过来的报错标题和堆栈信息
-          echo "ISSUE_TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
-          # 把多行 body 转换为一行，方便 JSON 拼装（简单处理，实际可使用 jq 优化）
-          BODY_CONTENT=$(echo "${{ github.event.issue.body }}" | tr '\n' ' ')
-          echo "ISSUE_BODY=$BODY_CONTENT" >> $GITHUB_ENV
+        uses: actions/github-script@v7
+        env:
+          SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          DEFAULT_ORG_SLUG: "aurora-9i" # 你的默认组织名，作为备用
+        with:
+          result-encoding: string
+          script: |
+            const issueBody = context.payload.issue.body || '';
+            let fullContext = issueBody;
+            
+            // 1. 检查是否为 Sentry 生成的 Issue
+            if (issueBody.includes('automatically created by Sentry')) {
+              
+              // 2. 匹配 Sentry URL，动态提取 org_slug 和 issue_id
+              const regex = /(?:sentry\.io\/organizations\/([a-zA-Z0-9-_]+)\/issues\/|([a-zA-Z0-9-_]+)\.sentry\.io\/issues\/)(\d+)/;
+              const match = issueBody.match(regex);
+              
+              if (match && process.env.SENTRY_TOKEN) {
+                // 如果匹配到 pattern 1，则 org 是 match[1]；如果是 pattern 2，则是 match[2]
+                const orgSlug = match[1] || match[2] || process.env.DEFAULT_ORG_SLUG;
+                const issueId = match[3];
+                
+                console.log(`Detected Org Slug: ${orgSlug}, Issue ID: ${issueId}`);
+                
+                try {
+                  // 3. 使用带有 organization_slug 的正确 API 路径
+                  const response = await fetch(`https://sentry.io/api/0/organizations/${orgSlug}/issues/${issueId}/events/latest/`, {
+                    headers: { 'Authorization': `Bearer ${process.env.SENTRY_TOKEN}` }
+                  });
+                  
+                  if (response.ok) {
+                    const eventData = await response.json();
+                    let frames = [];
+                    
+                    // 4. 解析异常堆栈（区分 Exception 和 ANR/Threads 两种数据结构）
+                    const exceptionEntry = eventData.entries?.find(e => e.type === 'exception');
+                    if (exceptionEntry && exceptionEntry.data?.values?.[0]?.stacktrace) {
+                      frames = exceptionEntry.data.values[0].stacktrace.frames;
+                    } else {
+                      const threadEntry = eventData.entries?.find(e => e.type === 'threads');
+                      if (threadEntry && threadEntry.data?.values) {
+                        const crashedThread = threadEntry.data.values.find(t => t.crashed || t.current) || threadEntry.data.values[0];
+                        if (crashedThread && crashedThread.stacktrace) frames = crashedThread.stacktrace.frames;
+                      }
+                    }
 
-      - name: Create Jules Session & Auto-Fix
+                    // 5. 格式化堆栈文本并拼接
+                    if (frames.length > 0) {
+                      const reversedFrames = [...frames].reverse();
+                      let fullStack = '\n\n### 完整异常堆栈 (Fetched from Sentry API):\n';
+                      reversedFrames.forEach(f => {
+                        const moduleName = f.module || f.filename || 'unknown';
+                        fullStack += `    at ${f.function || 'unknown'} (${moduleName}${f.lineNo ? `:${f.lineNo}` : ''})\n`;
+                      });
+                      
+                      // 将拉取到的几百行完整堆栈，拼接到原始 body 的最下方
+                      fullContext += fullStack;
+                      console.log('Successfully fetched and appended full stacktrace.');
+                    } else {
+                      console.log('No stacktrace frames found in Sentry API response.');
+                    }
+                  } else {
+                    console.error(`Sentry API Error: ${response.status} ${response.statusText}`);
+                  }
+                } catch(e) {
+                  console.error('Failed to fetch full stack from Sentry:', e);
+                }
+              } else {
+                console.log('No valid Sentry URL found, or SENTRY_TOKEN is missing.');
+              }
+            }
+            
+            // 返回包含完整堆栈的文本，交给下一步的 Jules AI 处理
+            return fullContext;
+
+      - name: 🤖 Create Jules Session & Auto-Fix
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ steps.extract.outputs.result }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          REPO_OWNER: "Aurora-Nasa-1"
+          REPO_NAME: "CPPlayer"
         run: |
-          
-          REPO_OWNER="Aurora-Nasa-1"
-          REPO_NAME="CPPlayer"
-          
-          curl 'https://jules.googleapis.com/v1alpha/sessions' \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-Goog-Api-Key: ${{ secrets.JULES_API_KEY }}" \
-            -d "{
-              \"title\": \"Sentry Auto-fix: ${{ env.ISSUE_TITLE }}\",
-              \"prompt\": \"Fix this bug reported by Sentry. Title: ${{ env.ISSUE_TITLE }}. Details and Stack Trace: ${{ env.ISSUE_BODY }}\",
-              \"sourceContext\": {
-                \"source\": \"sources/github/$REPO_OWNER/$REPO_NAME\",
-                \"githubRepoContext\": {
-                  \"startingBranch\": \"main\"
+          # 使用 jq 动态安全地生成 JSON Payload，避免单双引号及多行回车引发的 JSON 语法错误
+          PAYLOAD=$(jq -n \
+            --arg title "Sentry Auto-fix: $ISSUE_TITLE" \
+            --arg prompt "Fix this bug reported by Sentry. Title: $ISSUE_TITLE. Details and Stack Trace: $ISSUE_BODY" \
+            --arg source "sources/github/$REPO_OWNER/$REPO_NAME" \
+            '{
+              title: $title,
+              prompt: $prompt,
+              sourceContext: {
+                source: $source,
+                githubRepoContext: {
+                  startingBranch: "main"
                 }
               },
-              \"automationMode\": \"AUTO_CREATE_PR\"
-            }"
+              automationMode: "AUTO_CREATE_PR"
+            }')
+            
+          # 发送 HTTP 请求给 Jules API (加入 -sS 隐藏 curl 下载进度条，让 Actions 日志更干净)
+          curl -sS 'https://jules.googleapis.com/v1alpha/sessions' \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-Api-Key: $JULES_API_KEY" \
+            -d "$PAYLOAD"
