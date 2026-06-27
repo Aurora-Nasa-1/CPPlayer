@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +67,7 @@ fun DockedToolbar(
                 if (song != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 100),
+                            model = song.albumArtUrl.resized(100),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(48.dp)

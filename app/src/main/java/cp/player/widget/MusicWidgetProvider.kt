@@ -11,7 +11,7 @@ import android.widget.RemoteViews
 import cp.player.MainActivity
 import cp.player.R
 import cp.player.service.MusicService
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.toBitmap
@@ -60,7 +60,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
             if (!albumArtUrl.isNullOrEmpty()) {
                 val loader = SingletonImageLoader.get(context)
                 val request = ImageRequest.Builder(context)
-                    .data(ImageUtils.getResizedImageUrl(albumArtUrl, 300))
+                    .data(albumArtUrl.resized(300))
                     .target(
                         onSuccess = { result ->
                             views.setImageViewBitmap(R.id.iv_cover, result.toBitmap())

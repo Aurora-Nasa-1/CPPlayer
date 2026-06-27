@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.model.Song
 import androidx.compose.foundation.shape.CircleShape
 
@@ -73,7 +73,7 @@ fun BottomPlaybackBar(
             ) {
                 // Circular Avatar for Expressive feel
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
+                    model = song.albumArtUrl.resized(800),
                     contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)

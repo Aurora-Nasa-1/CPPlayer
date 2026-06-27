@@ -32,7 +32,7 @@ import androidx.compose.ui.res.stringResource
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.viewmodel.PlaybackViewModel
 import cp.player.viewmodel.UserViewModel
 import cp.player.api.MusicApiServiceFactory

@@ -14,7 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 
 /**
  * 共享的专辑封面渲染组件。
@@ -45,7 +45,7 @@ fun AlbumArt(
             val imageModel: Any = if (albumArtUrl.startsWith("file://")) {
                 java.io.File(android.net.Uri.parse(albumArtUrl).path!!)
             } else {
-                resizeUrl?.let { ImageUtils.getResizedImageUrl(albumArtUrl, it) } ?: albumArtUrl
+                resizeUrl?.let { albumArtUrl.resized(it) } ?: albumArtUrl
             }
             AsyncImage(
                 model = imageModel,

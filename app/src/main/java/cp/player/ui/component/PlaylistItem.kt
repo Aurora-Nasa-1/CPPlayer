@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import cp.player.model.Playlist
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 
 @Composable
 fun PlaylistItem(
@@ -63,7 +63,7 @@ fun PlaylistItem(
                 ) {
                     if (playlist.coverImgUrl != null) {
                         AsyncImage(
-                            model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 180),
+                            model = playlist.coverImgUrl.resized(180),
                             contentDescription = null,
                             contentScale = ContentScale.Crop
                         )

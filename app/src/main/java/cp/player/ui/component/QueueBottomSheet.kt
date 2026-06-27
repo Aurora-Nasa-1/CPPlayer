@@ -48,7 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -347,7 +347,7 @@ fun QueueItem(
             ) {
                 // Album art
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 200),
+                    model = song.albumArtUrl.resized(200),
                     contentDescription = "Album Art",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

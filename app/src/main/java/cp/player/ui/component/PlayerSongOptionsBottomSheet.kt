@@ -32,7 +32,7 @@ import androidx.activity.ComponentActivity
 import android.content.ContextWrapper
 import coil3.compose.AsyncImage
 import cp.player.model.Song
-import cp.player.util.ImageUtils
+import cp.player.util.resized
 import cp.player.viewmodel.UserViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

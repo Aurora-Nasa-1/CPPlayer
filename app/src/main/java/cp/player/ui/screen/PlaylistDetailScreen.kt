@@ -32,8 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cp.player.R
 import coil3.compose.AsyncImage
-import cp.player.util.FormatUtils
-import cp.player.util.ImageUtils
+import cp.player.util.formatAsTime
+import cp.player.util.resized
 import cp.player.model.Playlist
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
@@ -94,7 +94,7 @@ fun PlaylistDetailScreen(
     }
 
     val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
-    val durationStr = FormatUtils.formatTime(totalDurationMs)
+    val durationStr = totalDurationMs.formatAsTime()
     val favoriteSongsSet = remember(favoriteSongs) { favoriteSongs.toSet() }
 
     BackHandler(enabled = isSelectionMode) {
@@ -189,7 +189,7 @@ fun PlaylistDetailScreen(
                         ) {
                             if (playlist.coverImgUrl != null) {
                                 AsyncImage(
-                                    model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 200),
+                                    model = playlist.coverImgUrl.resized(200),
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
