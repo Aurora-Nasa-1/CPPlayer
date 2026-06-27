@@ -222,5 +222,6 @@ sentry {
 
     // 禁用所有可能在没有 token 时导致失败的任务
     uploadNativeSymbols = hasAuthToken
+    autoUploadSourceContext = hasAuthToken
     includeProguardMapping = hasAuthToken
 }
