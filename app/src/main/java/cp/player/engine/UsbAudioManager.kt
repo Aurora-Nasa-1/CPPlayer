@@ -122,7 +122,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
 
     private fun scanForUsbAudioDevices() {
         if (!UserPreferences.getUsbExclusive(context)) return
-        // ONLY detach and register if the active engine is Flick Engine (1)
+
         if (UserPreferences.getAudioEngine(context) != 1) return
 
         val deviceList = usbManager.deviceList
@@ -145,6 +145,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
 
     private fun checkAndRequestPermission(device: UsbDevice) {
         if (!UserPreferences.getUsbExclusive(context)) return
+        if (UserPreferences.getAudioEngine(context) != 1) return
         if (!isUsbAudioDevice(device)) return
 
         if (usbManager.hasPermission(device)) {

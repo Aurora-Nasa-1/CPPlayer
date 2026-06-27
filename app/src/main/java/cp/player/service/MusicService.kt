@@ -266,6 +266,7 @@ class MusicService : MediaSessionService() {
         DebugLog.i("MusicService: Service onCreate")
 
         usbAudioManager = UsbAudioManager(this)
+        usbAudioManager?.start()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -551,7 +552,7 @@ class MusicService : MediaSessionService() {
 
             // Update USB audio manager
             if (engineType == 1) {
-                if (usbAudioManager == null) usbAudioManager = cp.player.engine.UsbAudioManager(this)
+                if (usbAudioManager == null) { usbAudioManager = cp.player.engine.UsbAudioManager(this); usbAudioManager?.start() }
             } else {
                 usbAudioManager?.stop()
                 usbAudioManager = null
