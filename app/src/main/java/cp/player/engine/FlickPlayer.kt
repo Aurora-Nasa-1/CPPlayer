@@ -69,6 +69,19 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var recoveryPlayIssued = false
 
     /**
+     * 网络缓冲活跃标志。
+     *
+     * 当流媒体因网络加载不足而进入缓冲状态时设置为 true。
+     * 在此期间，Rust 引擎可能发送 "paused" 状态事件（引擎内部因缓冲不足而暂停输出），
+     * 但这不是用户主动暂停，不应清除 playWhenReady 或显示为暂停状态。
+     *
+     * 设置时机：handleStateChanged("buffering")、handleTrackEnded（流媒体未完成）、handleError（流媒体未完成）
+     * 清除时机：播放恢复（handleStateChanged("playing")）、用户暂停（handleSetPlayWhenReady(false)）、
+     *          播放停止（handleStop/handleSetMediaItems/playCurrentItem）
+     */
+    @Volatile private var bufferingActive = false
+
+    /**
      * 暂停请求标志。
      *
      * 用于防止暂停过程中的竞态条件：handleSetPlayWhenReady(false) 同步更新 UI 状态，
@@ -189,6 +202,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
         when (state.lowercase()) {
             "playing" -> {
+                // 缓冲恢复：引擎从缓冲/暂停状态恢复到播放状态
+                bufferingActive = false
+                recoveryPlayIssued = false
+
                 // 暂停请求进行中时，忽略引擎的 "playing" 状态事件，
                 // 防止旧事件覆盖用户的暂停意图。但如果此时 playWhenReady 也是 true，
                 // 说明用户可能在短暂暂停后又立刻点击了播放，或者是底层的其他播放恢复动作。
@@ -206,18 +223,36 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 invalidateState()
             }
             "paused" -> {
+                // 流媒体缓冲期间引擎发出的 "paused" 事件不是用户主动暂停，
+                // 而是引擎因数据不足暂停输出。保持 STATE_BUFFERING 状态，
+                // 等待数据恢复后自动继续播放。
+                if (bufferingActive && isDownloading && !downloadComplete) {
+                    Log.d(TAG, "Ignoring engine 'paused' during active buffering (underrun)")
+                    // 保持 bufferingActive = true，保持 STATE_BUFFERING
+                    // 不清除 pauseRequested（非用户操作）
+                    invalidateState()
+                    return
+                }
+
                 pauseRequested = false
                 isPlaying = false
                 playbackState = Player.STATE_READY
                 invalidateState()
             }
             "stopped", "idle" -> {
+                // 流媒体缓冲期间的 stopped/idle 也可能是缓冲不足导致的
+                if (bufferingActive && isDownloading && !downloadComplete) {
+                    Log.d(TAG, "Ignoring engine '$state' during active buffering")
+                    return
+                }
+                bufferingActive = false
                 isPlaying = false
                 playbackState = Player.STATE_IDLE
                 invalidateState()
             }
             "buffering" -> {
                 if (isDownloading && !downloadComplete) {
+                    bufferingActive = true
                     underrunPositionMs = Math.max(underrunPositionMs, currentPositionMs.get())
                     isPlaying = false
                     playbackState = Player.STATE_BUFFERING
@@ -280,6 +315,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
         // 流媒体未下载完毕 → 缓冲等待
         if (isDownloading && !downloadComplete) {
+            bufferingActive = true
             underrunPositionMs = currentPositionMs.get()
             Log.w(TAG, "Underrun at ${underrunPositionMs}ms, waiting for data...")
             isPlaying = false
@@ -305,6 +341,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         Log.e(TAG, "Rust error: $message")
 
         if (isDownloading && !downloadComplete) {
+            bufferingActive = true
             underrunPositionMs = currentPositionMs.get()
             isPlaying = false
             playbackState = Player.STATE_BUFFERING
@@ -348,9 +385,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             }
 
             // 如果下载已完成或由于数据量已达标而跳出循环，且不是因为被取消或出错
-            if (isActive && (downloadComplete || targetReached) && playbackState == Player.STATE_BUFFERING && playWhenReady) {
+            if (isActive && (downloadComplete || targetReached) && playbackState == Player.STATE_BUFFERING) {
                 if (!recoveryPlayIssued) {
                     recoveryPlayIssued = true
+                    bufferingActive = false
                     val path = currentPlayingPath ?: return@launch
                     // JNI 调用移到引擎线程
                     withContext(RustEngine.engineDispatcher) {
@@ -506,6 +544,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 scope.launch(Dispatchers.IO) { RustEngine.resume() }
             }
         } else {
+            // 用户主动暂停：清除缓冲恢复相关标志
+            bufferingActive = false
+            underrunWatchJob?.cancel()
             pauseRequested = true
             scope.launch(Dispatchers.IO) { RustEngine.pause() }
         }
@@ -594,9 +635,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         seekCommand: Int
     ): ListenableFuture<*> {
         // 如果用户执行了 Seek，并且 playWhenReady 是 true，我们认为用户希望继续播放
-        // 这时清除 pauseRequested，防止之前可能残留的 pause 状态影响后续的 "playing" 事件
+        // 这时清除 pauseRequested 和 bufferingActive，防止之前可能残留的状态影响后续事件
         if (playWhenReady) {
             pauseRequested = false
+            bufferingActive = false
         }
         val targetPosition = if (positionMs == C.TIME_UNSET) 0L else positionMs
         if (mediaItemIndex != currentMediaItemIndex && mediaItemIndex in playlist.indices) {
@@ -618,6 +660,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     override fun handleStop(): ListenableFuture<*> {
         scope.launch(Dispatchers.IO) { RustEngine.stop() }
         pauseRequested = false
+        bufferingActive = false
         playWhenReady = false
         playbackState = Player.STATE_IDLE
         isPlaying = false
@@ -681,6 +724,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         bytesDownloaded = 0L
         underrunPositionMs = 0L
         recoveryPlayIssued = false
+        bufferingActive = false
         underrunWatchJob?.cancel()
         // Reset format info for new track (will be updated by FormatChanged event)
         lastSampleRate = 0
@@ -774,14 +818,20 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
                 if (tempFile != null) {
                     downloadComplete = true
-                    if (playbackState == Player.STATE_BUFFERING && playWhenReady) {
+                    // 下载完成，检查是否需要恢复播放：
+                    // 1. 正在缓冲状态（underrun 发生过）
+                    // 2. 播放状态为 STATE_BUFFERING
+                    // 3. 用户没有主动暂停（bufferingActive 仍为 true 说明非用户暂停）
+                    if (bufferingActive && playbackState == Player.STATE_BUFFERING) {
                         if (!recoveryPlayIssued) {
                             recoveryPlayIssued = true
+                            bufferingActive = false
                             // JNI 调用移到引擎线程
                             withContext(RustEngine.engineDispatcher) {
                                 RustEngine.play(tempFile.absolutePath)
                                 applyDspOnce()
                                 if (underrunPositionMs > 0) {
+                                    delay(100)
                                     RustEngine.seek(underrunPositionMs / 1000.0)
                                 }
                             }
