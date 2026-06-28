@@ -123,6 +123,23 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
     let sample_rate = codec_params.sample_rate.unwrap_or(44100);
     let channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
 
+    // Extract format metadata for UI display
+    let bit_depth = codec_params.bits_per_sample.unwrap_or(0) as u16;
+    let codec_name = match lower_ext.as_str() {
+        "flac" => "FLAC",
+        "mp3" => "MP3",
+        "aac" | "m4a" => "AAC",
+        "ogg" | "ogx" | "oga" => "Vorbis",
+        "opus" => "Opus",
+        "wav" => "WAV",
+        "wv" => "WavPack",
+        "alac" => "ALAC",
+        "aiff" | "aif" => "AIFF",
+        "spx" => "Speex",
+        _ => "",
+    }
+    .to_string();
+
     // Calculate duration
     let duration_secs = if let Some(n_frames) = codec_params.n_frames {
         if let Some(time_base) = codec_params.time_base {
@@ -155,6 +172,8 @@ pub fn probe_file(path: &Path) -> Result<ProbeResult, DecoderError> {
         channels,
         total_samples,
         duration_secs,
+        bit_depth,
+        codec_name,
     };
 
     Ok(ProbeResult {

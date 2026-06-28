@@ -640,6 +640,9 @@ class MusicService : MediaSessionService() {
                 if (p != null && p.playbackState == Player.STATE_READY) {
                     var sampleRate = 0
                     var bitrate = 0
+                    var bitDepth = 0
+                    var channels = 0
+                    var codecName = ""
 
                     // Try ExoPlayer's audioFormat first
                     var activeFormat = (p as? ExoPlayer)?.audioFormat
@@ -661,22 +664,37 @@ class MusicService : MediaSessionService() {
                     if (activeFormat != null && activeFormat.sampleRate != -1) {
                         sampleRate = activeFormat.sampleRate
                         bitrate = if (activeFormat.bitrate != -1) activeFormat.bitrate else 0
+                        bitDepth = if (activeFormat.pcmEncoding != android.media.AudioFormat.ENCODING_INVALID) {
+                            when (activeFormat.pcmEncoding) {
+                                android.media.AudioFormat.ENCODING_PCM_16BIT -> 16
+                                android.media.AudioFormat.ENCODING_PCM_24BIT_PACKED -> 24
+                                android.media.AudioFormat.ENCODING_PCM_32BIT -> 32
+                                android.media.AudioFormat.ENCODING_PCM_FLOAT -> 32
+                                else -> 0
+                            }
+                        } else 0
+                        channels = activeFormat.channelCount
+                        codecName = activeFormat.sampleMimeType?.substringAfter("/")?.uppercase() ?: ""
                     }
 
                     // Fallback: read format from FlickPlayer's FormatChanged events
-                    if (sampleRate == 0 && bitrate == 0) {
-                        val flickPlayer = p as? cp.player.engine.FlickPlayer
-                        if (flickPlayer != null) {
-                            val (sr, br) = flickPlayer.getFormatInfo()
-                            sampleRate = sr
-                            bitrate = br
-                        }
+                    val flickPlayer = p as? cp.player.engine.FlickPlayer
+                    if (flickPlayer != null) {
+                        val info = flickPlayer.getExtendedFormatInfo()
+                        if (sampleRate == 0 && info.sampleRate > 0) sampleRate = info.sampleRate
+                        if (bitrate == 0 && info.bitrate > 0) bitrate = info.bitrate
+                        if (bitDepth == 0 && info.bitDepth > 0) bitDepth = info.bitDepth
+                        if (channels == 0 && info.channels > 0) channels = info.channels
+                        if (codecName.isEmpty() && info.codecName.isNotEmpty()) codecName = info.codecName
                     }
 
-                    if (sampleRate > 0 || bitrate > 0) {
+                    if (sampleRate > 0 || bitrate > 0 || bitDepth > 0 || channels > 0 || codecName.isNotEmpty()) {
                         val extras = android.os.Bundle().apply {
                             putInt("sampleRate", sampleRate)
                             putInt("bitrate", bitrate)
+                            putInt("bitDepth", bitDepth)
+                            putInt("channels", channels)
+                            putString("codecName", codecName)
                         }
                         mediaSession?.setSessionExtras(extras)
                         mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)

@@ -62,6 +62,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var underrunPositionMs = 0L
     @Volatile private var lastSampleRate = 0
     @Volatile private var lastBitrate = 0
+    @Volatile private var lastBitDepth = 0
+    @Volatile private var lastChannels = 0
+    @Volatile private var lastCodecName = ""
     @Volatile private var currentPlayingPath: String? = null
     @Volatile private var recoveryPlayIssued = false
 
@@ -105,6 +108,18 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     }
 
     fun getFormatInfo(): Pair<Int, Int> = lastSampleRate to lastBitrate
+
+    fun getExtendedFormatInfo(): FormatInfo = FormatInfo(
+        lastSampleRate, lastBitrate, lastBitDepth, lastChannels, lastCodecName
+    )
+
+    data class FormatInfo(
+        val sampleRate: Int,
+        val bitrate: Int,
+        val bitDepth: Int,
+        val channels: Int,
+        val codecName: String
+    )
 
     /** 首次 play 后同步 DSP 设置（仅执行一次） */
     private fun applyDspOnce() {
@@ -244,6 +259,9 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     private fun handleFormatChanged(event: AudioEvent.FormatChanged) {
         if (event.sampleRate > 0) lastSampleRate = event.sampleRate
         if (event.bitrate > 0) lastBitrate = event.bitrate
+        if (event.bitDepth > 0) lastBitDepth = event.bitDepth
+        if (event.channels > 0) lastChannels = event.channels
+        if (event.codecName.isNotEmpty()) lastCodecName = event.codecName
     }
 
     /**
@@ -664,6 +682,12 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         underrunPositionMs = 0L
         recoveryPlayIssued = false
         underrunWatchJob?.cancel()
+        // Reset format info for new track (will be updated by FormatChanged event)
+        lastSampleRate = 0
+        lastBitrate = 0
+        lastBitDepth = 0
+        lastChannels = 0
+        lastCodecName = ""
 
         playbackState = Player.STATE_BUFFERING
         invalidateState()

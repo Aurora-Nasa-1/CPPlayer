@@ -33,7 +33,13 @@ sealed class AudioEvent {
     data class CrossfadeStarted(val fromPath: String, val toPath: String) : AudioEvent()
     data class Error(val message: String) : AudioEvent()
     data class NextTrackReady(val path: String) : AudioEvent()
-    data class FormatChanged(val sampleRate: Int, val bitrate: Int) : AudioEvent()
+    data class FormatChanged(
+        val sampleRate: Int,
+        val bitrate: Int,
+        val bitDepth: Int = 0,
+        val channels: Int = 0,
+        val codecName: String = ""
+    ) : AudioEvent()
 }
 
 object RustEngine {
@@ -253,7 +259,10 @@ object RustEngine {
                 "FormatChanged" -> {
                     val sampleRate = json.optInt("sample_rate", 0)
                     val bitrate = json.optInt("bitrate", 0)
-                    _audioEvents.tryEmit(AudioEvent.FormatChanged(sampleRate, bitrate))
+                    val bitDepth = json.optInt("bit_depth", 0)
+                    val channels = json.optInt("channels", 0)
+                    val codecName = json.optString("codec_name", "")
+                    _audioEvents.tryEmit(AudioEvent.FormatChanged(sampleRate, bitrate, bitDepth, channels, codecName))
                 }
                 else -> {
                     Log.w(TAG, "Unknown event type: $type")

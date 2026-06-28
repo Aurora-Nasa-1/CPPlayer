@@ -77,6 +77,9 @@ fun PlayerScreen(
     val queue = uiState.queue
     val sampleRate = uiState.sampleRate
     val bitrate = uiState.bitrate
+    val bitDepth = uiState.bitDepth
+    val channels = uiState.channels
+    val codecName = uiState.codecName
     val useCoverColor = uiState.useCoverColor
     val useFluidBackground = uiState.useFluidBackground
     val coverColor = uiState.coverColor
@@ -459,6 +462,9 @@ fun PlayerScreen(
                                 repeatMode = repeatMode,
                                 bitrate = bitrate,
                                 sampleRate = sampleRate,
+                                bitDepth = bitDepth,
+                                channels = channels,
+                                codecName = codecName,
                                 isDownloaded = isDownloaded,
                                 onPlayPause = onPlayPause,
                                 onSkipNext = onSkipNext,
@@ -510,6 +516,9 @@ fun PlayerScreen(
                                 repeatMode = repeatMode,
                                 bitrate = bitrate,
                                 sampleRate = sampleRate,
+                                bitDepth = bitDepth,
+                                channels = channels,
+                                codecName = codecName,
                                 isDownloaded = isDownloaded,
                                 onPlayPause = onPlayPause,
                                 onSkipNext = onSkipNext,
@@ -573,6 +582,9 @@ private fun PlayerWideLayout(
     repeatMode: Int,
     bitrate: Int,
     sampleRate: Int,
+    bitDepth: Int,
+    channels: Int,
+    codecName: String,
     isDownloaded: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
@@ -804,6 +816,9 @@ private fun PlayerWideLayout(
                                     isDownloaded = isDownloaded,
                                     sampleRate = sampleRate,
                                     bitrate = bitrate,
+                                    bitDepth = bitDepth,
+                                    channels = channels,
+                                    codecName = codecName,
                                     lyricsInfo = lyricsInfo,
                                     onPlaylistClick = {
                                         onAddToPlaylist()
@@ -858,6 +873,9 @@ private fun PlayerMobileLayout(
     repeatMode: Int,
     bitrate: Int,
     sampleRate: Int,
+    bitDepth: Int,
+    channels: Int,
+    codecName: String,
     isDownloaded: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,

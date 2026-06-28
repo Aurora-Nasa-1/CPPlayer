@@ -71,6 +71,8 @@ impl DsdDecoderThread {
             channels: output_channels,
             total_samples: total_output_samples,
             duration_secs,
+            bit_depth: 1, // DSD is 1-bit
+            codec_name: "DSD".to_string(),
         };
 
         let (source, producer) = AudioSource::new(source_info);

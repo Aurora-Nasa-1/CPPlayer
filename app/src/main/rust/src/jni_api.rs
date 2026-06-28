@@ -264,6 +264,15 @@ pub extern "system" fn Java_cp_player_engine_RustEngine_nativePollEvent(
                 crate::api::audio_api::AudioEventType::NextTrackReady { path } => {
                     serde_json::json!({"type": "NextTrackReady", "path": path})
                 }
+                crate::api::audio_api::AudioEventType::FormatChanged { sample_rate, bit_depth, channels, codec_name } => {
+                    serde_json::json!({
+                        "type": "FormatChanged",
+                        "sample_rate": sample_rate,
+                        "bit_depth": bit_depth,
+                        "channels": channels,
+                        "codec_name": codec_name
+                    })
+                }
             }
         }
         None => serde_json::json!(null),

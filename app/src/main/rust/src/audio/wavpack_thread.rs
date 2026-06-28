@@ -113,6 +113,8 @@ impl WavpackDecoderThread {
             total_samples: (duration_secs * output_sample_rate as f64 * output_channels as f64)
                 as u64,
             duration_secs,
+            bit_depth: bits_per_sample as u16,
+            codec_name: "WavPack".to_string(),
         };
 
         let (source, producer) = AudioSource::new(source_info);

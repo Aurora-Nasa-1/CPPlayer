@@ -454,6 +454,12 @@ pub enum AudioEventType {
     NextTrackReady {
         path: String,
     },
+    FormatChanged {
+        sample_rate: u32,
+        bit_depth: u16,
+        channels: u16,
+        codec_name: String,
+    },
 }
 
 /// Crossfade curve type for Dart.
@@ -1127,6 +1133,9 @@ pub fn audio_poll_event() -> Option<AudioEventType> {
         }
         AudioEvent::Error { message } => AudioEventType::Error { message },
         AudioEvent::NextTrackReady { path } => AudioEventType::NextTrackReady { path },
+        AudioEvent::FormatChanged { sample_rate, bit_depth, channels, codec_name } => {
+            AudioEventType::FormatChanged { sample_rate, bit_depth, channels, codec_name }
+        },
     })
 }
 

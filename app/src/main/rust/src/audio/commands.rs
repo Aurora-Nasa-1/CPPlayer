@@ -131,4 +131,11 @@ pub enum AudioEvent {
     Error { message: String },
     /// Next track is ready (for gapless)
     NextTrackReady { path: String },
+    /// Audio format info available after playback starts
+    FormatChanged {
+        sample_rate: u32,
+        bit_depth: u16,
+        channels: u16,
+        codec_name: String,
+    },
 }

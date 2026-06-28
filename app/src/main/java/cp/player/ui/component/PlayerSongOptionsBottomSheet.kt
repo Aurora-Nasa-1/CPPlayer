@@ -42,6 +42,9 @@ fun PlayerSongOptionsBottomSheet(
     isDownloaded: Boolean = false,
     sampleRate: Int = 0,
     bitrate: Int = 0,
+    bitDepth: Int = 0,
+    channels: Int = 0,
+    codecName: String = "",
     lyricsInfo: cp.player.model.LyricsInfo? = null,
     onDismissRequest: () -> Unit,
     onPlaylistClick: (() -> Unit)? = null,
@@ -249,6 +252,13 @@ fun PlayerSongOptionsBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(12.dp))
+                        if (codecName.isNotEmpty()) {
+                            Text(
+                                text = stringResource(R.string.codec_label, codecName),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (sampleRate > 0) {
                             Text(
                                 text = stringResource(R.string.sample_rate_label, sampleRate),
@@ -256,9 +266,23 @@ fun PlayerSongOptionsBottomSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        if (bitDepth > 0) {
+                            Text(
+                                text = stringResource(R.string.bit_depth_label, bitDepth),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (bitrate > 0) {
                             Text(
                                 text = stringResource(R.string.bitrate_label, bitrate / 1000),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (channels > 0) {
+                            Text(
+                                text = stringResource(R.string.channels_label, channels),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

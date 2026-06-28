@@ -2721,6 +2721,15 @@ fn start_playback_source(
     decoders: &Arc<Mutex<Vec<DecoderHandle>>>,
     event_tx: &Sender<AudioEvent>,
 ) {
+    // Emit format info before moving source
+    let info = source.info.clone();
+    let _ = event_tx.try_send(AudioEvent::FormatChanged {
+        sample_rate: info.original_sample_rate,
+        bit_depth: info.bit_depth,
+        channels: info.channels as u16,
+        codec_name: info.codec_name.clone(),
+    });
+
     source.set_ready();
     source.set_playing();
 
@@ -2870,6 +2879,8 @@ mod tests {
             channels,
             total_samples: samples.len() as u64,
             duration_secs,
+            bit_depth: 16,
+            codec_name: "PCM".to_string(),
         };
         let (mut source, mut producer) = AudioSource::new(info);
 

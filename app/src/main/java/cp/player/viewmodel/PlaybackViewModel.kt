@@ -42,6 +42,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var currentCommentSortType by mutableIntStateOf(1)
     var currentSampleRate by mutableIntStateOf(0)
     var currentBitrate by mutableIntStateOf(0)
+    var currentBitDepth by mutableIntStateOf(0)
+    var currentChannels by mutableIntStateOf(0)
+    var currentCodecName by mutableStateOf("")
     var isFmMode by mutableStateOf(false)
     var isPersonalFmLoading by mutableStateOf(false)
     var isHeartbeatLoading by mutableStateOf(false)
@@ -67,6 +70,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 if (event is cp.player.engine.AudioEvent.FormatChanged) {
                     currentSampleRate = event.sampleRate
                     currentBitrate = event.bitrate
+                    currentBitDepth = event.bitDepth
+                    currentChannels = event.channels
+                    currentCodecName = event.codecName
                 }
             }
         }
@@ -103,6 +109,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         "UPDATE_PLAYBACK_INFO" -> {
                             currentSampleRate = args.getInt("sampleRate")
                             currentBitrate = args.getInt("bitrate")
+                            currentBitDepth = args.getInt("bitDepth")
+                            currentChannels = args.getInt("channels")
+                            currentCodecName = args.getString("codecName", "")
                         }
                         "ACTION_PLAYER_ERROR" -> {
                             DebugLog.toast(getApplication(), args.getString("error") ?: "Unknown error")

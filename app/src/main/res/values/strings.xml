@@ -416,6 +416,9 @@
     <string name="audio_quality_label">音质信息</string>
     <string name="sample_rate_label">采样率: %1$dHz</string>
     <string name="bitrate_label">比特率: %1$dkbps</string>
+    <string name="bit_depth_label">位深度: %1$d-bit</string>
+    <string name="channels_label">声道数: %1$d</string>
+    <string name="codec_label">编码格式: %1$s</string>
     <string name="usb_exclusive_status">USB 独占: %1$s</string>
     <string name="usb_active">活跃</string>
     <string name="usb_inactive">未活跃</string>

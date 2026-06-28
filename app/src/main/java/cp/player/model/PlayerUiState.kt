@@ -24,6 +24,9 @@ data class PlayerUiState(
     // 音质
     val sampleRate: Int = 0,
     val bitrate: Int = 0,
+    val bitDepth: Int = 0,
+    val channels: Int = 0,
+    val codecName: String = "",
     // 用户状态
     val isFavorite: Boolean = false,
     val isDownloaded: Boolean = false,

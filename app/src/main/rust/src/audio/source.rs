@@ -28,6 +28,10 @@ pub struct SourceInfo {
     pub total_samples: u64,
     /// Total duration in seconds
     pub duration_secs: f64,
+    /// Bit depth of the source (e.g. 16, 24, 32; 0 if unknown)
+    pub bit_depth: u16,
+    /// Codec name (e.g. "FLAC", "MP3", "AAC"; empty if unknown)
+    pub codec_name: String,
 }
 
 /// State of an audio source.
@@ -455,6 +459,8 @@ mod tests {
             channels: 2,
             total_samples: 4,
             duration_secs: 4.0 / 48_000.0 / 2.0,
+            bit_depth: 16,
+            codec_name: "PCM".to_string(),
         }
     }
 
