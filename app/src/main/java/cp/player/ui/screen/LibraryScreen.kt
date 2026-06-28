@@ -94,15 +94,14 @@ fun LibraryScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.padding(bottom = bottomContentPadding.calculateBottomPadding())
+        containerColor = MaterialTheme.colorScheme.surface
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(top = innerPadding.calculateTopPadding(), start = innerPadding.calculateStartPadding(androidx.compose.ui.platform.LocalLayoutDirection.current), end = innerPadding.calculateEndPadding(androidx.compose.ui.platform.LocalLayoutDirection.current))
             ) {
                 // 1. Top Filters with Animated Indicator
                 LibraryTopFilters(
@@ -135,7 +134,7 @@ fun LibraryScreen(
                             0 -> { // Playlists
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+                                    contentPadding = PaddingValues(top = 16.dp, bottom = bottomContentPadding.calculateBottomPadding() + 80.dp)
                                 ) {
                                     item {
                                         PlaylistsControlBar(
@@ -193,7 +192,7 @@ fun LibraryScreen(
                                         userViewModel.addSongsToPlaylist(playlistId, songIds, cp.player.util.UserPreferences.getCookie(context))
                                     },
                                     allPlaylists = userPlaylists,
-                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                    bottomContentPadding = bottomContentPadding
                                 )
                             }
                             2 -> { // Cloud
@@ -209,14 +208,14 @@ fun LibraryScreen(
                                     onDownloadClick = downloadViewModel?.let { vm -> { s -> vm.downloadSong(s) } },
                                     downloadedSongIds = downloadedSongIds,
                                     playbackViewModel = playbackViewModel,
-                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                    bottomContentPadding = bottomContentPadding
                                 )
                             }
                             3 -> { // Live Sort
                                 cp.player.ui.screen.LiveSortContent(
                                     liveSortViewModel = liveSortViewModel,
                                     playbackViewModel = playbackViewModel,
-                                    bottomContentPadding = PaddingValues(bottom = 100.dp)
+                                    bottomContentPadding = bottomContentPadding
                                 )
                             }
                         }

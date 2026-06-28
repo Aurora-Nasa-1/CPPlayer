@@ -71,7 +71,7 @@ fun LiveSortContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = bottomContentPadding.calculateBottomPadding())
+            .padding(bottom = bottomContentPadding.calculateBottomPadding() + 80.dp)
     ) {
         when (val state = sortState) {
             is LiveSortState.Idle -> IdleState(
