@@ -271,7 +271,15 @@ fun PlayerSongOptionsBottomSheet(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text("Hi-Fi & USB DAC", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
-                            val isUsbActive = remember<Boolean> { cp.player.engine.RustEngine.isRustDirectUsbSessionActive() }
+                            var isUsbActive by remember { mutableStateOf(cp.player.engine.RustEngine.isRustDirectUsbSessionActive()) }
+                            LaunchedEffect(Unit) {
+                                // USB 设备注册是异步的，需要轮询状态直到注册完成
+                                for (i in 1..10) {
+                                    kotlinx.coroutines.delay(500)
+                                    isUsbActive = cp.player.engine.RustEngine.isRustDirectUsbSessionActive()
+                                    if (isUsbActive) break
+                                }
+                            }
                             Text(stringResource(R.string.usb_exclusive_status, if (isUsbActive) stringResource(R.string.usb_active) else stringResource(R.string.usb_inactive)), style = MaterialTheme.typography.bodyMedium, color = if (isUsbActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
 
                             val hasHwVolume = remember<Boolean> { cp.player.engine.RustEngine.hasRustDirectUsbHardwareVolume() }

@@ -14,7 +14,10 @@ import android.util.Log
 import cp.player.util.UserPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class UsbAudioManager(private val context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
@@ -28,10 +31,15 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
     private var registeredDevice: UsbDevice? = null
     private var currentConnection: android.hardware.usb.UsbDeviceConnection? = null
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var periodicScanJob: Job? = null
 
     companion object {
         private const val ACTION_USB_PERMISSION = "cp.player.USB_PERMISSION"
         private const val TAG = "UsbAudioManager"
+        /** 周期性扫描间隔（ms），作为广播接收器的兜底 */
+        private const val PERIODIC_SCAN_INTERVAL_MS = 3000L
+        /** 周期性扫描最大持续时间（ms），避免无限轮询 */
+        private const val PERIODIC_SCAN_MAX_DURATION_MS = 30000L
     }
 
     val isDeviceRegistered: Boolean
@@ -89,17 +97,80 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            // 必须使用 RECEIVER_EXPORTED：USB 系统广播 (ACTION_USB_DEVICE_ATTACHED/DETACHED)
+            // 由系统发送，RECEIVER_NOT_EXPORTED 会阻止接收这些广播
+            context.registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(usbReceiver, filter)
         }
 
         UserPreferences.getPrefs(context).registerOnSharedPreferenceChangeListener(this)
+    }
 
-        scanForUsbAudioDevices()
+    /**
+     * 注册通过 Manifest intent-filter 暂存的 USB 设备。
+     * 该设备可能已不在 deviceList 中（用户可能已拔出），但仍尝试注册。
+     */
+    fun registerPendingDevice(device: UsbDevice) {
+        if (!UserPreferences.getUsbExclusive(context)) return
+        if (UserPreferences.getAudioEngine(context) != 1) return
+        Log.i(TAG, "registerPendingDevice: ${device.productName} (vid=${device.vendorId}, pid=${device.productId})")
+        checkAndRequestPermission(device)
+    }
+
+    /**
+     * 扫描已连接的 USB 音频设备并尝试注册。
+     * 必须在 Rust 引擎 (RustEngine.initEngine) 初始化完成后调用。
+     */
+    fun scanForUsbAudioDevices() {
+        if (!UserPreferences.getUsbExclusive(context)) return
+        if (UserPreferences.getAudioEngine(context) != 1) return
+
+        val deviceList = usbManager.deviceList
+        Log.i(TAG, "scanForUsbAudioDevices: checking ${deviceList.size} USB devices")
+        for (device in deviceList.values) {
+            checkAndRequestPermission(device)
+        }
+    }
+
+    /**
+     * 启动周期性扫描，作为广播接收器的兜底机制。
+     *
+     * 解决的问题：
+     * 1. 应用启动时 USB 设备可能尚未被系统枚举（deviceList 为空）
+     * 2. Android 13+ RECEIVER_NOT_EXPORTED 可能阻止某些广播传递
+     * 3. Rust 引擎 nativeInit() 可能晚于首次扫描完成
+     *
+     * 每 3 秒扫描一次，最多持续 30 秒，设备注册成功后自动停止。
+     */
+    fun startPeriodicScan() {
+        periodicScanJob?.cancel()
+        if (!UserPreferences.getUsbExclusive(context)) return
+        if (UserPreferences.getAudioEngine(context) != 1) return
+
+        periodicScanJob = scope.launch {
+            val startTime = System.currentTimeMillis()
+            while (isActive && registeredDevice == null) {
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed >= PERIODIC_SCAN_MAX_DURATION_MS) {
+                    Log.w(TAG, "Periodic scan timed out after ${PERIODIC_SCAN_MAX_DURATION_MS}ms")
+                    break
+                }
+
+                scanForUsbAudioDevices()
+
+                if (registeredDevice != null) {
+                    Log.i(TAG, "Periodic scan: device registered, stopping")
+                    break
+                }
+                delay(PERIODIC_SCAN_INTERVAL_MS)
+            }
+        }
     }
 
     fun stop() {
+        periodicScanJob?.cancel()
+        periodicScanJob = null
         scope.cancel()
         try {
             context.unregisterReceiver(usbReceiver)
@@ -113,32 +184,28 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         if (key == "usb_exclusive" || key == "audio_engine") {
             if (UserPreferences.getUsbExclusive(context) && UserPreferences.getAudioEngine(context) == 1) {
-                scanForUsbAudioDevices()
+                startPeriodicScan()
             } else {
+                periodicScanJob?.cancel()
+                periodicScanJob = null
                 unregisterDevice()
             }
         }
     }
 
-    private fun scanForUsbAudioDevices() {
-        if (!UserPreferences.getUsbExclusive(context)) return
-
-        if (UserPreferences.getAudioEngine(context) != 1) return
-
-        val deviceList = usbManager.deviceList
-        for (device in deviceList.values) {
-            checkAndRequestPermission(device)
-        }
-    }
-
+    /**
+     * 判断设备是否为 USB 音频设备。
+     * 同时检查接口级别（Audio Streaming）和设备级别（Audio Class），
+     * 提高对不同 USB DAC 的兼容性。
+     */
     private fun isUsbAudioDevice(device: UsbDevice): Boolean {
+        // 检查设备级别描述符
+        if (device.deviceClass == UsbConstants.USB_CLASS_AUDIO) return true
+
+        // 检查接口级别描述符
         for (i in 0 until device.interfaceCount) {
             val intf = device.getInterface(i)
-            // Interface Class 1 (Audio), Subclass 2 (Audio Streaming)
-            if (intf.interfaceClass == UsbConstants.USB_CLASS_AUDIO && 
-                intf.interfaceSubclass == 2) {
-                return true
-            }
+            if (intf.interfaceClass == UsbConstants.USB_CLASS_AUDIO) return true
         }
         return false
     }
@@ -202,10 +269,10 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
                             registeredDevice = device
                             currentConnection = connection
                             Log.i(TAG, "Successfully registered USB audio device: ${device.productName}")
-                            
+
                             // The Rust UAC2 engine REQUIRES a base playback format to be configured before it will start.
-                            // We set a high-quality default (192kHz, 32-bit, Stereo). 
-                            // The Rust engine's automatic negotiation will adapt the sample rate to match the playing file's 
+                            // We set a high-quality default (192kHz, 32-bit, Stereo).
+                            // The Rust engine's automatic negotiation will adapt the sample rate to match the playing file's
                             // native sample rate for Bit-Perfect playback, but it needs this initial configuration to know the target bit depth!
                             RustEngine.setRustDirectUsbPlaybackFormat(
                                 sampleRate = 192000,
@@ -214,7 +281,7 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
                                 isDop = false,
                                 isNativeDsd = false
                             )
-                            
+
                             // Initialize Hardware Volume if present (set to 100% by default, or unmute)
                             scope.launch(Dispatchers.IO) {
                                 kotlinx.coroutines.delay(500)
@@ -245,11 +312,11 @@ class UsbAudioManager(private val context: Context) : SharedPreferences.OnShared
         if (registeredDevice != null) {
             Log.i(TAG, "unregisterDevice: Clearing Rust direct USB playback and closing connection")
             RustEngine.clearDirectUsbPlayback()
-            
+
             // Wait for session to stop to avoid resource busy on immediate re-open
             val stopped = RustEngine.waitRustDirectUsbSessionStopped(2000)
             Log.i(TAG, "unregisterDevice: Rust session stopped: $stopped")
-            
+
             currentConnection?.close()
             currentConnection = null
             registeredDevice = null

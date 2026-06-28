@@ -399,6 +399,19 @@ class MusicService : MediaSessionService() {
         }
         crossfadeManager.activePlayerIndex = activePlayerIndex
 
+        // 在 Rust 引擎初始化完成后处理 USB 设备
+        if (UserPreferences.getAudioEngine(this) == 1) {
+            // 优先使用 MainActivity 通过 Manifest intent-filter 暂存的设备
+            val pendingDevice = cp.player.MainActivity.pendingUsbDevice
+            if (pendingDevice != null) {
+                cp.player.MainActivity.pendingUsbDevice = null
+                DebugLog.i("MusicService: Found pending USB device from MainActivity: ${pendingDevice.productName}")
+                usbAudioManager?.registerPendingDevice(pendingDevice)
+            }
+            // 启动周期性扫描作为兜底（覆盖设备枚举延迟、广播丢失等场景）
+            usbAudioManager?.startPeriodicScan()
+        }
+
         startPlaybackInfoLoop()
 
         val intent = Intent(this, cp.player.MainActivity::class.java).apply {
@@ -552,7 +565,12 @@ class MusicService : MediaSessionService() {
 
             // Update USB audio manager
             if (engineType == 1) {
-                if (usbAudioManager == null) { usbAudioManager = cp.player.engine.UsbAudioManager(this); usbAudioManager?.start() }
+                if (usbAudioManager == null) {
+                    usbAudioManager = cp.player.engine.UsbAudioManager(this)
+                    usbAudioManager?.start()
+                }
+                // 引擎切换完成后启动周期性 USB 扫描
+                usbAudioManager?.startPeriodicScan()
             } else {
                 usbAudioManager?.stop()
                 usbAudioManager = null

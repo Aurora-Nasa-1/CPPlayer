@@ -36,9 +36,20 @@ import cp.player.ui.component.*
 import cp.player.ui.screen.*
 import cp.player.ui.theme.CPPlayerTheme
 import cp.player.viewmodel.*
+import cp.player.util.DebugLog
 import io.sentry.Sentry
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        /**
+         * 通过 Manifest intent-filter 启动时暂存的 USB 设备。
+         * MusicService 创建 UsbAudioManager 后会检查此字段并注册设备。
+         */
+        @Volatile
+        @JvmStatic
+        var pendingUsbDevice: android.hardware.usb.UsbDevice? = null
+    }
+
     private val loginViewModel: LoginViewModel by viewModels()
     private val playbackViewModel: PlaybackViewModel by viewModels()
     private val userViewModel: UserViewModel by viewModels()
@@ -51,6 +62,10 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 处理通过 Manifest intent-filter 启动的 USB 设备附加事件
+        handleUsbDeviceIntent(intent)
+
     // waiting for view to draw to better represent a captured error with a screenshot
     findViewById<android.view.View>(android.R.id.content).viewTreeObserver.addOnGlobalLayoutListener {
       try {
@@ -81,6 +96,30 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) { playbackViewModel.initController(context) }
                     AppNavigation(loginViewModel, playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, useSideNav, intent)
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleUsbDeviceIntent(intent)
+    }
+
+    /**
+     * 处理 USB 设备附加 intent（来自 Manifest intent-filter）。
+     * 将设备暂存到 [pendingUsbDevice]，供 MusicService 后续注册。
+     */
+    private fun handleUsbDeviceIntent(intent: Intent?) {
+        if (intent?.action == android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+            val device: android.hardware.usb.UsbDevice? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE, android.hardware.usb.UsbDevice::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE)
+            }
+            if (device != null) {
+                pendingUsbDevice = device
+                DebugLog.i("MainActivity: USB device attached via intent: ${device.productName}")
             }
         }
     }
