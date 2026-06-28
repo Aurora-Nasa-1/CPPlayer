@@ -116,19 +116,19 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         actions = {
             actions()
-            Surface(onClick = onNavigateToMessages, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(40.dp)) {
+            Surface(onClick = onNavigateToMessages, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Email, contentDescription = stringResource(R.string.messages), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Email, contentDescription = stringResource(R.string.messages))
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            Surface(onClick = onNavigateToSettings, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(40.dp)) {
+            Spacer(Modifier.width(4.dp))
+            Surface(onClick = onNavigateToSettings, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            Surface(onClick = { showAccountDialog = true }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(40.dp)) {
+            Spacer(Modifier.width(4.dp))
+            Surface(onClick = { showAccountDialog = true }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.surfaceVariant) {
                         if (userProfile?.avatarUrl != null) {
