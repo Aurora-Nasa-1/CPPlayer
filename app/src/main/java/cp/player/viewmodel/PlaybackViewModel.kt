@@ -187,7 +187,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }, MoreExecutors.directExecutor())
     }
 
-    private fun syncState(controller: MediaController) {
+    fun syncState(controller: MediaController) {
         isPlaying = controller.isPlaying
         currentPosition = controller.currentPosition
         duration = controller.duration.coerceAtLeast(0L)

@@ -92,8 +92,17 @@ class MainActivity : ComponentActivity() {
                 fontRoundness = settingsViewModel.fontRoundness
             ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                    val context = LocalContext.current
-                    LaunchedEffect(Unit) { playbackViewModel.initController(context) }
+                    // 应用回到前台时重新同步 MediaSession 播放状态
+                    val lifecycleOwner = LocalLifecycleOwner.current
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                                playbackViewModel.mediaController?.let { playbackViewModel.syncState(it) }
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
                     AppNavigation(loginViewModel, playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, useSideNav, intent)
                 }
             }
