@@ -807,7 +807,8 @@ fun AppMainContent(
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
-                                )
+                                ),
+                                isPlayerExpanded = isPlayerExpanded
                             )
                         }
                         composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }

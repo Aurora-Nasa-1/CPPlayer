@@ -102,7 +102,8 @@ fun SettingsScreen(
     onAmllPlatformChange: (String) -> Unit,
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
-    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp),
+    isPlayerExpanded: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -123,7 +124,7 @@ fun SettingsScreen(
         }
     }
 
-    BackHandler(enabled = currentScreen != "main") {
+    BackHandler(enabled = currentScreen != "main" && !isPlayerExpanded) {
         currentScreen = parentScreen[currentScreen] ?: "main"
     }
 
