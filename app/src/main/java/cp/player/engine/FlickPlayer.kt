@@ -82,6 +82,21 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     @Volatile private var bufferingActive = false
 
     /**
+     * 流媒体 Seek 等待数据标志。
+     *
+     * 当流媒体播放期间用户 Seek 到未加载位置时设置为 true。
+     * Rust 引擎在 Seek 后会立即发送 "Playing" 状态事件（解码器已创建），
+     * 但此时解码器可能还没有产出有效音频数据（Seek 目标超出已下载范围）。
+     *
+     * 在此标志为 true 期间，忽略引擎的 "Playing" 事件，保持 STATE_BUFFERING。
+     * 收到进度事件（证明解码器已产出音频）后自动清除。
+     *
+     * 设置时机：handleSeek（流媒体播放中）
+     * 清除时机：handleProgress（收到进度）、playCurrentItem、handleStop、handleSetPlayWhenReady(false)
+     */
+    @Volatile private var seekDuringStreaming = false
+
+    /**
      * 暂停请求标志。
      *
      * 用于防止暂停过程中的竞态条件：handleSetPlayWhenReady(false) 同步更新 UI 状态，
@@ -202,9 +217,19 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
         when (state.lowercase()) {
             "playing" -> {
+                // 流媒体 Seek 后：Rust 引擎在解码器创建后立即发送 "Playing"，
+                // 但解码器可能还没有产出有效音频数据（Seek 目标超出已下载范围）。
+                // 保持 STATE_BUFFERING，等待 handleProgress 收到进度事件后再转为 STATE_READY。
+                if (seekDuringStreaming && isDownloading && !downloadComplete) {
+                    Log.d(TAG, "Deferring engine 'playing' during seek-in-progress (streaming)")
+                    invalidateState()
+                    return
+                }
+
                 // 缓冲恢复：引擎从缓冲/暂停状态恢复到播放状态
                 bufferingActive = false
                 recoveryPlayIssued = false
+                seekDuringStreaming = false
 
                 // 暂停请求进行中时，忽略引擎的 "playing" 状态事件，
                 // 防止旧事件覆盖用户的暂停意图。但如果此时 playWhenReady 也是 true，
@@ -267,6 +292,19 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     }
 
     private fun handleProgress(event: AudioEvent.Progress) {
+        // 流媒体 Seek 后收到进度事件：解码器已产出有效音频数据
+        if (seekDuringStreaming) {
+            seekDuringStreaming = false
+            bufferingActive = false
+            // 转为正常播放状态
+            if (playWhenReady && playbackState == Player.STATE_BUFFERING) {
+                isPlaying = true
+                playbackState = Player.STATE_READY
+                positionUpdateTimeMs.set(System.currentTimeMillis())
+                invalidateState()
+            }
+        }
+
         if (System.currentTimeMillis() - lastSeekTimeMs.get() < 1000) return
 
         val newPos = (event.positionSecs * 1000).toLong()
@@ -546,6 +584,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         } else {
             // 用户主动暂停：清除缓冲恢复相关标志
             bufferingActive = false
+            seekDuringStreaming = false
             underrunWatchJob?.cancel()
             pauseRequested = true
             scope.launch(Dispatchers.IO) { RustEngine.pause() }
@@ -635,10 +674,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         seekCommand: Int
     ): ListenableFuture<*> {
         // 如果用户执行了 Seek，并且 playWhenReady 是 true，我们认为用户希望继续播放
-        // 这时清除 pauseRequested 和 bufferingActive，防止之前可能残留的状态影响后续事件
         if (playWhenReady) {
             pauseRequested = false
-            bufferingActive = false
         }
         val targetPosition = if (positionMs == C.TIME_UNSET) 0L else positionMs
         if (mediaItemIndex != currentMediaItemIndex && mediaItemIndex in playlist.indices) {
@@ -647,6 +684,19 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             playCurrentItem()
         } else {
             lastSeekTimeMs.set(System.currentTimeMillis())
+
+            // 流媒体播放中 Seek：保持 bufferingActive，标记等待数据
+            // Rust 引擎 Seek 后会立即发送 "Playing"（解码器已创建），
+            // 但如果 Seek 目标超出已下载范围，解码器无法产出有效音频。
+            // 通过 seekDuringStreaming 标志延迟接受 "Playing"，直到收到进度事件。
+            if (isDownloading && !downloadComplete) {
+                bufferingActive = true
+                seekDuringStreaming = true
+                isPlaying = false
+                playbackState = Player.STATE_BUFFERING
+                underrunWatchJob?.cancel()
+            }
+
             // JNI 调用移到引擎线程
             scope.launch(Dispatchers.IO) {
                 RustEngine.seek(targetPosition / 1000.0)
@@ -661,6 +711,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         scope.launch(Dispatchers.IO) { RustEngine.stop() }
         pauseRequested = false
         bufferingActive = false
+        seekDuringStreaming = false
         playWhenReady = false
         playbackState = Player.STATE_IDLE
         isPlaying = false
@@ -725,6 +776,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         underrunPositionMs = 0L
         recoveryPlayIssued = false
         bufferingActive = false
+        seekDuringStreaming = false
         underrunWatchJob?.cancel()
         // Reset format info for new track (will be updated by FormatChanged event)
         lastSampleRate = 0
