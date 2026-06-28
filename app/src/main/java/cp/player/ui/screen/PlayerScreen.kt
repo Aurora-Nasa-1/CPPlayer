@@ -948,10 +948,10 @@ private fun PlayerMobileLayout(
                             IconButton(onClick = onRepeatClick) {
                                 val icon = when (repeatMode) {
                                     Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                    Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                                    else -> Icons.Default.Shuffle
+                                    else -> Icons.Default.Repeat
                                 }
-                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp),
+                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = onLikeClick) {
                                 AnimatedContent(targetState = isFavorite, label = "LikeAnimation") { targetFavorite ->
@@ -1182,10 +1182,10 @@ private fun PlayerMobileLayout(
                             IconButton(onClick = onRepeatClick) {
                                 val icon = when (repeatMode) {
                                     Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                    Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
-                                    else -> Icons.Default.Shuffle
+                                    else -> Icons.Default.Repeat
                                 }
-                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(icon, contentDescription = "Mode", modifier = Modifier.size(24.dp),
+                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IconButton(onClick = onLikeClick) {
                                 AnimatedContent(targetState = isFavorite, label = "LikeAnimation") { targetFavorite ->

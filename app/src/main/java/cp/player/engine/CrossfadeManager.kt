@@ -147,9 +147,16 @@ class CrossfadeManager(
         if (isFlickEngine) return
         val oldPlayer = activePlayer ?: return
         val newPlayer = nextPlayer ?: return
-        val targetIndex = oldPlayer.currentMediaItemIndex + 1
 
-        if (targetIndex >= oldPlayer.mediaItemCount) return
+        // 计算目标索引：考虑 repeat-all 回绕
+        val rawNext = oldPlayer.currentMediaItemIndex + 1
+        val targetIndex = if (rawNext < oldPlayer.mediaItemCount) {
+            rawNext
+        } else if (oldPlayer.repeatMode == Player.REPEAT_MODE_ALL && oldPlayer.mediaItemCount > 0) {
+            0
+        } else {
+            return
+        }
 
         isCrossfading = true
         val items = (0 until oldPlayer.mediaItemCount).map { oldPlayer.getMediaItemAt(it) }

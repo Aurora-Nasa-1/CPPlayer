@@ -375,9 +375,11 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     /**
      * 曲目播放完毕。
      *
-     * 自动下一首的逻辑和手动点击播放完全一致：
-     * 1. 递增索引
-     * 2. 调用 playCurrentItem()（内部先 stop() 再 play()）
+     * 根据 repeatMode / shuffleMode 决定下一步：
+     * - REPEAT_MODE_ONE   → 重播当前曲目
+     * - shuffleMode       → 随机选择下一首
+     * - REPEAT_MODE_ALL   → 到末尾时回到第一首
+     * - REPEAT_MODE_OFF   → 到末尾时停止
      */
     private fun handleTrackEnded(eventPath: String) {
         // 忽略旧曲目的 TrackEnded
@@ -398,11 +400,37 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             return
         }
 
+        // 单曲循环 → 重播当前曲目
+        if (repeatMode == Player.REPEAT_MODE_ONE) {
+            Log.i(TAG, "Track ended, repeat one: replaying $currentMediaItemIndex")
+            playCurrentItem()
+            return
+        }
+
+        // 随机播放 → 随机选择下一首（避免连续重复）
+        if (shuffleModeEnabled && playlist.size > 1) {
+            var nextIndex: Int
+            do {
+                nextIndex = (0 until playlist.size).random()
+            } while (nextIndex == currentMediaItemIndex)
+            Log.i(TAG, "Track ended, shuffle: random next $nextIndex")
+            currentMediaItemIndex = nextIndex
+            playCurrentItem()
+            return
+        }
+
+        // 顺序播放
         if (currentMediaItemIndex < playlist.size - 1) {
             Log.i(TAG, "Track ended, advancing to next: ${currentMediaItemIndex + 1}")
             currentMediaItemIndex++
             playCurrentItem()
+        } else if (repeatMode == Player.REPEAT_MODE_ALL) {
+            // 列表循环 → 回到第一首
+            Log.i(TAG, "Track ended, repeat all: back to 0")
+            currentMediaItemIndex = 0
+            playCurrentItem()
         } else {
+            // 不循环 → 停止
             Log.i(TAG, "Track ended, no more tracks")
             isPlaying = false
             playbackState = Player.STATE_ENDED
@@ -1033,9 +1061,18 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
 
     private fun startPreCacheNextTrack() {
         cancelPreCache()
-        val nextIndex = currentMediaItemIndex + 1
-        if (nextIndex >= playlist.size) return
         if (repeatMode == Player.REPEAT_MODE_ONE) return
+        val nextIndex = if (shuffleModeEnabled && playlist.size > 1) {
+            var idx: Int
+            do { idx = (0 until playlist.size).random() } while (idx == currentMediaItemIndex)
+            idx
+        } else if (currentMediaItemIndex + 1 < playlist.size) {
+            currentMediaItemIndex + 1
+        } else if (repeatMode == Player.REPEAT_MODE_ALL && playlist.isNotEmpty()) {
+            0
+        } else {
+            return
+        }
 
         val nextItem = playlist[nextIndex].item
         val uri = nextItem.localConfiguration?.uri ?: return

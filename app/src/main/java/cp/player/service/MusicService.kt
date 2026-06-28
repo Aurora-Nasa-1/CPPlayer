@@ -608,11 +608,17 @@ class MusicService : MediaSessionService() {
                             ?: if (livesortFadeOverrides.isEmpty()) globalFadeDur else 0L
 
                         if (effectiveFadeDur > 0 && dur != C.TIME_UNSET && dur - pos <= effectiveFadeDur && dur - pos > 0) {
-                            if (p.currentMediaItemIndex < p.mediaItemCount - 1) {
-                                if (fadeMode == 0 || (override != null && fadeMode != 2)) {
-                                    crossfadeManager.startCrossfade(effectiveFadeDur)
-                                } else if (fadeMode == 1) {
-                                    crossfadeManager.startSinglePlayerFadeOut(effectiveFadeDur)
+                            val rm = p.repeatMode
+                            // 单曲循环不触发 crossfade — 由播放器原生处理重播
+                            if (rm != Player.REPEAT_MODE_ONE) {
+                                val hasNext = p.currentMediaItemIndex < p.mediaItemCount - 1
+                                val canWrap = rm == Player.REPEAT_MODE_ALL || p.shuffleModeEnabled
+                                if (hasNext || canWrap) {
+                                    if (fadeMode == 0 || (override != null && fadeMode != 2)) {
+                                        crossfadeManager.startCrossfade(effectiveFadeDur)
+                                    } else if (fadeMode == 1) {
+                                        crossfadeManager.startSinglePlayerFadeOut(effectiveFadeDur)
+                                    }
                                 }
                             }
                         }
