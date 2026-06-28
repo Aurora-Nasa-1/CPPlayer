@@ -2,7 +2,7 @@ name: Trigger Jules Auto-Fix
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 jobs:
   dispatch-agent:
