@@ -108,3 +108,4 @@ All extend [BaseViewModel.kt](app/src/main/java/cp/player/viewmodel/BaseViewMode
 - Version catalog: `gradle/libs.versions.toml`
 
 任务完成后需要推送至手机测试./gradlew assemblefastRelease && adb install -r app/build/outputs/apk/fastRelease/app-fastRelease.apk && adb shell monkey -p cp.player -c android.intent.category.LAUNCHER 1
+最后提交git commit
