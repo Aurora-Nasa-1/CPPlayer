@@ -167,8 +167,20 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             val bands = DspPreferences.getPeqBands(ctx)
             Log.i(TAG, "initDspFromPrefs: eqEnabled=$eqEnabled, bands=${bands.size}")
             if (eqEnabled) {
-                val result = if (bands.isEmpty()) RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
-                else RustEngine.setEqualizer(true, bands.map { it.freq }.toFloatArray(), bands.map { it.gain }.toFloatArray(), bands.map { it.q }.toFloatArray())
+                val result = if (bands.isEmpty()) {
+                    RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
+                } else {
+                    val freqs = FloatArray(bands.size)
+                    val gains = FloatArray(bands.size)
+                    val qs = FloatArray(bands.size)
+                    for (i in bands.indices) {
+                        val band = bands[i]
+                        freqs[i] = band.freq
+                        gains[i] = band.gain
+                        qs[i] = band.q
+                    }
+                    RustEngine.setEqualizer(true, freqs, gains, qs)
+                }
                 Log.i(TAG, "initDspFromPrefs: setEqualizer result=$result")
             }
             val fxEnabled = DspPreferences.getFxEnabled(ctx)
