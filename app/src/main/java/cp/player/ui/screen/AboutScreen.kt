@@ -6,7 +6,9 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cp.player.BuildConfig
@@ -210,7 +211,10 @@ private fun UpdateAvailableDialog(
         icon = { Icon(Icons.Default.SystemUpdate, null, tint = MaterialTheme.colorScheme.primary) },
         title = { Text(stringResource(R.string.update_available)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 Text(
                     text = "v${result.versionName}",
                     style = MaterialTheme.typography.headlineSmall,
@@ -239,11 +243,9 @@ private fun UpdateAvailableDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = result.changelog.take(500), // 限制长度
+                            text = result.changelog,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp),
-                            maxLines = 8,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
                 }

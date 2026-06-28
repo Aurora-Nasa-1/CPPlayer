@@ -27,7 +27,7 @@ object AppUpdateChecker {
     private const val TAG = "AppUpdateChecker"
     private const val REPO_OWNER = "Aurora-Nasa-1"
     private const val REPO_NAME = "CPPlayer"
-    private const val RELEASES_API = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
+    private const val RELEASES_API = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases"
     private const val RELEASES_PAGE = "https://github.com/$REPO_OWNER/$REPO_NAME/releases"
 
     private val gson = Gson()
@@ -90,36 +90,52 @@ object AppUpdateChecker {
                     return null
                 }
                 val body = response.body.string()
-                val release = gson.fromJson(body, GitHubRelease::class.java)
+                val releases = gson.fromJson(body, Array<GitHubRelease>::class.java)
+                if (releases.isNullOrEmpty()) return null
+
+                val latest = releases.first()
 
                 // 解析 tag_name 为版本号（去掉前缀 v）
-                val remoteVersionName = release.tagName.removePrefix("v")
-
-                // 从 release assets 中找 APK 下载链接
-                val apkAsset = release.assets?.find { asset ->
-                    asset.name.endsWith(".apk", ignoreCase = true) &&
-                        (asset.contentType == "application/vnd.android.package-archive" ||
-                         asset.contentType == null) // 有些 release 没设 content_type
-                }
-
-                // 如果没有 APK asset，尝试用 release 页面兜底
-                val downloadUrl = apkAsset?.browserDownloadUrl ?: release.htmlUrl
+                val remoteVersionName = latest.tagName.removePrefix("v")
 
                 // 比较版本：优先用版本名比较（因为 versionCode 可能不连续）
-                if (compareVersions(BuildConfig.VERSION_NAME, remoteVersionName) < 0) {
-                    Log.i(TAG, "Update available: ${BuildConfig.VERSION_NAME} → $remoteVersionName")
-                    UpdateResult(
-                        versionName = remoteVersionName,
-                        versionCode = 0, // 无法从 GitHub 获取 versionCode
-                        downloadUrl = downloadUrl,
-                        changelog = release.body,
-                        publishedAt = release.publishedAt,
-                        releaseUrl = release.htmlUrl
-                    )
-                } else {
+                if (compareVersions(BuildConfig.VERSION_NAME, remoteVersionName) >= 0) {
                     Log.d(TAG, "Already up to date: ${BuildConfig.VERSION_NAME}")
-                    null
+                    return null
                 }
+
+                // 从当前版本到最新版本之间的所有 release 更新日志
+                val currentVersion = BuildConfig.VERSION_NAME
+                val changelogBuilder = StringBuilder()
+                for (release in releases) {
+                    val ver = release.tagName.removePrefix("v")
+                    // 只收集比当前版本新的 release
+                    if (compareVersions(ver, currentVersion) <= 0) break
+                    if (!release.body.isNullOrBlank()) {
+                        changelogBuilder.appendLine("### ${release.tagName}")
+                        changelogBuilder.appendLine()
+                        changelogBuilder.appendLine(release.body.trim())
+                        changelogBuilder.appendLine()
+                    }
+                }
+
+                // 从最新 release assets 中找 APK 下载链接
+                val apkAsset = latest.assets?.find { asset ->
+                    asset.name.endsWith(".apk", ignoreCase = true) &&
+                        (asset.contentType == "application/vnd.android.package-archive" ||
+                         asset.contentType == null)
+                }
+                val downloadUrl = apkAsset?.browserDownloadUrl ?: latest.htmlUrl
+
+                Log.i(TAG, "Update available: ${BuildConfig.VERSION_NAME} → $remoteVersionName")
+                UpdateResult(
+                    versionName = remoteVersionName,
+                    versionCode = 0,
+                    downloadUrl = downloadUrl,
+                    changelog = changelogBuilder.toString().trimEnd().ifBlank { latest.body },
+                    publishedAt = latest.publishedAt,
+                    releaseUrl = latest.htmlUrl
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to check update", e)
