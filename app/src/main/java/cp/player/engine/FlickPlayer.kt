@@ -422,13 +422,16 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             while (isActive && isDownloading && !downloadComplete) {
                 delay(UNDERRUN_POLL_MS)
 
-                // 提前恢复播放：计算 positionToRecover 对应的字节数
-                // 加上预留的安全缓冲量（例如 5 秒的数据），如果当前下载量大于这个值，则可以提前恢复播放。
-                val bufferTargetMs = positionToRecover + (TARGET_PRE_BUFFER_SECS * 1000L / 3) // 等待约5秒数据
+                // 计算恢复播放所需的最小下载量：
+                // 必须确保 Seek 目标位置的数据已经下载到文件中，
+                // 否则 play() 重启解码器后 seek() 到未下载位置会再次失败（从头播放）。
                 val targetBytes = if (lastBitrate > 0) {
-                    (lastBitrate.toLong() * bufferTargetMs) / 8000
+                    // Seek 位置对应的字节 + 5秒安全缓冲
+                    (lastBitrate.toLong() * (positionToRecover + TARGET_PRE_BUFFER_SECS * 1000L)) / 8000
                 } else {
-                    MIN_PRE_BUFFER_BYTES // 如果没有 bitrate 兜底
+                    // bitrate 未知：无法计算 Seek 位置对应字节，等待整首歌下载完成
+                    // （避免恢复后从头播放）
+                    Long.MAX_VALUE
                 }
 
                 if (bytesDownloaded > targetBytes) {
