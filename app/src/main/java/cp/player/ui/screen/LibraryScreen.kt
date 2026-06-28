@@ -145,7 +145,7 @@ fun LibraryScreen(
                                         )
                                     }
 
-                                    items(userPlaylists.size) { index ->
+                                    items(userPlaylists.size, key = { userPlaylists[it].id }) { index ->
                                         PlaylistItem(
                                             playlist = userPlaylists[index],
                                             isOwner = !userPlaylists[index].subscribed,
