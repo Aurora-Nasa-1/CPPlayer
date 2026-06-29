@@ -601,9 +601,24 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         if (extraDuration > 0) return extraDuration
         val path = item.localConfiguration?.uri?.toString() ?: return 0L
         if (!path.startsWith("cp://") && !path.startsWith("http://") && !path.startsWith("https://")) {
-            return durationCache.getOrPut(path) {
-                extractDuration(Uri.parse(path), false)
+            val cached = durationCache[path]
+            if (cached != null) return cached
+
+            // 异步提取时长，避免阻塞主线程（可能引发 ANR）
+            scope.launch(Dispatchers.IO) {
+                val duration = extractDuration(Uri.parse(path), false)
+                if (duration > 0) {
+                    durationCache[path] = duration
+                    // 通知重新获取并更新状态
+                    withContext(Dispatchers.Main) {
+                        if (currentPlayingPath == path || currentPlayingPath == getRealPathFromUri(path)) {
+                            durationMs = duration
+                            invalidateState()
+                        }
+                    }
+                }
             }
+            return 0L
         }
         return 0L
     }
