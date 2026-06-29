@@ -477,6 +477,7 @@ fun AppMainContent(
                                 userViewModel.fetchCloudSongs()
                             }
                             val navContext = LocalContext.current
+                            val libraryCoroutineScope = rememberCoroutineScope()
                             LibraryScreen(
                                 userPlaylists = userViewModel.userPlaylists,
                                 onPlaylistClick = { p ->
@@ -486,30 +487,34 @@ fun AppMainContent(
 
                                 // Downloads Data
                                 onPlayLocalSong = { s, u ->
-                                    val playlist = if (s.id.startsWith("local_")) {
-                                        downloadViewModel.localSongs.value.map {
-                                            cp.player.model.Song(
-                                                id = it.songId,
-                                                name = it.songName,
-                                                artist = it.artist,
-                                                album = it.album,
-                                                albumArtUrl = cp.player.manager.LocalMusicManager.getCoverArt(
-                                                    navContext, it.songId, it.filePath
+                                    libraryCoroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        val playlist = if (s.id.startsWith("local_")) {
+                                            downloadViewModel.localSongs.value.map {
+                                                cp.player.model.Song(
+                                                    id = it.songId,
+                                                    name = it.songName,
+                                                    artist = it.artist,
+                                                    album = it.album,
+                                                    albumArtUrl = cp.player.manager.LocalMusicManager.getCoverArt(
+                                                        navContext, it.songId, it.filePath
+                                                    )
                                                 )
-                                            )
+                                            }
+                                        } else {
+                                            downloadViewModel.downloadedSongs.value.map { metadata ->
+                                                val coverUrl = metadata.localCoverPath
+                                                    ?: cp.player.util.CoverArtExtractor.getOrExtract(
+                                                        navContext, metadata.song.id, metadata.filePath
+                                                    )
+                                                    ?: metadata.song.albumArtUrl
+                                                metadata.song.copy(albumArtUrl = coverUrl)
+                                            }
                                         }
-                                    } else {
-                                        downloadViewModel.downloadedSongs.value.map { metadata ->
-                                            val coverUrl = metadata.localCoverPath
-                                                ?: cp.player.util.CoverArtExtractor.getOrExtract(
-                                                    navContext, metadata.song.id, metadata.filePath
-                                                )
-                                                ?: metadata.song.albumArtUrl
-                                            metadata.song.copy(albumArtUrl = coverUrl)
+                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            playbackViewModel.playSong(s, playlist)
+                                            if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                         }
                                     }
-                                    playbackViewModel.playSong(s, playlist)
-                                    if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
                                 downloadedSongs = downloadViewModel.downloadedSongs.collectAsState().value,
                                 localSongs = downloadViewModel.localSongs.collectAsState().value,
