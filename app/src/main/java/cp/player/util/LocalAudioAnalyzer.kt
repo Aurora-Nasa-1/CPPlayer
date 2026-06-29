@@ -14,6 +14,34 @@ import kotlin.math.sqrt
 
 object LocalAudioAnalyzer {
 
+    private class FloatArrayList(initialCapacity: Int = 1024) {
+        var data = FloatArray(initialCapacity)
+        var size = 0
+
+        fun add(element: Float) {
+            if (size == data.size) {
+                data = data.copyOf(data.size * 2)
+            }
+            data[size++] = element
+        }
+
+        fun addAll(elements: FloatArray) {
+            if (size + elements.size > data.size) {
+                var newCapacity = data.size * 2
+                while (newCapacity < size + elements.size) {
+                    newCapacity *= 2
+                }
+                data = data.copyOf(newCapacity)
+            }
+            System.arraycopy(elements, 0, data, size, elements.size)
+            size += elements.size
+        }
+
+        fun toFloatArray(): FloatArray {
+            return data.copyOf(size)
+        }
+    }
+
     fun analyze(context: Context, uri: Uri): AudioFeatures {
         return try {
             val samples = decodeAudio(context, uri, maxDurationSec = 40)
@@ -96,13 +124,13 @@ object LocalAudioAnalyzer {
             val durationUs = format.getLong(MediaFormat.KEY_DURATION)
             val durationSec = durationUs / 1_000_000L
 
-            val resultSamples = mutableListOf<Float>()
+            val resultSamples = FloatArrayList()
 
             // Helper to decode a segment
             fun decodeSegment(startUs: Long, lengthUs: Long): FloatArray {
                 extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 var isEOS = false
-                val segmentSamples = mutableListOf<Float>()
+                val segmentSamples = FloatArrayList()
                 val info = MediaCodec.BufferInfo()
                 var decodedUs = 0L
 
@@ -152,7 +180,7 @@ object LocalAudioAnalyzer {
             // Extract first 30s
             val firstSegmentUs = min(durationUs, 30_000_000L)
             val firstSamples = decodeSegment(0L, firstSegmentUs)
-            resultSamples.addAll(firstSamples.toList())
+            resultSamples.addAll(firstSamples)
 
             // If duration > 45s, we skip the middle and seek to the end 15s to save time.
             if (durationUs > 45_000_000L) {
@@ -161,7 +189,7 @@ object LocalAudioAnalyzer {
                 codec.flush() // flush codec before seek
                 val tailStartUs = durationUs - 15_000_000L
                 val tailSamples = decodeSegment(tailStartUs, 15_000_000L)
-                resultSamples.addAll(tailSamples.toList())
+                resultSamples.addAll(tailSamples)
             }
 
             codec.stop()
