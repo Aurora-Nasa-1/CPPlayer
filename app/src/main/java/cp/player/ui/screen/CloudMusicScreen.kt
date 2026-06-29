@@ -45,7 +45,7 @@ fun CloudMusicContent(
                     start = 0.dp,
                     end = 0.dp,
                     top = 16.dp,
-                    bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+                    bottom = bottomContentPadding.calculateBottomPadding() + 80.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
