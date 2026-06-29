@@ -92,8 +92,20 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
     LaunchedEffect(Unit) {
         // EQ
         if (flickEqEnabled) {
-            if (peqBands.isEmpty()) RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
-            else RustEngine.setEqualizer(true, peqBands.map { it.freq }.toFloatArray(), peqBands.map { it.gain }.toFloatArray(), peqBands.map { it.q }.toFloatArray())
+            if (peqBands.isEmpty()) {
+                RustEngine.setEqualizer(true, floatArrayOf(), floatArrayOf(), floatArrayOf())
+            } else {
+                val freqs = FloatArray(peqBands.size)
+                val gains = FloatArray(peqBands.size)
+                val qs = FloatArray(peqBands.size)
+                for (i in peqBands.indices) {
+                    val band = peqBands[i]
+                    freqs[i] = band.freq
+                    gains[i] = band.gain
+                    qs[i] = band.q
+                }
+                RustEngine.setEqualizer(true, freqs, gains, qs)
+            }
         }
         // FX
         if (fxEnabled) {
@@ -108,8 +120,20 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
 
     fun applyEq() {
         DspPreferences.setEqEnabled(context, flickEqEnabled); DspPreferences.setPeqBands(context, peqBands.toList())
-        if (peqBands.isEmpty()) { RustEngine.setEqualizer(flickEqEnabled, floatArrayOf(), floatArrayOf(), floatArrayOf()); return }
-        RustEngine.setEqualizer(flickEqEnabled, peqBands.map { it.freq }.toFloatArray(), peqBands.map { it.gain }.toFloatArray(), peqBands.map { it.q }.toFloatArray())
+        if (peqBands.isEmpty()) {
+            RustEngine.setEqualizer(flickEqEnabled, floatArrayOf(), floatArrayOf(), floatArrayOf())
+            return
+        }
+        val freqs = FloatArray(peqBands.size)
+        val gains = FloatArray(peqBands.size)
+        val qs = FloatArray(peqBands.size)
+        for (i in peqBands.indices) {
+            val band = peqBands[i]
+            freqs[i] = band.freq
+            gains[i] = band.gain
+            qs[i] = band.q
+        }
+        RustEngine.setEqualizer(flickEqEnabled, freqs, gains, qs)
     }
     fun applyFx() {
         DspPreferences.setFxEnabled(context, fxEnabled); DspPreferences.setFxSize(context, fxSize); DspPreferences.setFxMix(context, fxMix); DspPreferences.setFxWidth(context, fxWidth)
