@@ -11,6 +11,7 @@ import coil3.toBitmap
 import cp.player.manager.DownloadRegistry
 import cp.player.model.Song
 import cp.player.util.DebugLog
+import cp.player.util.resized
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -20,16 +21,17 @@ class MediaMetadataUseCase(private val application: Application) {
     suspend fun extractColorFromUrl(url: String?): Int? = withContext(Dispatchers.IO) {
         if (url.isNullOrEmpty()) return@withContext null
         try {
+            val resizedUrl = url.resized(300)
             val loader = SingletonImageLoader.get(application)
             val request = ImageRequest.Builder(application)
-                .data(url)
+                .data(resizedUrl)
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)
             if (result is SuccessResult) {
                 val bitmap = result.image.toBitmap()
                 val palette = Palette.from(bitmap).generate()
-                val color = palette.getVibrantColor(palette.getMutedColor(0))
+                val color = palette.getDominantColor(palette.getVibrantColor(palette.getMutedColor(0)))
                 if (color != 0) return@withContext color
             }
         } catch (e: Exception) {
