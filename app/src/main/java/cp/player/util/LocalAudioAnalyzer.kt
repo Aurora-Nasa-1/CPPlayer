@@ -96,13 +96,13 @@ object LocalAudioAnalyzer {
             val durationUs = format.getLong(MediaFormat.KEY_DURATION)
             val durationSec = durationUs / 1_000_000L
 
-            val resultSamples = mutableListOf<Float>()
+            val resultSamples = FloatArrayList()
 
             // Helper to decode a segment
             fun decodeSegment(startUs: Long, lengthUs: Long): FloatArray {
                 extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 var isEOS = false
-                val segmentSamples = mutableListOf<Float>()
+                val segmentSamples = FloatArrayList()
                 val info = MediaCodec.BufferInfo()
                 var decodedUs = 0L
 
@@ -152,7 +152,7 @@ object LocalAudioAnalyzer {
             // Extract first 30s
             val firstSegmentUs = min(durationUs, 30_000_000L)
             val firstSamples = decodeSegment(0L, firstSegmentUs)
-            resultSamples.addAll(firstSamples.toList())
+            resultSamples.addAll(firstSamples)
 
             // If duration > 45s, we skip the middle and seek to the end 15s to save time.
             if (durationUs > 45_000_000L) {
@@ -161,7 +161,7 @@ object LocalAudioAnalyzer {
                 codec.flush() // flush codec before seek
                 val tailStartUs = durationUs - 15_000_000L
                 val tailSamples = decodeSegment(tailStartUs, 15_000_000L)
-                resultSamples.addAll(tailSamples.toList())
+                resultSamples.addAll(tailSamples)
             }
 
             codec.stop()
@@ -216,7 +216,7 @@ object LocalAudioAnalyzer {
         val hopSize = 512
         if (samples.size < frameSize * 8) return 0.0
         
-        val env = mutableListOf<Float>()
+        val env = FloatArrayList()
         var start = 0
         while (start + frameSize < samples.size) {
             var sum = 0f
@@ -230,9 +230,9 @@ object LocalAudioAnalyzer {
 
         val mean = env.sum() / env.size
         var varianceAcc = 0f
-        for (i in env.indices) {
-            val e = max(0f, env[i] - mean)
-            env[i] = e
+        for (i in 0 until env.size) {
+            val e = max(0f, env.get(i) - mean)
+            env.set(i, e)
             varianceAcc += e * e
         }
         val variance = varianceAcc / max(1, env.size)
@@ -247,7 +247,7 @@ object LocalAudioAnalyzer {
         for (lag in max(1, minLag)..max(minLag + 1, maxLag)) {
             var score = 0f
             for (i in 0 until env.size - lag) {
-                score += env[i] * env[i + lag]
+                score += env.get(i) * env.get(i + lag)
             }
             if (score > bestScore) {
                 bestScore = score
@@ -258,5 +258,75 @@ object LocalAudioAnalyzer {
         val bpm = (60f * envRate) / bestLag
         if (bpm.isNaN() || bpm.isInfinite()) return 0.0
         return max(55.0, min(210.0, bpm.toDouble()))
+    }
+}
+
+/**
+ * A simple primitive array list to avoid Float boxing overhead when collecting audio samples.
+ */
+private class FloatArrayList(initialCapacity: Int = 1024) {
+    private var data = FloatArray(initialCapacity)
+    var size = 0
+        private set
+
+    fun add(element: Float) {
+        if (size == data.size) {
+            val newData = FloatArray(data.size * 2)
+            System.arraycopy(data, 0, newData, 0, size)
+            data = newData
+        }
+        data[size++] = element
+    }
+
+    fun addAll(elements: FloatArray) {
+        if (size + elements.size > data.size) {
+            var newCap = data.size * 2
+            while (newCap < size + elements.size) {
+                newCap *= 2
+            }
+            val newData = FloatArray(newCap)
+            System.arraycopy(data, 0, newData, 0, size)
+            data = newData
+        }
+        System.arraycopy(elements, 0, data, size, elements.size)
+        size += elements.size
+    }
+
+    fun addAll(elements: FloatArrayList) {
+        if (size + elements.size > data.size) {
+            var newCap = data.size * 2
+            while (newCap < size + elements.size) {
+                newCap *= 2
+            }
+            val newData = FloatArray(newCap)
+            System.arraycopy(data, 0, newData, 0, size)
+            data = newData
+        }
+        System.arraycopy(elements.data, 0, data, size, elements.size)
+        size += elements.size
+    }
+
+    fun get(index: Int): Float {
+        if (index < 0 || index >= size) throw IndexOutOfBoundsException()
+        return data[index]
+    }
+
+    fun set(index: Int, element: Float) {
+        if (index < 0 || index >= size) throw IndexOutOfBoundsException()
+        data[index] = element
+    }
+
+    fun sum(): Float {
+        var s = 0f
+        for (i in 0 until size) {
+            s += data[i]
+        }
+        return s
+    }
+
+    fun toFloatArray(): FloatArray {
+        val result = FloatArray(size)
+        System.arraycopy(data, 0, result, 0, size)
+        return result
     }
 }
