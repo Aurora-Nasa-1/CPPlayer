@@ -14,6 +14,34 @@ import kotlin.math.sqrt
 
 object LocalAudioAnalyzer {
 
+    private class FloatArrayList(initialCapacity: Int = 1024) {
+        var data = FloatArray(initialCapacity)
+        var size = 0
+
+        fun add(element: Float) {
+            if (size == data.size) {
+                data = data.copyOf(data.size * 2)
+            }
+            data[size++] = element
+        }
+
+        fun addAll(elements: FloatArray) {
+            if (size + elements.size > data.size) {
+                var newCapacity = data.size * 2
+                while (newCapacity < size + elements.size) {
+                    newCapacity *= 2
+                }
+                data = data.copyOf(newCapacity)
+            }
+            System.arraycopy(elements, 0, data, size, elements.size)
+            size += elements.size
+        }
+
+        fun toFloatArray(): FloatArray {
+            return data.copyOf(size)
+        }
+    }
+
     fun analyze(context: Context, uri: Uri): AudioFeatures {
         return try {
             val samples = decodeAudio(context, uri, maxDurationSec = 40)
