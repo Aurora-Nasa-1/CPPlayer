@@ -177,7 +177,7 @@ fun UserProfileScreen(
                     }
                         itemsIndexed(
                             items = displaySongs,
-                            key = { _, song -> "user_${userProfile.userId}_song_${song.id}" },
+                            key = { index, song -> "user_${userProfile.userId}_song_${song.id}_$index" },
                             contentType = { _, _ -> "song" }
                         ) { index, song ->
                         SongItem(
@@ -215,7 +215,7 @@ fun UserProfileScreen(
                     }
                         itemsIndexed(
                             items = displayAlbums,
-                            key = { _, albumItem -> "user_${userProfile.userId}_album_${albumItem.id}" },
+                            key = { index, albumItem -> "user_${userProfile.userId}_album_${albumItem.id}_$index" },
                             contentType = { _, _ -> "playlist" }
                         ) { index, album ->
                         PlaylistItem(
@@ -252,7 +252,7 @@ fun UserProfileScreen(
                     }
                         itemsIndexed(
                             items = displayPlaylists,
-                            key = { _, playlistItem -> "user_${userProfile.userId}_playlist_${playlistItem.id}" },
+                            key = { index, playlistItem -> "user_${userProfile.userId}_playlist_${playlistItem.id}_$index" },
                             contentType = { _, _ -> "playlist" }
                         ) { index, playlist ->
                         PlaylistItem(
