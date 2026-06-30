@@ -495,18 +495,12 @@ fun AppMainContent(
                                                     name = it.songName,
                                                     artist = it.artist,
                                                     album = it.album,
-                                                    albumArtUrl = cp.player.manager.LocalMusicManager.getCoverArt(
-                                                        navContext, it.songId, it.filePath
-                                                    )
+                                                    albumArtUrl = it.albumArtUrl
                                                 )
                                             }
                                         } else {
                                             downloadViewModel.downloadedSongs.value.map { metadata ->
-                                                val coverUrl = metadata.localCoverPath
-                                                    ?: cp.player.util.CoverArtExtractor.getOrExtract(
-                                                        navContext, metadata.song.id, metadata.filePath
-                                                    )
-                                                    ?: metadata.song.albumArtUrl
+                                                val coverUrl = metadata.localCoverPath ?: metadata.song.albumArtUrl
                                                 metadata.song.copy(albumArtUrl = coverUrl)
                                             }
                                         }
