@@ -3,7 +3,10 @@ package cp.player.provider
 import android.content.Context
 import android.util.Log
 import cp.player.util.DebugLog
+import cp.player.manager.ProviderSettingsManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,6 +89,10 @@ object ProviderManager {
         if (provider != null && context != null) {
             try {
                 provider.startServer(context, port)
+                // 同步设置
+                CoroutineScope(Dispatchers.IO).launch {
+                    ProviderSettingsManager.syncLocalSettingsOnStart(context, provider)
+                }
             } catch (e: Throwable) {
                 // 捕获 Throwable 以处理 JNI 原生崩溃（如 UnsatisfiedLinkError、SIGSEGV 转换的 Error）
                 Log.e(TAG, "Error starting new provider", e)

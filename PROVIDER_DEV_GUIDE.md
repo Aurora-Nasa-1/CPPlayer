@@ -455,6 +455,13 @@ nativeCallApi(mappedMethod, paramsJson)
 | `msg/private/mark/read` | 标记已读 | `uid`, `cookie` |
 | `send/text` | 发送消息 | `user_ids`, `msg`, `cookie` |
 
+### 7.8 模块设置（自定义界面）
+
+| API 方法名 | 说明 | 参数 |
+|-----------|------|------|
+| `settings/schema` | 获取提供商设置的 UI Schema | 无 |
+| `settings/save` | 保存并同步用户设置到提供商 | `settings` (包含键值对的 JSON 字符串) |
+
 ---
 
 ## 8. 每个 API 的请求与响应格式
@@ -843,6 +850,66 @@ nativeCallApi(mappedMethod, paramsJson)
 #### `logout` — 登出
 
 **请求：** `{}`
+
+**响应：**
+```json
+{ "code": 200 }
+```
+
+#### `settings/schema` — 获取提供商设置的 UI Schema
+
+**请求：** `{}`
+
+**响应：**
+```json
+{
+    "code": 200,
+    "data": [
+        {
+            "key": "server_url",
+            "name": "服务器地址",
+            "type": "input",
+            "description": "自定义后端服务器地址",
+            "defaultValue": "https://api.example.com"
+        },
+        {
+            "key": "enable_hifi",
+            "name": "开启 Hi-Fi",
+            "type": "switch",
+            "defaultValue": false
+        },
+        {
+            "key": "quality_limit",
+            "name": "最高音质限制",
+            "type": "select",
+            "defaultValue": "lossless",
+            "options": [
+                { "label": "标准", "value": "standard" },
+                { "label": "无损", "value": "lossless" },
+                { "label": "Hi-Res", "value": "hires" }
+            ]
+        }
+    ]
+}
+```
+
+> **字段说明：**
+> - `key`: 设置项的唯一标识。
+> - `name`: 显示在界面的设置名称。
+> - `type`: 支持 `input` (文本框), `switch` (开关), `select` (下拉单选)。
+> - `description`: (可选) 设置项的描述。
+> - `defaultValue`: (可选) 默认值。
+> - `options`: 仅 `select` 类型需要，提供可选的下拉选项列表。
+
+#### `settings/save` — 保存并同步用户设置到提供商
+
+**请求：**
+```json
+{
+    "settings": "{\"server_url\":\"https://myapi.com\",\"enable_hifi\":true,\"quality_limit\":\"hires\"}"
+}
+```
+> `settings` 是一个包含了用户修改后的设置键值对的 JSON 字符串。
 
 **响应：**
 ```json

@@ -46,6 +46,7 @@ fun ProviderOptionsBottomSheet(
     onDeleted: () -> Unit,
     onUpdated: () -> Unit,
     onUpdateZipSelected: (android.net.Uri) -> Unit,
+    onSettingsSelected: () -> Unit = {},
     /** 外部预检查的更新信息（从列表页自动检查传入），null 表示未预检查 */
     preCheckedUpdate: ProviderUpdateChecker.UpdateInfo? = null
 ) {
@@ -233,6 +234,19 @@ fun ProviderOptionsBottomSheet(
                     }
                 )
             }
+
+            // 模块设置
+            PillButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = "模块设置",
+                icon = Icons.Rounded.Settings,
+                bgColor = MaterialTheme.colorScheme.tertiaryContainer,
+                textColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                onClick = {
+                    onSettingsSelected()
+                    onDismissRequest()
+                }
+            )
 
             // 删除按钮
             PillButton(

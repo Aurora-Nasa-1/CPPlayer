@@ -110,7 +110,16 @@ fun SettingsScreen(
 
     var currentScreen by rememberSaveable { mutableStateOf("main") }
     // 子页面的父页面映射（debug 的子页面返回到 debug，其他返回到 main）
-    val parentScreen = mapOf("health" to "debug", "logViewer" to "debug", "providerTest" to "debug", "about" to "main", "dsp" to "audio")
+    val parentScreen = mapOf(
+        "health" to "debug",
+        "logViewer" to "debug",
+        "providerTest" to "debug",
+        "about" to "main",
+        "dsp" to "audio",
+        "providerSettings" to "provider"
+    )
+
+    var currentProviderSettingsId by rememberSaveable { mutableStateOf("") }
 
     val dirPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -134,6 +143,7 @@ fun SettingsScreen(
         "storage_download" -> R.string.storage_cache
         "debug" -> R.string.debug
         "provider" -> R.string.provider_management
+        "providerSettings" -> R.string.settings // Will be overridden in ProviderSettingsScreen itself
         "about" -> R.string.about
         "sponsor" -> R.string.sponsor
         "health" -> R.string.health_status
@@ -809,10 +819,20 @@ fun SettingsScreen(
                                         updatingProviderId = provider.id
                                         updateLauncher.launch("application/zip")
                                     },
+                                    onSettingsSelected = {
+                                        currentProviderSettingsId = provider.id
+                                        currentScreen = "providerSettings"
+                                    },
                                     preCheckedUpdate = updateResults[provider.id]
                                 )
                             }
                         }
+                    }
+                    "providerSettings" -> {
+                        ProviderSettingsScreen(
+                            providerId = currentProviderSettingsId,
+                            onNavigateBack = { currentScreen = parentScreen["providerSettings"] ?: "provider" }
+                        )
                     }
                     "about" -> {
                         // 关于

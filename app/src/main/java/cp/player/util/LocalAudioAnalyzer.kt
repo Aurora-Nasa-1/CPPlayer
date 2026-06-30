@@ -40,6 +40,22 @@ object LocalAudioAnalyzer {
         fun toFloatArray(): FloatArray {
             return data.copyOf(size)
         }
+
+        fun get(index: Int): Float {
+            return data[index]
+        }
+
+        fun set(index: Int, element: Float) {
+            data[index] = element
+        }
+
+        fun sum(): Float {
+            var s = 0f
+            for(i in 0 until size) {
+                s += data[i]
+            }
+            return s
+        }
     }
 
     fun analyze(context: Context, uri: Uri): AudioFeatures {
