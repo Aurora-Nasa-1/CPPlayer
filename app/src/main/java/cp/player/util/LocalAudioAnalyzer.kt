@@ -256,11 +256,13 @@ object LocalAudioAnalyzer {
         }
         if (env.size < 32) return 0.0
 
-        val mean = env.sum() / env.size
+        var sumAcc = 0f
+        for (i in 0 until env.size) sumAcc += env.data[i]
+        val mean = sumAcc / env.size
         var varianceAcc = 0f
         for (i in 0 until env.size) {
-            val e = max(0f, env.get(i) - mean)
-            env.set(i, e)
+            val e = max(0f, env.data[i] - mean)
+            env.data[i] = e
             varianceAcc += e * e
         }
         val variance = varianceAcc / max(1, env.size)
@@ -275,7 +277,7 @@ object LocalAudioAnalyzer {
         for (lag in max(1, minLag)..max(minLag + 1, maxLag)) {
             var score = 0f
             for (i in 0 until env.size - lag) {
-                score += env.get(i) * env.get(i + lag)
+                score += env.data[i] * env.data[i + lag]
             }
             if (score > bestScore) {
                 bestScore = score
