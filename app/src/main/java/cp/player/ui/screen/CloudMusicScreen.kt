@@ -10,6 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cp.player.R
+import androidx.compose.ui.platform.LocalContext
+import cp.player.manager.LocalMusicManager
+
 import cp.player.model.Song
 import cp.player.ui.component.SongItem
 import cp.player.viewmodel.PlaybackViewModel
@@ -27,6 +30,8 @@ fun CloudMusicContent(
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
+    var showBindSheet by remember { mutableStateOf<Song?>(null) }
+    val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading && songs.isEmpty()) {
@@ -86,11 +91,28 @@ fun CloudMusicContent(
                 selectedSongForOptions = null
             },
             onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } },
+            onBindCloudClick = {
+                showBindSheet = song
+                selectedSongForOptions = null
+            },
             isDownloaded = downloadedSongIds.contains(song.id),
             showFavorite = false,
             showShare = false,
             showPlaylist = false,
-            showInfo = false
+            showInfo = false,
+            showBindCloud = true
+        )
+    }
+
+    showBindSheet?.let { song ->
+        cp.player.ui.component.BindCloudSongSheet(
+            songName = song.name,
+            artistName = song.artist,
+            onSongSelected = { cloudSong ->
+                LocalMusicManager.bind(context, song.id, cloudSong)
+                showBindSheet = null
+            },
+            onDismissRequest = { showBindSheet = null }
         )
     }
 }

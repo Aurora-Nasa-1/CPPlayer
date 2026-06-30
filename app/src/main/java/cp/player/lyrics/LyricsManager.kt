@@ -121,15 +121,15 @@ object LyricsManager {
         songTitle: String?,
         songArtist: String?
     ): LyricsState {
-        // 本地歌曲：查询云端绑定 ID，用云端 ID 获取歌词
-        var effectiveId = if (songId.startsWith("local_")) {
+        // 本地歌曲或云盘歌曲：查询云端绑定 ID，用云端 ID 获取歌词
+        var effectiveId = if (songId.startsWith("local_") || songId.startsWith("cloud_")) {
             cp.player.manager.LocalMusicManager.getBinding(songId)?.cloudSongId ?: songId
         } else {
             songId
         }
 
-        // 本地歌曲无绑定时，自动搜索云端匹配歌曲并绑定
-        if (effectiveId.startsWith("local_") && !songTitle.isNullOrBlank()) {
+        // 本地/云盘歌曲无绑定时，自动搜索云端匹配歌曲并绑定
+        if ((effectiveId.startsWith("local_") || effectiveId.startsWith("cloud_")) && !songTitle.isNullOrBlank()) {
             effectiveId = autoSearchAndBind(songId, songTitle, songArtist, context) ?: effectiveId
         }
 
@@ -172,17 +172,17 @@ object LyricsManager {
 
     /**
      * 自动搜索云端匹配歌曲并绑定，返回云端歌曲 ID。
-     * 仅用于本地歌曲无绑定时的自动匹配。
+     * 仅用于本地歌曲/云盘歌曲无绑定时的自动匹配。
      */
     private suspend fun autoSearchAndBind(
-        localSongId: String,
+        sourceSongId: String,
         title: String,
         artist: String?,
         context: Context
     ): String? {
         return try {
             val api = cp.player.api.MusicApiServiceFactory.instance
-            val query = if (!artist.isNullOrBlank()) "$title $artist" else title
+            val query = if (!artist.isNullOrBlank() && artist != "Unknown") "$title $artist" else title
             DebugLog.i("LyricsManager: auto-searching cloud for [$query]")
             val body = withContext(Dispatchers.IO) {
                 api.search(query, 1)
@@ -198,7 +198,7 @@ object LyricsManager {
             val best = candidates?.firstOrNull()
             if (best != null) {
                 DebugLog.i("LyricsManager: auto-bound [$title] → [${best.name}] (cloudId=${best.id})")
-                cp.player.manager.LocalMusicManager.bind(context, localSongId, best)
+                cp.player.manager.LocalMusicManager.bind(context, sourceSongId, best)
                 best.id
             } else {
                 DebugLog.w("LyricsManager: no cloud match for [$title]")
