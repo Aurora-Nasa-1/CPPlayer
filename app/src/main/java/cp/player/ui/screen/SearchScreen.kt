@@ -238,7 +238,7 @@ fun SearchScreen(
                 } else {
                     when (searchType) {
                         MusicApiMethod.SEARCH_TYPE_SONG -> {
-                            itemsIndexed(searchResults, key = { _, song -> song.id }) { index, song ->
+                            itemsIndexed(searchResults, key = { index, song -> "${song.id}_$index" }) { index, song ->
                                 SongItem(
                                     song = song,
                                     index = index,
@@ -254,7 +254,7 @@ fun SearchScreen(
                             }
                         }
                         MusicApiMethod.SEARCH_TYPE_ALBUM -> {
-                            itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                            itemsIndexed(searchPlaylists, key = { index, playlist -> "${playlist.id}_$index" }) { index, playlist ->
                                 PlaylistItem(
                                     playlist = playlist,
                                     index = index,
@@ -266,7 +266,7 @@ fun SearchScreen(
                             }
                         }
                         MusicApiMethod.SEARCH_TYPE_ARTIST -> {
-                            itemsIndexed(searchArtists, key = { _, artist -> artist.id }) { index, artist ->
+                            itemsIndexed(searchArtists, key = { index, artist -> "${artist.id}_$index" }) { index, artist ->
                                 ArtistItem(
                                     artist = artist,
                                     index = index,
@@ -278,7 +278,7 @@ fun SearchScreen(
                             }
                         }
                         MusicApiMethod.SEARCH_TYPE_PLAYLIST -> {
-                            itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                            itemsIndexed(searchPlaylists, key = { index, playlist -> "${playlist.id}_$index" }) { index, playlist ->
                                 PlaylistItem(
                                     playlist = playlist,
                                     index = index,
