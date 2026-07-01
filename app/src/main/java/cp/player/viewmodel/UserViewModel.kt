@@ -490,6 +490,47 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     else -> emptyList()
                 }
                 cloudSongs = songs
+
+                // Extract simpleSong.id and bind it
+                withContext(Dispatchers.IO) {
+                    val elements = when {
+                        dataElem == null || dataElem.isJsonNull -> emptyList()
+                        dataElem.isJsonArray -> dataElem.asJsonArray.toList()
+                        dataElem.isJsonObject -> {
+                            val innerData = dataElem.asJsonObject.get("data")
+                            if (innerData != null && innerData.isJsonArray) {
+                                innerData.asJsonArray.toList()
+                            } else {
+                                cp.player.util.JsonUtils.findJsonArray(dataElem, "data")?.toList() ?: emptyList()
+                            }
+                        }
+                        else -> emptyList()
+                    }
+
+                    for (element in elements) {
+                        try {
+                            if (!element.isJsonObject) continue
+                            val obj = element.asJsonObject
+                            val songId = obj.get("songId")?.asString ?: obj.get("id")?.asString ?: continue
+                            val simpleSong = obj.get("simpleSong")?.takeIf { it.isJsonObject }?.asJsonObject
+                            val realId = simpleSong?.get("id")?.asString
+
+                            if (!realId.isNullOrEmpty() && realId != "0" && realId != songId) {
+                                val cloudSongId = "cloud_$songId"
+                                if (cp.player.manager.LocalMusicManager.getBinding(cloudSongId) == null) {
+                                    val realSong = cp.player.util.JsonUtils.parseSong(simpleSong)
+                                    if (realSong != null) {
+                                        withContext(Dispatchers.Main) {
+                                            cp.player.manager.LocalMusicManager.bind(getApplication(), cloudSongId, realSong)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("UserViewModel", "Error binding simpleSong id", e)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 android.util.Log.e("UserViewModel", "Error fetching cloud songs", e)
             } finally {

@@ -70,7 +70,7 @@ object JsonUtils {
                 ?: simpleSong?.get("dt")?.asLong ?: 0L
 
             Song(
-                id = songId,
+                id = "cloud_$songId",
                 name = songName,
                 artist = artist,
                 album = album,
