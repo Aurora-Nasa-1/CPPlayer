@@ -217,26 +217,16 @@ object JsonUtils {
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
-            listOf("al", "album", "data", "result", "songs", "urlInfo").forEach { key ->
-                if (obj.has(key)) {
-                    val found = findUrl(obj.get(key))
-                    if (found != null) return found
-                }
-            }
+            listOf("al", "album", "data", "result", "songs", "urlInfo").firstNotNullOfOrNull { key ->
+                obj.get(key)?.let { findUrl(it) }
+            }?.let { return it }
 
             // Exhaustive search
-            for (entry in obj.entrySet()) {
-                val found = findUrl(entry.value)
-                if (found != null) return found
-            }
+            return obj.entrySet().firstNotNullOfOrNull { findUrl(it.value) }
         }
 
         if (element.isJsonArray) {
-            val arr = element.asJsonArray
-            for (i in 0 until arr.size()) {
-                val found = findUrl(arr.get(i))
-                if (found != null) return found
-            }
+            return element.asJsonArray.firstNotNullOfOrNull { findUrl(it) }
         }
 
         return null
@@ -249,18 +239,11 @@ object JsonUtils {
             val obj = element.asJsonObject
             if (obj.has(key) && obj.get(key).isJsonArray) return obj.getAsJsonArray(key)
 
-            for (entry in obj.entrySet()) {
-                val found = findJsonArray(entry.value, key)
-                if (found != null) return found
-            }
+            return obj.entrySet().firstNotNullOfOrNull { findJsonArray(it.value, key) }
         }
 
         if (element.isJsonArray) {
-            val arr = element.asJsonArray
-            for (i in 0 until arr.size()) {
-                val found = findJsonArray(arr.get(i), key)
-                if (found != null) return found
-            }
+            return element.asJsonArray.firstNotNullOfOrNull { findJsonArray(it, key) }
         }
 
         return null
