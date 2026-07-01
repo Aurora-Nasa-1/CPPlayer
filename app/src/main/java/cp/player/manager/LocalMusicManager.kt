@@ -118,7 +118,7 @@ object LocalMusicManager {
      *
      * @return 可供 Coil 加载的 URL 字符串（http/https 或 file://），无封面时返回 null
      */
-    fun getCoverArt(context: Context, localSongId: String, filePath: String?): String? {
+    suspend fun getCoverArt(context: Context, localSongId: String, filePath: String?): String? {
         // 1. 云端绑定封面
         val binding = bindings[localSongId]
         if (binding?.cloudCoverUrl != null) {
