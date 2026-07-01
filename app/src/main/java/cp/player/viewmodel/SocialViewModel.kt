@@ -71,9 +71,9 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                     hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
                 } else {
                     if (sortType == 1) {
-                        hotComments = hotComments + newComments
+                        hotComments = (hotComments + newComments).distinctBy { it.id }
                     } else {
-                        newestComments = newestComments + newComments
+                        newestComments = (newestComments + newComments).distinctBy { it.id }
                     }
                 }
 
