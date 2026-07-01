@@ -41,6 +41,35 @@ import cp.player.viewmodel.LoginViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+
+enum class SettingsPage(val id: String, val usesVerticalScroll: Boolean = true) {
+    Main("main"),
+    Appearance("appearance"),
+    Audio("audio"),
+    StorageDownload("storage_download"),
+    Provider("provider"),
+    ProviderSettings("providerSettings", usesVerticalScroll = false),
+    About("about"),
+    Sponsor("sponsor"),
+    Debug("debug"),
+    Health("health"),
+    LogViewer("logViewer"),
+    Dsp("dsp", usesVerticalScroll = false),
+    ProviderTest("providerTest");
+
+    val parent: SettingsPage?
+        get() = when (this) {
+            Health, LogViewer, ProviderTest -> Debug
+            About -> Main
+            Dsp -> Audio
+            ProviderSettings -> Provider
+            else -> null
+        }
+
+    companion object {
+        fun fromId(id: String): SettingsPage = entries.find { it.id == id } ?: Main
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -108,16 +137,9 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    var currentScreen by rememberSaveable { mutableStateOf("main") }
-    // 子页面的父页面映射（debug 的子页面返回到 debug，其他返回到 main）
-    val parentScreen = mapOf(
-        "health" to "debug",
-        "logViewer" to "debug",
-        "providerTest" to "debug",
-        "about" to "main",
-        "dsp" to "audio",
-        "providerSettings" to "provider"
-    )
+    var currentScreenId by rememberSaveable { mutableStateOf(SettingsPage.Main.id) }
+    val currentScreen = SettingsPage.fromId(currentScreenId)
+
 
     var currentProviderSettingsId by rememberSaveable { mutableStateOf("") }
 
@@ -133,39 +155,40 @@ fun SettingsScreen(
         }
     }
 
-    BackHandler(enabled = currentScreen != "main" && !isPlayerExpanded) {
-        currentScreen = parentScreen[currentScreen] ?: "main"
+    BackHandler(enabled = currentScreen != SettingsPage.Main && !isPlayerExpanded) {
+        currentScreenId = currentScreen.parent?.id ?: SettingsPage.Main.id
     }
 
     val titleRes = when (currentScreen) {
-        "appearance" -> R.string.appearance
-        "audio" -> R.string.playback_quality_cat
-        "storage_download" -> R.string.storage_cache
-        "debug" -> R.string.debug
-        "provider" -> R.string.provider_management
-        "providerSettings" -> R.string.settings // Will be overridden in ProviderSettingsScreen itself
-        "about" -> R.string.about
-        "sponsor" -> R.string.sponsor
-        "health" -> R.string.health_status
-        "dsp" -> R.string.dsp_equalizer // Just a fallback, handled in DspSettingsScreen
-        "logViewer" -> R.string.app_logs
+        SettingsPage.Appearance -> R.string.appearance
+        SettingsPage.Audio -> R.string.playback_quality_cat
+        SettingsPage.StorageDownload -> R.string.storage_cache
+        SettingsPage.Debug -> R.string.debug
+        SettingsPage.Provider -> R.string.provider_management
+        SettingsPage.ProviderSettings -> R.string.settings // Will be overridden in ProviderSettingsScreen itself
+        SettingsPage.About -> R.string.about
+        SettingsPage.Sponsor -> R.string.sponsor
+        SettingsPage.Health -> R.string.health_status
+        SettingsPage.Dsp -> R.string.dsp_equalizer // Just a fallback, handled in DspSettingsScreen
+        SettingsPage.LogViewer -> R.string.app_logs
         else -> R.string.settings
     }
 
     AppScaffold(
         title = stringResource(titleRes),
         onBackPressed = {
-            if (currentScreen == "main") onBackPressed() else currentScreen = parentScreen[currentScreen] ?: "main"
+            if (currentScreen == SettingsPage.Main) onBackPressed() else currentScreenId = currentScreen.parent?.id ?: SettingsPage.Main.id
         },
         scrollBehavior = scrollBehavior,
         containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) { innerPadding ->
         AnimatedContent(
             targetState = currentScreen,
+            contentKey = { it.id },
             transitionSpec = {
-                if (targetState != "main" && initialState == "main") {
+                if (targetState != SettingsPage.Main && initialState == SettingsPage.Main) {
                     (slideInHorizontally(animationSpec = tween(300)) { width -> width } + fadeIn(animationSpec = tween(300))).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> -width } + fadeOut(animationSpec = tween(300)))
-                } else if (targetState == "main" && initialState != "main") {
+                } else if (targetState == SettingsPage.Main && initialState != SettingsPage.Main) {
                     (slideInHorizontally(animationSpec = tween(300)) { width -> -width } + fadeIn(animationSpec = tween(300))).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> width } + fadeOut(animationSpec = tween(300)))
                 } else {
                     fadeIn(animationSpec = tween(300)).togetherWith(fadeOut(animationSpec = tween(300)))
@@ -176,12 +199,12 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (screen != "dsp" && screen != "providerSettings") Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .then(if (screen.usesVerticalScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 when (screen) {
-                    "main" -> {
+                    SettingsPage.Main -> {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -190,54 +213,54 @@ fun SettingsScreen(
                                 title = stringResource(R.string.appearance),
                                 subtitle = stringResource(R.string.settings_appearance_desc),
                                 icon = { MonetIcon(Icons.Default.Palette, Color(0xFFE8F5E9), Color(0xFF2E7D32)) },
-                                onClick = { currentScreen = "appearance" },
+                                onClick = { currentScreenId = SettingsPage.Appearance.id },
                                 shapes = ListItemDefaults.segmentedShapes(0, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.playback_quality_cat),
                                 subtitle = stringResource(R.string.settings_audio_desc),
                                 icon = { MonetIcon(Icons.Default.Audiotrack, Color(0xFFE3F2FD), Color(0xFF1565C0)) },
-                                onClick = { currentScreen = "audio" },
+                                onClick = { currentScreenId = SettingsPage.Audio.id },
                                 shapes = ListItemDefaults.segmentedShapes(1, 6)
                             )
                             ExpressiveClickItem(
                                 title = "${stringResource(R.string.storage_cache)} & ${stringResource(R.string.download_settings)}",
                                 subtitle = stringResource(R.string.settings_storage_desc) + " " + stringResource(R.string.settings_download_desc),
                                 icon = { MonetIcon(Icons.Default.Storage, Color(0xFFFFF3E0), Color(0xFFEF6C00)) },
-                                onClick = { currentScreen = "storage_download" },
+                                onClick = { currentScreenId = SettingsPage.StorageDownload.id },
                                 shapes = ListItemDefaults.segmentedShapes(2, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.debug),
                                 subtitle = stringResource(R.string.settings_debug_desc),
                                 icon = { MonetIcon(Icons.Default.BugReport, Color(0xFFFCE4EC), Color(0xFFC2185B)) },
-                                onClick = { currentScreen = "debug" },
+                                onClick = { currentScreenId = SettingsPage.Debug.id },
                                 shapes = ListItemDefaults.segmentedShapes(3, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.provider_management),
                                 subtitle = stringResource(R.string.manage_music_source_modules),
                                 icon = { MonetIcon(Icons.Default.Extension, Color(0xFFFFFDE7), Color(0xFFF57F17)) },
-                                onClick = { currentScreen = "provider" },
+                                onClick = { currentScreenId = SettingsPage.Provider.id },
                                 shapes = ListItemDefaults.segmentedShapes(4, 6)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.about),
                                 subtitle = stringResource(R.string.settings_about_desc),
                                 icon = { MonetIcon(Icons.Default.HelpOutline, Color(0xFFEFEBE9), Color(0xFF4E342E)) },
-                                onClick = { currentScreen = "about" },
+                                onClick = { currentScreenId = SettingsPage.About.id },
                                 shapes = ListItemDefaults.segmentedShapes(5, 7)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.sponsor),
                                 subtitle = stringResource(R.string.settings_sponsor_desc),
                                 icon = { MonetIcon(Icons.Default.Favorite, Color(0xFFFCE4EC), Color(0xFFE91E63)) },
-                                onClick = { currentScreen = "sponsor" },
+                                onClick = { currentScreenId = SettingsPage.Sponsor.id },
                                 shapes = ListItemDefaults.segmentedShapes(6, 7)
                             )
                         }
                     }
-                    "appearance" -> {
+                    SettingsPage.Appearance -> {
                         // Appearance Section
                         SettingsSection(title = stringResource(R.string.appearance)) {
                             val themeOptions = listOf(
@@ -311,7 +334,7 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    "audio" -> {
+                    SettingsPage.Audio -> {
                         // 播放引擎选择
                         SettingsSection(title = stringResource(R.string.playback_engine)) {
                             val engines = listOf(
@@ -484,7 +507,7 @@ fun SettingsScreen(
                                 title = "DSP & Equalizer",
                                 subtitle = "Configure Equalizer and Spatial FX",
                                 icon = { MonetIcon(Icons.Default.Tune, Color(0xFFE8EAF6), Color(0xFF283593)) },
-                                onClick = { currentScreen = "dsp" },
+                                onClick = { currentScreenId = SettingsPage.Dsp.id },
                                 shapes = ListItemDefaults.segmentedShapes(0, 1)
                             )
                         }
@@ -549,7 +572,7 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    "storage_download" -> {
+                    SettingsPage.StorageDownload -> {
                         // Merged Storage & Download Section
                         SettingsSection(title = "${stringResource(R.string.storage_cache)} & ${stringResource(R.string.download_settings)}") {
                             val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
@@ -604,7 +627,7 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    "provider" -> {
+                    SettingsPage.Provider -> {
                         SettingsSection(title = stringResource(R.string.provider_management)) {
                             val providers = cp.player.provider.ModuleManager.getAvailableProviders()
                             val coroutineScope = rememberCoroutineScope()
@@ -821,41 +844,41 @@ fun SettingsScreen(
                                     },
                                     onSettingsSelected = {
                                         currentProviderSettingsId = provider.id
-                                        currentScreen = "providerSettings"
+                                        currentScreenId = SettingsPage.ProviderSettings.id
                                     },
                                     preCheckedUpdate = updateResults[provider.id]
                                 )
                             }
                         }
                     }
-                    "providerSettings" -> {
+                    SettingsPage.ProviderSettings -> {
                         ProviderSettingsScreen(
                             providerId = currentProviderSettingsId,
-                            onNavigateBack = { currentScreen = parentScreen["providerSettings"] ?: "provider" }
+                            onNavigateBack = { currentScreenId = SettingsPage.ProviderSettings.parent?.id ?: SettingsPage.Main.id }
                         )
                     }
-                    "about" -> {
+                    SettingsPage.About -> {
                         // 关于
                         AboutScreenInline()
                     }
-                    "sponsor" -> {
+                    SettingsPage.Sponsor -> {
                         // 赞助
                         SponsorScreen()
                     }
-                    "debug" -> {
+                    SettingsPage.Debug -> {
                         // Debug
                         SettingsSection(title = stringResource(R.string.debug)) {
                             val logsCopiedMsg = stringResource(R.string.logs_copied)
                             ExpressiveClickItem(
                                 title = stringResource(R.string.app_logs),
                                 subtitle = stringResource(R.string.view_app_and_system_logs),
-                                onClick = { currentScreen = "logViewer" },
+                                onClick = { currentScreenId = SettingsPage.LogViewer.id },
                                 shapes = ListItemDefaults.segmentedShapes(0, 3)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.health_status),
                                 subtitle = stringResource(R.string.api_monitor_desc),
-                                onClick = { currentScreen = "health" },
+                                onClick = { currentScreenId = SettingsPage.Health.id },
                                 shapes = ListItemDefaults.segmentedShapes(1, 3)
                             )
                             ExpressiveButtonItem(
@@ -870,19 +893,22 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    "health" -> {
+                    SettingsPage.Health -> {
                         // 健康状态 & 调试界面 - 内嵌在设置中
                         cp.player.ui.screen.HealthScreenInline()
                     }
-                    "logViewer" -> {
+                    SettingsPage.LogViewer -> {
                         // 日志查看器 - 内嵌在设置中
                         cp.player.ui.screen.LogViewerInline()
                     }
-                    "dsp" -> {
+                    SettingsPage.Dsp -> {
                         // DSP & Equalizer
                         cp.player.ui.screen.DspSettingsScreen(
-                            onNavigateBack = { currentScreen = parentScreen["dsp"] ?: "main" }
+                            onNavigateBack = { currentScreenId = SettingsPage.Dsp.parent?.id ?: SettingsPage.Main.id }
                         )
+                    }
+                    else -> {
+                        // Do nothing or handle fallback
                     }
                 }
                 Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
