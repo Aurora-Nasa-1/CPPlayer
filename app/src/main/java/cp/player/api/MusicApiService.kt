@@ -91,7 +91,7 @@ interface MusicApiService {
     suspend fun getUserDetail(uid: Long): JsonObject
 
     /** 获取用户云盘歌曲 */
-    suspend fun getUserCloud(limit: Int = 100): JsonObject
+    suspend fun getUserCloud(limit: Int = 200, offset: Int = 0): JsonObject
 
     /** 获取喜欢的音乐 ID 列表 */
     suspend fun getLikeList(uid: Long): JsonObject
