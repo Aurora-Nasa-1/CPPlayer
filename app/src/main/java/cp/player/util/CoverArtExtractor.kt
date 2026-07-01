@@ -30,27 +30,27 @@ object CoverArtExtractor {
      *
      * @return 封面文件的 `file://` URI 字符串，无封面时返回 null
      */
-    fun getOrExtract(context: Context, songId: String, filePath: String?): String? {
-        if (filePath.isNullOrBlank()) return null
-        if (songId.isBlank()) return null
+    suspend fun getOrExtract(context: Context, songId: String, filePath: String?): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (filePath.isNullOrBlank()) return@withContext null
+        if (songId.isBlank()) return@withContext null
 
         val normalizedId = songId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-        if (normalizedId.isBlank()) return null
+        if (normalizedId.isBlank()) return@withContext null
 
         // 1. 内存缓存
         val cached = memoryCache.get(normalizedId)
-        if (cached != null) return cached.ifBlank { null }
+        if (cached != null) return@withContext cached.ifBlank { null }
 
         // 2. 磁盘缓存
         val coverFile = File(context.cacheDir, "$COVER_DIR/$normalizedId.jpg")
         if (coverFile.exists() && coverFile.length() > 0) {
             val path = "file://${coverFile.absolutePath}"
             memoryCache.put(normalizedId, path)
-            return path
+            return@withContext path
         }
 
         // 3. 从音频文件提取
-        return try {
+        return@withContext try {
             val artBytes = extractEmbeddedArt(filePath)
             if (artBytes != null) {
                 coverFile.parentFile?.mkdirs()
