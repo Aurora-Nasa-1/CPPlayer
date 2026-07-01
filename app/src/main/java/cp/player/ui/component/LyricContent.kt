@@ -29,7 +29,8 @@ fun LyricContent(
     modifier: Modifier = Modifier,
     showTranslation: Boolean = true,
     showPhonetic: Boolean = true,
-    contentPadding: PaddingValues = PaddingValues(top = 100.dp, bottom = 600.dp, start = 24.dp, end = 24.dp)
+    contentPadding: PaddingValues = PaddingValues(top = 100.dp, bottom = 600.dp, start = 24.dp, end = 24.dp),
+    onSeek: ((Long) -> Unit)? = null
 ) {
     if (syncedLyrics == null || syncedLyrics.lines.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -76,7 +77,7 @@ fun LyricContent(
         listState = listState,
         lyrics = syncedLyrics,
         currentPosition = currentPositionProvider,
-        onLineClicked = { /* 点击歌词行可扩展为跳转 */ },
+        onLineClicked = { line -> onSeek?.invoke(line.start.toLong()) },
         onLinePressed = { /* 长按歌词行可扩展为分享 */ },
         normalLineTextStyle = normalStyle,
         accompanimentLineTextStyle = accompanimentStyle,

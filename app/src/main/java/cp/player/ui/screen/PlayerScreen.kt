@@ -850,7 +850,8 @@ private fun PlayerWideLayout(
             LyricContent(
                 syncedLyrics = syncedLyrics,
                 currentPosition = currentPosition,
-                contentPadding = PaddingValues(vertical = 120.dp, horizontal = 24.dp)
+                contentPadding = PaddingValues(vertical = 120.dp, horizontal = 24.dp),
+                onSeek = onSeek
             )
         }
     }
@@ -930,7 +931,8 @@ private fun PlayerMobileLayout(
                             syncedLyrics = syncedLyrics,
                             currentPosition = currentPosition,
                             showTranslation = showTranslation,
-                            contentPadding = PaddingValues(vertical = 60.dp, horizontal = 8.dp)
+                            contentPadding = PaddingValues(vertical = 60.dp, horizontal = 8.dp),
+                            onSeek = onSeek
                         )
                     }
 
