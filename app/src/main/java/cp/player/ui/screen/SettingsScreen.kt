@@ -176,7 +176,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (screen != "dsp") Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .then(if (screen != "dsp" && screen != "providerSettings") Modifier.verticalScroll(rememberScrollState()) else Modifier)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
