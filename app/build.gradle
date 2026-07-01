@@ -171,6 +171,9 @@ dependencies {
     implementation(libs.accompanist.lyrics.core)
     implementation(libs.gaze.capsule)
 
+    // Material Color Utilities for Monet-like extraction
+    implementation(libs.material.color.utilities)
+
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core

@@ -72,14 +72,14 @@ private const val FLUID_SHADER = """
         color += dither(fragCoord);
 
         if (iLightMode < 0.5) {
-            float3 baseLight = float3(0.98, 0.96, 0.95);
-            color = mix(baseLight, color, 0.45);
-            color = clamp(color * 1.05, 0.0, 1.0);
+            float3 baseLight = float3(0.98, 0.98, 0.98); // pure soft light background
+            color = mix(baseLight, color, 0.25); // drastically reduce opacity for ultra soft pastel look
+            color = clamp(color, 0.0, 1.0);
             return half4(color, 1.0);
         } else {
-            float3 baseDark = float3(0.08, 0.09, 0.12);
-            color = mix(baseDark, color, 0.55);
-            color = smoothstep(0.0, 1.2, color);
+            float3 baseDark = float3(0.05, 0.05, 0.07); // deep space dark background
+            color = mix(baseDark, color, 0.35); // significantly soften dark mode too to ensure readability
+            color = clamp(color, 0.0, 1.0);
             return half4(color, 1.0);
         }
     }
@@ -107,9 +107,9 @@ fun FluidBackground(
         )
 
         val colors = if (isDark) {
-            listOf(color.copy(alpha = 0.6f), color.copy(alpha = 0.2f), Color.Black)
+            listOf(color.copy(alpha = 0.35f), color.copy(alpha = 0.15f), Color(0xFF121212))
         } else {
-            listOf(color.copy(alpha = 0.1f), color.copy(alpha = 0.05f), Color.White)
+            listOf(color.copy(alpha = 0.15f), color.copy(alpha = 0.05f), Color(0xFFF8F8F8))
         }
 
         Box(
@@ -146,28 +146,34 @@ private fun AgslFluidBackground(
     )
 
     // Monet-inspired complementary colors for fluid effect: soft, pastel-like transition
-    val color1 = color
+    // By reducing the saturation dramatically here, we guarantee a "Monet" soft aesthetic
+    val color1 = remember(color) {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+        hsv[1] = (hsv[1] * 0.7f).coerceAtMost(0.6f) // Limit saturation
+        Color.hsv(hsv[0], hsv[1], hsv[2])
+    }
     val color2 = remember(color) {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(color.toArgb(), hsv)
         hsv[0] = (hsv[0] + 25) % 360
-        hsv[1] = (hsv[1] * 0.6f).coerceIn(0.2f, 0.6f) // Softer saturation for Monet feel
+        hsv[1] = (hsv[1] * 0.5f).coerceAtMost(0.5f)
         Color.hsv(hsv[0], hsv[1], hsv[2])
     }
     val color3 = remember(color) {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(color.toArgb(), hsv)
         hsv[0] = (hsv[0] - 20 + 360) % 360
-        hsv[1] = (hsv[1] * 0.7f).coerceIn(0.2f, 0.7f)
-        hsv[2] = (hsv[2] * 0.85f).coerceIn(0.3f, 0.9f)
+        hsv[1] = (hsv[1] * 0.6f).coerceAtMost(0.6f)
+        hsv[2] = (hsv[2] * 0.9f).coerceIn(0.4f, 0.9f)
         Color.hsv(hsv[0], hsv[1], hsv[2])
     }
     val color4 = remember(color) {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(color.toArgb(), hsv)
         hsv[0] = (hsv[0] + 180) % 360 // Complementary contrast hue
-        hsv[1] = (hsv[1] * 0.4f).coerceIn(0.1f, 0.4f)
-        hsv[2] = (hsv[2] * 0.9f).coerceIn(0.4f, 1f)
+        hsv[1] = (hsv[1] * 0.3f).coerceAtMost(0.3f)
+        hsv[2] = (hsv[2] * 0.95f).coerceIn(0.5f, 1f)
         Color.hsv(hsv[0], hsv[1], hsv[2])
     }
 
