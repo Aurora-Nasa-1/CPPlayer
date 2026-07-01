@@ -56,9 +56,13 @@ class BackendDataSource(
             val uri = dataSpec.uri
             DebugLog.d("CPDS: Opening URI: $uri at position ${dataSpec.position}")
 
-            val songId = if (uri.scheme == "cp") {
+            var songId = if (uri.scheme == "cp") {
                 if (uri.host == "song") uri.pathSegments.firstOrNull() else uri.host ?: uri.authority
             } else null
+
+            if (songId != null && songId.startsWith("cloud_")) {
+                songId = songId.removePrefix("cloud_")
+            }
 
             if (songId == null) {
                 val ds = when (uri.scheme) {
