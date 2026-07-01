@@ -306,7 +306,7 @@ private fun DownloadsMainContent(
                 val downloadingTasks = tasks.values.filter { it.status != DownloadStatus.COMPLETED }.toList()
                 if (downloadingTasks.isNotEmpty()) {
                     item { Text(stringResource(R.string.downloading), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 16.dp)) }
-                    itemsIndexed(downloadingTasks) { index, task ->
+                    itemsIndexed(downloadingTasks, key = { _, task -> task.song.id }) { index, task ->
                         SongItem(
                             song = task.song,
                             isFavorite = false,
@@ -349,7 +349,7 @@ private fun DownloadsMainContent(
                 val validDownloadedSongs = downloadedSongs.distinctBy { it.song.id }
                 if (validDownloadedSongs.isNotEmpty()) {
                     item { Text(stringResource(R.string.downloaded), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
-                    itemsIndexed(validDownloadedSongs) { index, metadata ->
+                    itemsIndexed(validDownloadedSongs, key = { _, metadata -> metadata.song.id }) { index, metadata ->
                         val uri = if (metadata.filePath?.startsWith("content://") == true) {
                             android.net.Uri.parse(metadata.filePath)
                         } else {
