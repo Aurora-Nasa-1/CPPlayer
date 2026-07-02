@@ -28,7 +28,8 @@ fun LyricsScreen(
     syncedLyrics: SyncedLyrics?,
     useCoverColor: Boolean = false,
     coverColor: Int? = null,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    onSeek: (Long) -> Unit = {}
 ) {
     CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor) {
         val bgBrush = if (useCoverColor && coverColor != null) {
@@ -80,7 +81,8 @@ fun LyricsScreen(
                 ) {
                     LyricContent(
                         syncedLyrics = syncedLyrics,
-                        currentPosition = currentPosition
+                        currentPosition = currentPosition,
+                        onSeek = onSeek
                     )
                 }
             }
