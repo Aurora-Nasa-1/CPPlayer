@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.materialkolor.dynamicColorScheme
 import androidx.compose.ui.graphics.Color
 import cp.player.R
 
@@ -114,51 +115,14 @@ fun createGoogleSansFlex(roundnessMode: Int): FontFamily {
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
+@Composable
 fun createCustomColorScheme(seedColor: Int, isDark: Boolean, pureBlack: Boolean = false): ColorScheme {
-    val color = Color(seedColor)
-    val luminance = androidx.core.graphics.ColorUtils.calculateLuminance(seedColor)
-    val isDarkSeed = luminance < 0.5
-
-    return if (isDark) {
-        darkColorScheme(
-            primary = color,
-            onPrimary = if (isDarkSeed) Color.White else Color.Black,
-            primaryContainer = color.copy(alpha = 0.3f),
-            onPrimaryContainer = Color.White,
-            secondary = color.copy(alpha = 0.5f),
-            onSecondary = Color.White,
-            secondaryContainer = if (pureBlack) Color(0xFF121212) else color.copy(alpha = 0.2f),
-            onSecondaryContainer = Color.White,
-            surface = if (pureBlack) Color.Black else Color(0xFF121212),
-            onSurface = Color.White,
-            background = if (pureBlack) Color.Black else Color(0xFF121212),
-            onBackground = Color.White,
-            surfaceVariant = if (pureBlack) Color.Black else color.copy(alpha = 0.1f),
-            onSurfaceVariant = Color.White,
-            surfaceContainerLowest = if (pureBlack) Color.Black else Color(0xFF0D0D0D),
-            surfaceContainerLow = if (pureBlack) Color.Black else Color(0xFF1A1A1A),
-            surfaceContainer = if (pureBlack) Color.Black else Color(0xFF1F1F1F),
-            surfaceContainerHigh = if (pureBlack) Color.Black else Color(0xFF232323),
-            surfaceContainerHighest = if (pureBlack) Color.Black else Color(0xFF282828)
-        )
-    } else {
-        lightColorScheme(
-            primary = color,
-            onPrimary = if (isDarkSeed) Color.White else Color.Black,
-            primaryContainer = color.copy(alpha = 0.2f),
-            onPrimaryContainer = color,
-            secondary = color.copy(alpha = 0.6f),
-            onSecondary = Color.White,
-            secondaryContainer = color.copy(alpha = 0.1f),
-            onSecondaryContainer = color,
-            surface = Color(0xFFFDFDFD),
-            onSurface = Color.Black,
-            background = Color(0xFFFDFDFD),
-            onBackground = Color.Black,
-            surfaceVariant = color.copy(alpha = 0.05f),
-            onSurfaceVariant = Color.Black
-        )
-    }
+    val baseScheme = dynamicColorScheme(
+        seedColor = Color(seedColor),
+        isDark = isDark,
+        isAmoled = pureBlack
+    )
+    return baseScheme
 }
 
 @Composable
