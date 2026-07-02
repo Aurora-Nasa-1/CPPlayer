@@ -140,8 +140,8 @@ class MusicApiServiceImpl(
     override suspend fun getUserDetail(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_DETAIL, mapOf("uid" to uid.toString()))
 
-    override suspend fun getUserCloud(limit: Int): JsonObject =
-        callApi(MusicApiMethod.USER_CLOUD, mapOf("limit" to limit.toString()))
+    override suspend fun getUserCloud(limit: Int, offset: Int): JsonObject =
+        callApi(MusicApiMethod.USER_CLOUD, mapOf("limit" to limit.toString(), "offset" to offset.toString()))
 
     override suspend fun getLikeList(uid: Long): JsonObject =
         callApi(MusicApiMethod.USER_LIKE_LIST, mapOf("uid" to uid.toString()))

@@ -470,44 +470,73 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     return@launch
                 }
 
-                val body = withContext(Dispatchers.IO) { api.getUserCloud() }
-                val dataElem = body.get("data")
-                val songs = when {
-                    dataElem == null || dataElem.isJsonNull -> emptyList()
-                    // 直接是数组格式: {"data": [...]}
-                    dataElem.isJsonArray -> dataElem.asJsonArray.mapNotNull { JsonUtils.parseSong(it) }
-                    // 嵌套格式: {"data": {"data": [...], ...}}
-                    dataElem.isJsonObject -> {
-                        val innerData = dataElem.asJsonObject.get("data")
-                        if (innerData != null && innerData.isJsonArray) {
-                            innerData.asJsonArray.mapNotNull { JsonUtils.parseSong(it) }
-                        } else {
-                            // 尝试从整个 data 对象中查找数组
-                            JsonUtils.findJsonArray(dataElem, "data")?.mapNotNull { JsonUtils.parseSong(it) }
-                                ?: emptyList()
+                val allSongs = mutableListOf<Song>()
+                val allElements = mutableListOf<com.google.gson.JsonElement>()
+                val seenIds = mutableSetOf<String>()
+                var offset = 0
+                val limit = 200
+
+                withContext(Dispatchers.IO) {
+                    while (true) {
+                        val body = api.getUserCloud(limit = limit, offset = offset)
+                        val dataElem = body.get("data")
+
+                        val songs = when {
+                            dataElem == null || dataElem.isJsonNull -> emptyList()
+                            // 直接是数组格式: {"data": [...]}
+                            dataElem.isJsonArray -> dataElem.asJsonArray.mapNotNull { JsonUtils.parseSong(it) }
+                            // 嵌套格式: {"data": {"data": [...], ...}}
+                            dataElem.isJsonObject -> {
+                                val innerData = dataElem.asJsonObject.get("data")
+                                if (innerData != null && innerData.isJsonArray) {
+                                    innerData.asJsonArray.mapNotNull { JsonUtils.parseSong(it) }
+                                } else {
+                                    // 尝试从整个 data 对象中查找数组
+                                    JsonUtils.findJsonArray(dataElem, "data")?.mapNotNull { JsonUtils.parseSong(it) }
+                                        ?: emptyList()
+                                }
+                            }
+                            else -> emptyList()
                         }
+
+                        val elements = when {
+                            dataElem == null || dataElem.isJsonNull -> emptyList()
+                            dataElem.isJsonArray -> dataElem.asJsonArray.toList()
+                            dataElem.isJsonObject -> {
+                                val innerData = dataElem.asJsonObject.get("data")
+                                if (innerData != null && innerData.isJsonArray) {
+                                    innerData.asJsonArray.toList()
+                                } else {
+                                    cp.player.util.JsonUtils.findJsonArray(dataElem, "data")?.toList() ?: emptyList()
+                                }
+                            }
+                            else -> emptyList()
+                        }
+
+                        if (songs.isEmpty()) break
+
+                        var addedNew = false
+                        for (song in songs) {
+                            if (seenIds.add(song.id)) {
+                                allSongs.add(song)
+                                addedNew = true
+                            }
+                        }
+
+                        allElements.addAll(elements)
+
+                        // 某些 provider 可能不支持 offset 返回重复数据，或者已经返回所有数据
+                        if (!addedNew || songs.size < limit) break
+
+                        offset += limit
                     }
-                    else -> emptyList()
                 }
-                cloudSongs = songs
+
+                cloudSongs = allSongs
 
                 // Extract simpleSong.id and bind it
                 withContext(Dispatchers.IO) {
-                    val elements = when {
-                        dataElem == null || dataElem.isJsonNull -> emptyList()
-                        dataElem.isJsonArray -> dataElem.asJsonArray.toList()
-                        dataElem.isJsonObject -> {
-                            val innerData = dataElem.asJsonObject.get("data")
-                            if (innerData != null && innerData.isJsonArray) {
-                                innerData.asJsonArray.toList()
-                            } else {
-                                cp.player.util.JsonUtils.findJsonArray(dataElem, "data")?.toList() ?: emptyList()
-                            }
-                        }
-                        else -> emptyList()
-                    }
-
-                    for (element in elements) {
+                    for (element in allElements) {
                         try {
                             if (!element.isJsonObject) continue
                             val obj = element.asJsonObject
