@@ -215,7 +215,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val color = mediaMetadataUseCase.extractColorFromUrl(url)
             withContext(Dispatchers.Main) {
-                if (color != null) {
+                if (color != null && color != 0) {
                     extractedColor = color
                 }
             }

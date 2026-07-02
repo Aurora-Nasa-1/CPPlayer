@@ -42,8 +42,11 @@ class MediaMetadataUseCase(private val application: Application) {
                 // Use official Material Color Utilities for Monet extraction
                 try {
                     val imageBitmap = bitmap.asImageBitmap()
-                    val themeColor = imageBitmap.themeColor(fallback = androidx.compose.ui.graphics.Color(fallbackColor))
-                    return@withContext themeColor.toArgb()
+                    // Default to black (opaque) if fallbackColor is 0, to avoid passing transparent black (0) as fallback.
+                    val safeFallback = if (fallbackColor != 0) androidx.compose.ui.graphics.Color(fallbackColor) else androidx.compose.ui.graphics.Color.Black
+                    val themeColor = imageBitmap.themeColor(fallback = safeFallback)
+                    val argb = themeColor.toArgb()
+                    if (argb != 0) return@withContext argb
                 } catch (e: Exception) {
                     DebugLog.e("Material Color Utilities extraction failed: ${e.message}")
                 }
