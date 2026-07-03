@@ -167,6 +167,7 @@
     <string name="font_roundness_desc">Switch Google Sans Flex font roundness mode, similar to Android 16 QPR2</string>
     <string name="font_roundness_standard">Standard</string>
     <string name="font_roundness_expressive">Expressive</string>
+    <string name="font_roundness_default">System Default</string>
     <string name="module_import_success">Module imported successfully</string>
     <string name="module_import_failed">Failed to import module</string>
     <string name="module_import_failed_detail">Import failed: %s</string>

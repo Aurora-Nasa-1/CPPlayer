@@ -167,6 +167,7 @@
     <string name="font_roundness_desc">Google Sans Flex のフォント丸みモードを切り替えます（Android 16 QPR2 と同等）</string>
     <string name="font_roundness_standard">スタンダード</string>
     <string name="font_roundness_expressive">エクスプレッシブ</string>
+    <string name="font_roundness_default">システムデフォルト</string>
     <string name="play_immediately">タップで即再生</string>
     <string name="play_immediately_desc">曲をタップした際、再生画面に遷移せずに直接再生を開始します</string>
     <string name="playback_behavior">再生動作</string>

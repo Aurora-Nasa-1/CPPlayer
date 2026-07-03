@@ -322,7 +322,8 @@ fun SettingsScreen(
                             // Font Roundness Setting (Android 16 QPR2 style)
                             val fontRoundnessOptions = listOf(
                                 stringResource(R.string.font_roundness_standard),
-                                stringResource(R.string.font_roundness_expressive)
+                                stringResource(R.string.font_roundness_expressive),
+                                stringResource(R.string.font_roundness_default)
                             )
                             ExpressiveDropdownItem(
                                 title = stringResource(R.string.font_roundness),

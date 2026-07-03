@@ -173,6 +173,7 @@
     <string name="font_roundness_desc">切换 Google Sans Flex 的字体圆润模式，类似 Android 16 QPR2 效果</string>
     <string name="font_roundness_standard">标准模式</string>
     <string name="font_roundness_expressive">Expressive 模式</string>
+    <string name="font_roundness_default">系统默认字体</string>
     <string name="play_immediately">点击直接播放</string>
     <string name="play_immediately_desc">点击歌曲时直接开始播放，不跳转到播放界面</string>
     <string name="playback_behavior">播放行为</string>

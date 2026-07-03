@@ -183,7 +183,10 @@ fun CPPlayerTheme(
     // Extra extra large (48dp)
     // Fully Rounded (full token)
 
-    val activeFontFamily = remember(fontRoundness) { createGoogleSansFlex(fontRoundness) }
+    val activeFontFamily = remember(fontRoundness) {
+        if (fontRoundness == 2) FontFamily.Default  // 系统默认字体
+        else createGoogleSansFlex(fontRoundness)
+    }
 
     val defaultTypography = Typography()
     val expressiveTypography = Typography(
