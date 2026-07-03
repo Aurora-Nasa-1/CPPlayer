@@ -5,7 +5,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,7 +36,7 @@ fun BottomPlaybackBar(
     isPlaying: Boolean,
     isBuffering: Boolean = false,
     progress: Float = 0f,
-    useWavyProgress: Boolean = true,
+    useWavyProgress: Boolean = false,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -50,7 +49,6 @@ fun BottomPlaybackBar(
 ) {
     if (song == null) return
 
-    // 为波浪进度条添加平滑动画
     val animatedProgress by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
         animationSpec = if (useWavyProgress) WavyProgressIndicatorDefaults.ProgressAnimationSpec else tween(200),
@@ -84,7 +82,6 @@ fun BottomPlaybackBar(
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Album art — rounded square per M3 spec
                     AsyncImage(
                         model = song.albumArtUrl.resized(800),
                         contentDescription = null,
@@ -179,24 +176,23 @@ fun BottomPlaybackBar(
 
                 // 进度条贴在底部边缘，左右留 12dp 内边距
                 if (useWavyProgress) {
-                    val density = LocalDensity.current
-                    val strokePx = with(density) { 3.dp.toPx() }
+                    val strokePx = with(androidx.compose.ui.platform.LocalDensity.current) { 3.dp.toPx() }
                     val wavyStroke = remember(strokePx) { Stroke(width = strokePx, cap = StrokeCap.Round) }
                     LinearWavyProgressIndicator(
                         progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .height(10.dp),
+                            .height(8.dp),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                         stroke = wavyStroke,
                         trackStroke = wavyStroke,
                         gapSize = 0.dp,
                         stopSize = 0.dp,
-                        amplitude = { 0.8f },
-                        wavelength = 32.dp,
-                        waveSpeed = 32.dp
+                        amplitude = { 0.35f },
+                        wavelength = 24.dp,
+                        waveSpeed = 24.dp
                     )
                 } else {
                     LinearProgressIndicator(

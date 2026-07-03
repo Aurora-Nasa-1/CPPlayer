@@ -181,10 +181,7 @@ fun BoxScope.AppPlayerOverlay(
             )
             Box(
                 modifier = Modifier
-                    .padding(
-                        bottom = animatedBottomPadding,
-                        end = if (useSideNav) 0.dp else 16.dp
-                    )
+                    .padding(bottom = animatedBottomPadding)
             ) {
                 val progress = if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
                 BottomPlaybackBar(

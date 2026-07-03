@@ -172,6 +172,13 @@ fun AppNavigation(
     val navBarHeightPx = with(density) { 90.dp.toPx() }
     val maxOffset = navBarHeightPx + WindowInsets.navigationBars.getBottom(density)
 
+    // 关闭自动隐藏时重置底栏偏移，恢复底栏显示
+    LaunchedEffect(settingsViewModel.hideNavbarOnScroll) {
+        if (!settingsViewModel.hideNavbarOnScroll) {
+            bottomBarOffsetHeightPx.value = 0f
+        }
+    }
+
     val nestedScrollConnection = remember(settingsViewModel.hideNavbarOnScroll) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {

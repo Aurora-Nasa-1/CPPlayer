@@ -433,6 +433,6 @@ object UserPreferences {
     }
 
     fun getWavyProgress(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_WAVY_PROGRESS, true) // 默认波浪
+        return getPrefs(context).getBoolean(KEY_WAVY_PROGRESS, false) // 默认平直
     }
 }
