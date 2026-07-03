@@ -693,10 +693,15 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             stateBuilder.setPlaylist(mediaItemDataList)
             stateBuilder.setCurrentMediaItemIndex(currentMediaItemIndex)
             stateBuilder.setContentPositionMs {
-                // 不插值：直接使用 Rust 引擎报告的位置。
-                // 之前用墙钟时间推算 (elapsed) 会导致报告位置领先于实际音频输出，
-                // 造成歌词逐字动画滞后于听觉。
-                currentPositionMs.get()
+                if (isPlaying && playbackState == Player.STATE_READY) {
+                    val elapsed = System.currentTimeMillis() - positionUpdateTimeMs.get()
+                    // 限制插值上限为 300ms，避免位置领先于实际音频输出
+                    // 同时保持足够的插值使进度条平滑更新
+                    val cappedElapsed = elapsed.coerceAtMost(300L)
+                    currentPositionMs.get() + cappedElapsed
+                } else {
+                    currentPositionMs.get()
+                }
             }
         } else {
             stateBuilder.setPlaylist(emptyList())
