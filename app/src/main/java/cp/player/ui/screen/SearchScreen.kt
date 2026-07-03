@@ -257,8 +257,7 @@ fun SearchScreen(
                                     isCurrentlyPlaying = song.id == currentSongId,
                                     onOptionsClick = { selectedSongForOptions = song },
                                     onClick = { onSongClick(song) },
-                                    showDivider = false,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    showDivider = false
                                 )
                             }
                         }
@@ -270,7 +269,7 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onAlbumClick(playlist) },
                                     onOptionsClick = { selectedPlaylistForOptions = playlist },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                                 )
                             }
                         }
@@ -280,8 +279,7 @@ fun SearchScreen(
                                     artist = artist,
                                     index = index,
                                     total = searchArtists.size,
-                                    onClick = { onArtistClick(artist) },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    onClick = { onArtistClick(artist) }
                                 )
                             }
                         }
@@ -293,7 +291,7 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onPlaylistClick(playlist) },
                                     onOptionsClick = { selectedPlaylistForOptions = playlist },
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                                 )
                             }
                         }

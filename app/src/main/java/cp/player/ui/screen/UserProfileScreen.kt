@@ -203,8 +203,7 @@ fun UserProfileScreen(
                             onOptionsClick = { selectedSongForOptions = song },
                             onClick = { onSongClick(song) },
                             index = index,
-                            total = displaySongs.size,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            total = displaySongs.size
                         )
                     }
 
@@ -241,7 +240,7 @@ fun UserProfileScreen(
                             onOptionsClick = { selectedPlaylistForOptions = album },
                             index = index,
                             total = displayAlbums.size,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                         )
                     }
 
@@ -278,7 +277,7 @@ fun UserProfileScreen(
                             onOptionsClick = { selectedPlaylistForOptions = playlist },
                             index = index,
                             total = displayPlaylists.size,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
                         )
                     }
 
