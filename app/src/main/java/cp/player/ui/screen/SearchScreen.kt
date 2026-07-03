@@ -32,6 +32,8 @@ import cp.player.model.Song
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.PlaylistItem
 import cp.player.ui.component.ArtistItem
+import androidx.compose.ui.res.stringResource
+import cp.player.R
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -94,12 +96,12 @@ fun SearchScreen(
                     },
                     expanded = active,
                     onExpandedChange = { active = it },
-                    placeholder = { Text("Search songs, artists...") },
+                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear))
                             }
                         }
                     },
@@ -122,9 +124,9 @@ fun SearchScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Recent Searches", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleMedium)
                         TextButton(onClick = onClearHistory) {
-                            Text("Clear")
+                            Text(stringResource(R.string.clear))
                         }
                     }
                     searchHistory.forEachIndexed { index, historyItem ->
@@ -176,10 +178,10 @@ fun SearchScreen(
             // Filter Chips
             if (searchResults.isNotEmpty() || searchPlaylists.isNotEmpty() || searchArtists.isNotEmpty() || searchQuery.isNotEmpty()) {
                 val types = listOf(
-                    cp.player.api.MusicApiMethod.SEARCH_TYPE_SONG to "Songs",
-                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ALBUM to "Albums",
-                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ARTIST to "Artists",
-                    cp.player.api.MusicApiMethod.SEARCH_TYPE_PLAYLIST to "Playlists"
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_SONG to stringResource(R.string.search_songs),
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ALBUM to stringResource(R.string.search_albums),
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_ARTIST to stringResource(R.string.search_artists),
+                    cp.player.api.MusicApiMethod.SEARCH_TYPE_PLAYLIST to stringResource(R.string.search_playlists)
                 )
                 LazyRow(
                     modifier = Modifier
@@ -218,7 +220,7 @@ fun SearchScreen(
                 if (searchResults.isEmpty() && searchPlaylists.isEmpty() && searchArtists.isEmpty() && searchQuery.isEmpty()) {
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                         Text(
-                            "Hot Searches",
+                            stringResource(R.string.hot_searches),
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )

@@ -380,6 +380,14 @@
     <string name="no_app_logs">No app logs</string>
     <string name="total_log_count">%1$d entries</string>
 
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_library">Library</string>
+    <string name="cellular_warning_title">Cellular Data Warning</string>
+    <string name="cellular_warning_message">You are currently on a mobile network.</string>
+    <string name="continue_action">Continue</string>
+
     <!-- Search -->
     <string name="hot_searches">Hot Searches</string>
     <string name="search_songs">Songs</string>

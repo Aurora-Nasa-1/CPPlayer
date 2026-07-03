@@ -558,6 +558,12 @@
     <string name="navigation_bar">导航栏</string>
     <string name="hide_navbar_on_scroll">底栏随页面滑动自动隐藏</string>
     <string name="hide_navbar_on_scroll_desc">向下滚动页面时自动隐藏底栏，向上滚动时恢复显示</string>
+    <string name="nav_home">首页</string>
+    <string name="nav_search">搜索</string>
+    <string name="nav_library">音乐库</string>
+    <string name="cellular_warning_title">移动网络警告</string>
+    <string name="cellular_warning_message">您当前正在使用移动网络。</string>
+    <string name="continue_action">继续</string>
 
     <!-- 播放器样式 -->
     <string name="player_style">播放器样式</string>

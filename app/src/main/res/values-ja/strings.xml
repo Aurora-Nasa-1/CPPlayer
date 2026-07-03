@@ -386,6 +386,14 @@
     <string name="no_app_logs">アプリログがありません</string>
     <string name="total_log_count">%1$d 件</string>
 
+    <!-- ナビゲーション -->
+    <string name="nav_home">ホーム</string>
+    <string name="nav_search">検索</string>
+    <string name="nav_library">ライブラリ</string>
+    <string name="cellular_warning_title">モバイルデータ警告</string>
+    <string name="cellular_warning_message">現在モバイルデータ通信中です。</string>
+    <string name="continue_action">続行</string>
+
     <!-- 検索 -->
     <string name="hot_searches">人気の検索</string>
     <string name="search_songs">曲</string>

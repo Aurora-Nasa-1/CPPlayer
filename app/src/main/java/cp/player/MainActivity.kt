@@ -39,6 +39,7 @@ import cp.player.ui.theme.CPPlayerTheme
 import cp.player.viewmodel.*
 import cp.player.util.DebugLog
 import io.sentry.Sentry
+import androidx.compose.ui.res.stringResource
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -153,7 +154,10 @@ fun AppNavigation(
     }
 
     val showNav = true // 始终显示导航，不再强制登录
-    val navItems = listOf(Triple("main", "Home", Icons.Filled.Home), Triple("search", "Search", Icons.Filled.Search), Triple("library", "Library", Icons.Filled.LibraryMusic))
+    val navHome = stringResource(R.string.nav_home)
+    val navSearch = stringResource(R.string.nav_search)
+    val navLibrary = stringResource(R.string.nav_library)
+    val navItems = listOf(Triple("main", navHome, Icons.Filled.Home), Triple("search", navSearch, Icons.Filled.Search), Triple("library", navLibrary, Icons.Filled.LibraryMusic))
     val topLevelRoutes = navItems.map { it.first }
     val isTopLevel = currentDestination?.route in topLevelRoutes
     val hasBottomBar = showNav && isTopLevel // Show bottom bar only on top-level routes
@@ -920,18 +924,18 @@ fun AppMainContent(
             downloadViewModel.showCellularDownloadDialog?.let { song ->
                 AlertDialog(
                     onDismissRequest = { downloadViewModel.showCellularDownloadDialog = null },
-                    title = { Text("Cellular Data Warning") },
-                    text = { Text("You are currently on a mobile network.") },
+                    title = { Text(stringResource(R.string.cellular_warning_title)) },
+                    text = { Text(stringResource(R.string.cellular_warning_message)) },
                     confirmButton = {
                         Column {
                             TextButton(onClick = {
                                 downloadViewModel.downloadSong(song)
                                 downloadViewModel.showCellularDownloadDialog = null
-                            }) { Text("Continue") }
+                            }) { Text(stringResource(R.string.continue_action)) }
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { downloadViewModel.showCellularDownloadDialog = null }) { Text("Cancel") }
+                        TextButton(onClick = { downloadViewModel.showCellularDownloadDialog = null }) { Text(stringResource(R.string.cancel)) }
                     }
                 )
             }
