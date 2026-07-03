@@ -516,20 +516,27 @@ fun SettingsScreen(
                         // 流媒体音质设置
                         SettingsSection(title = stringResource(R.string.playback_quality_cat)) {
                             val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
-                            
+                            val qualityLabels = listOf(
+                                stringResource(R.string.quality_standard),
+                                stringResource(R.string.quality_higher),
+                                stringResource(R.string.quality_exhigh),
+                                stringResource(R.string.quality_lossless),
+                                stringResource(R.string.quality_hires)
+                            )
+
                             ExpressiveDropdownItem(
                                 title = stringResource(R.string.wifi_quality_label),
-                                subtitle = currentQualityWifi.replaceFirstChar { it.uppercase() },
-                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                subtitle = qualityLabels.getOrElse(qualities.indexOf(currentQualityWifi).coerceAtLeast(0)) { currentQualityWifi },
+                                options = qualityLabels,
                                 selectedIndex = qualities.indexOf(currentQualityWifi).coerceAtLeast(0),
                                 onSelect = { onQualityWifiChange(qualities[it]) },
                                 shapes = ListItemDefaults.segmentedShapes(0, 2)
                             )
-                            
+
                             ExpressiveDropdownItem(
                                 title = stringResource(R.string.cellular_quality_label),
-                                subtitle = currentQualityCellular.replaceFirstChar { it.uppercase() },
-                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                subtitle = qualityLabels.getOrElse(qualities.indexOf(currentQualityCellular).coerceAtLeast(0)) { currentQualityCellular },
+                                options = qualityLabels,
                                 selectedIndex = qualities.indexOf(currentQualityCellular).coerceAtLeast(0),
                                 onSelect = { onQualityCellularChange(qualities[it]) },
                                 shapes = ListItemDefaults.segmentedShapes(1, 2)
@@ -577,7 +584,14 @@ fun SettingsScreen(
                         // Merged Storage & Download Section
                         SettingsSection(title = "${stringResource(R.string.storage_cache)} & ${stringResource(R.string.download_settings)}") {
                             val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
-                            
+                            val qualityLabels = listOf(
+                                stringResource(R.string.quality_standard),
+                                stringResource(R.string.quality_higher),
+                                stringResource(R.string.quality_exhigh),
+                                stringResource(R.string.quality_lossless),
+                                stringResource(R.string.quality_hires)
+                            )
+
                             ExpressiveSwitchItem(
                                 title = stringResource(R.string.cellular_caching),
                                 subtitle = stringResource(R.string.cellular_caching_desc),
@@ -597,8 +611,8 @@ fun SettingsScreen(
 
                             ExpressiveDropdownItem(
                                 title = stringResource(R.string.download_quality_label),
-                                subtitle = downloadQuality.replaceFirstChar { it.uppercase() },
-                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                subtitle = qualityLabels.getOrElse(qualities.indexOf(downloadQuality).coerceAtLeast(0)) { downloadQuality },
+                                options = qualityLabels,
                                 selectedIndex = qualities.indexOf(downloadQuality).coerceAtLeast(0),
                                 onSelect = { onDownloadQualityChange(qualities[it]) },
                                 shapes = ListItemDefaults.segmentedShapes(2, 6)

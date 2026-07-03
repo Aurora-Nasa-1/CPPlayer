@@ -195,6 +195,13 @@
     <string name="view_all">View All</string>
     <string name="no_comments_yet">No comments yet, be the first!</string>
     <string name="no_messages_yet">No messages yet</string>
+    <!-- Audio Quality Levels -->
+    <string name="quality_standard">Standard</string>
+    <string name="quality_higher">Higher</string>
+    <string name="quality_exhigh">Very High</string>
+    <string name="quality_lossless">Lossless</string>
+    <string name="quality_hires">Hi-Res</string>
+
     <string name="play_immediately">Play Immediately</string>
     <string name="play_immediately_desc">Start playing directly when tapping a song, without navigating to the player screen</string>
     <string name="playback_behavior">Playback Behavior</string>
