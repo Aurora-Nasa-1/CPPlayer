@@ -203,8 +203,13 @@ class MusicService : MediaSessionService() {
 
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
-                players.forEach { it?.pause() }
-                wasPlayingBeforeFocusLoss = false
+                val mode = UserPreferences.getAudioFocusMode(this@MusicService)
+                if (mode == 2) { // 2 = Continue playing, ignore focus loss
+                    // 不暂停、不降低音量，保持播放
+                } else {
+                    players.forEach { it?.pause() }
+                    wasPlayingBeforeFocusLoss = false
+                }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 val mode = UserPreferences.getAudioFocusMode(this@MusicService)
