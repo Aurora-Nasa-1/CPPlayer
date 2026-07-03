@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,13 @@ fun BottomPlaybackBar(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     if (song == null) return
+
+    // 为波浪进度条添加平滑动画
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = if (useWavyProgress) WavyProgressIndicatorDefaults.ProgressAnimationSpec else tween(200),
+        label = "progressAnimation"
+    )
 
     CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor) {
         Surface(
@@ -168,7 +176,7 @@ fun BottomPlaybackBar(
                 // 进度条贴在底部边缘
                 if (useWavyProgress) {
                     LinearWavyProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
+                        progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp),
@@ -182,7 +190,7 @@ fun BottomPlaybackBar(
                     )
                 } else {
                     LinearProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
+                        progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(3.dp),
