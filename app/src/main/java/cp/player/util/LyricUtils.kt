@@ -70,11 +70,12 @@ object LyricUtils {
                     markers.forEachIndexed { i, match ->
                         val wBegin = match.groupValues[1].toLong()
                         val wDur = match.groupValues[2].toLong()
-                        // 提取 word 文本：YRC 格式中文字在 marker 之前，即上一个 marker 结束到当前 marker 开始
-                        val textStart = if (i > 0) markers[i - 1].range.last + 1 else 0
-                        val textEnd = match.range.first
-                        val wText = if (textStart < textEnd) content.substring(textStart, textEnd).trim() else ""
+                        // 提取 word 文本：YRC 格式中文字在 marker 之后，即当前 marker 结束到下一个 marker 开始
+                        val textStart = match.range.last + 1
+                        val textEnd = if (i < markers.size - 1) markers[i + 1].range.first else content.length
+                        val wText = if (textStart < textEnd) content.substring(textStart, textEnd) else ""
 
+                        // 保留空格（(0,0,0) marker 产生的空格），但跳过完全为空的条目
                         if (wText.isNotEmpty()) {
                             words.add(LyricLine.Word(
                                 text = wText,
