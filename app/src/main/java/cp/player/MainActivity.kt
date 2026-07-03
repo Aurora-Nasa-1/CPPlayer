@@ -427,6 +427,7 @@ fun AppMainContent(
                         }
                         composable("search") {
                             val completedSongs by downloadViewModel.completedSongs.collectAsState()
+                            val searchScope = androidx.compose.runtime.rememberCoroutineScope()
                             SearchScreen(
                                 searchResults = searchViewModel.searchResults,
                                 searchPlaylists = searchViewModel.searchPlaylists,
@@ -463,6 +464,21 @@ fun AppMainContent(
                                     )
                                 },
                                 onDownloadClick = { s -> downloadViewModel.downloadSong(s) },
+                                onPlaylistPlayAllClick = { p ->
+                                    searchScope.launch {
+                                        val songs = userViewModel.getPlaylistSongs(p.id)
+                                        if (songs.isNotEmpty()) {
+                                            playbackViewModel.playSong(songs[0], songs)
+                                            if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                        }
+                                    }
+                                },
+                                onPlaylistAddToQueueClick = { p ->
+                                    searchScope.launch {
+                                        val songs = userViewModel.getPlaylistSongs(p.id)
+                                        if (songs.isNotEmpty()) playbackViewModel.addSongsToQueue(songs)
+                                    }
+                                },
                                 completedSongs = completedSongs,
                                 currentSongId = playbackViewModel.currentSong?.id,
                                 bottomContentPadding = PaddingValues(
@@ -708,6 +724,7 @@ fun AppMainContent(
                                 backStackEntry.arguments?.getString("userId")?.toLongOrNull() ?: 0L
                             LaunchedEffect(uid) { userViewModel.fetchOtherUserProfile(uid) }
                             val viewState = userViewModel.otherUserViewState
+                            val completedSongs by downloadViewModel.completedSongs.collectAsState()
                             UserProfileScreen(
                                 userProfile = viewState.profile,
                                 playlists = viewState.playlists,
@@ -727,8 +744,26 @@ fun AppMainContent(
                                         viewState.songs
                                     ); if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
                                 },
+                                onLikeClick = { s ->
+                                    userViewModel.toggleLike(
+                                        s.id,
+                                        !userViewModel.favoriteSongs.contains(s.id)
+                                    )
+                                },
+                                onDownloadClick = { s -> downloadViewModel.downloadSong(s) },
+                                onPlayAllClick = { songs ->
+                                    if (songs.isNotEmpty()) {
+                                        playbackViewModel.playSong(songs[0], songs)
+                                        if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                    }
+                                },
+                                onAddToQueueAllClick = { songs ->
+                                    if (songs.isNotEmpty()) playbackViewModel.addSongsToQueue(songs)
+                                },
                                 onMessageClick = { u, n -> navController.navigate("chat/$u/$n") },
                                 currentSongId = playbackViewModel.currentSong?.id,
+                                favoriteSongs = userViewModel.favoriteSongs,
+                                completedSongs = completedSongs,
                                 onBackPressed = { navController.popBackStack() })
                         }
                         composable("settings") {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
@@ -54,6 +55,8 @@ fun SearchScreen(
     onArtistClick: (Artist) -> Unit = {},
     onLikeClick: (Song) -> Unit,
     onDownloadClick: ((Song) -> Unit)? = null,
+    onPlaylistPlayAllClick: (cp.player.model.Playlist) -> Unit = {},
+    onPlaylistAddToQueueClick: (cp.player.model.Playlist) -> Unit = {},
     currentSongId: String? = null,
     completedSongs: Set<String> = emptySet(),
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
@@ -65,6 +68,7 @@ fun SearchScreen(
     var query by remember(searchQuery) { mutableStateOf(searchQuery) }
     var active by remember { mutableStateOf(false) }
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
+    var selectedPlaylistForOptions by remember { mutableStateOf<cp.player.model.Playlist?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(
@@ -261,7 +265,12 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onAlbumClick(playlist) },
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    trailingContent = {
+                                        IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
+                                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -285,7 +294,12 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onPlaylistClick(playlist) },
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    trailingContent = {
+                                        IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
+                                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -310,6 +324,29 @@ fun SearchScreen(
                 selectedSongForOptions = null
             },
             onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } }
+        )
+    }
+
+    selectedPlaylistForOptions?.let { playlist ->
+        cp.player.ui.component.PlaylistOptionsBottomSheet(
+            playlist = playlist,
+            onDismissRequest = { selectedPlaylistForOptions = null },
+            onPlayClick = {
+                onPlaylistPlayAllClick(playlist)
+                selectedPlaylistForOptions = null
+            },
+            onAddToQueueClick = {
+                onPlaylistAddToQueueClick(playlist)
+                selectedPlaylistForOptions = null
+            },
+            onShareClick = {
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "https://music.163.com/#/playlist?id=${playlist.id}")
+                }
+                context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                selectedPlaylistForOptions = null
+            }
         )
     }
 }

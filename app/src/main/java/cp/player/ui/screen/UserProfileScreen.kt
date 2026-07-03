@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,8 +46,14 @@ fun UserProfileScreen(
     onPlaylistClick: (Playlist) -> Unit,
     onAlbumClick: (Playlist) -> Unit = onPlaylistClick,
     onSongClick: (Song) -> Unit,
+    onLikeClick: (Song) -> Unit = {},
+    onDownloadClick: ((Song) -> Unit)? = null,
+    onPlayAllClick: (List<Song>) -> Unit = {},
+    onAddToQueueAllClick: (List<Song>) -> Unit = {},
     onMessageClick: (Long, String) -> Unit,
     currentSongId: String? = null,
+    favoriteSongs: List<String> = emptyList(),
+    completedSongs: Set<String> = emptySet(),
     onBackPressed: () -> Unit
 ) {
     if (userProfile != null && userProfile.userId == 0L) {
@@ -57,6 +64,8 @@ fun UserProfileScreen(
     }
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
+    var selectedPlaylistForOptions by remember { mutableStateOf<Playlist?>(null) }
     val context = LocalContext.current
 
     AppScaffold(
@@ -81,7 +90,7 @@ fun UserProfileScreen(
                 title = { Text(stringResource(R.string.logout_confirm_title)) },
                 text = { Text(stringResource(R.string.logout_confirm_desc)) },
                 confirmButton = {
-                    TextButton(onClick = { 
+                    TextButton(onClick = {
                         showLogoutDialog = false
                         cp.player.util.UserPreferences.saveCookie(context, "")
                         onBackPressed()
@@ -183,6 +192,9 @@ fun UserProfileScreen(
                         SongItem(
                             song = song,
                             isCurrentlyPlaying = song.id == currentSongId,
+                            isFavorite = favoriteSongs.contains(song.id),
+                            isDownloaded = completedSongs.contains(song.id),
+                            onOptionsClick = { selectedSongForOptions = song },
                             onClick = { onSongClick(song) },
                             index = index,
                             total = displaySongs.size,
@@ -224,7 +236,12 @@ fun UserProfileScreen(
                             index = index,
                             total = displayAlbums.size,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            trailingContent = {
+                                IconButton(onClick = { selectedPlaylistForOptions = album }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                }
+                            }
                         )
                     }
 
@@ -261,7 +278,12 @@ fun UserProfileScreen(
                             index = index,
                             total = displayPlaylists.size,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            trailingContent = {
+                                IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                }
+                            }
                         )
                     }
 
@@ -278,6 +300,49 @@ fun UserProfileScreen(
                 }
             }
         }
+    }
+
+    // 歌曲更多选项菜单
+    selectedSongForOptions?.let { song ->
+        cp.player.ui.component.SongOptionsBottomSheet(
+            song = song,
+            isFavorite = favoriteSongs.contains(song.id),
+            isDownloaded = completedSongs.contains(song.id),
+            onDismissRequest = { selectedSongForOptions = null },
+            onPlayClick = {
+                onSongClick(song)
+                selectedSongForOptions = null
+            },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            },
+            onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } }
+        )
+    }
+
+    // 歌单/专辑更多选项菜单
+    selectedPlaylistForOptions?.let { playlist ->
+        cp.player.ui.component.PlaylistOptionsBottomSheet(
+            playlist = playlist,
+            onDismissRequest = { selectedPlaylistForOptions = null },
+            onPlayClick = {
+                onPlayAllClick(songs)
+                selectedPlaylistForOptions = null
+            },
+            onAddToQueueClick = {
+                onAddToQueueAllClick(songs)
+                selectedPlaylistForOptions = null
+            },
+            onShareClick = {
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "https://music.163.com/#/playlist?id=${playlist.id}")
+                }
+                context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                selectedPlaylistForOptions = null
+            }
+        )
     }
 }
 
