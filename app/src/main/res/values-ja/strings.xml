@@ -110,6 +110,8 @@
     <string name="now_playing">再生中</string>
     <string name="settings_appearance_desc">テーマ、外観、ピュアブラック...</string>
     <string name="settings_audio_desc">再生音質、オーディオエフェクト...</string>
+    <string name="settings_ui_logic">インターフェースロジック</string>
+    <string name="settings_ui_logic_desc">再生動作、歌詞ソース...</string>
     <string name="settings_download_desc">ダウンロード音質、モバイルデータ、保存先...</string>
     <string name="settings_storage_desc">モバイルデータキャッシュ、キャッシュサイズ...</string>
     <string name="settings_debug_desc">デバッグログをコピー...</string>

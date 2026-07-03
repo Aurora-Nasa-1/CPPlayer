@@ -111,6 +111,8 @@
     <string name="now_playing">正在播放</string>
     <string name="settings_appearance_desc">主题、外观、纯黑模式...</string>
     <string name="settings_audio_desc">播放音质、音频特效...</string>
+    <string name="settings_ui_logic">界面逻辑</string>
+    <string name="settings_ui_logic_desc">播放行为、歌词来源...</string>
     <string name="settings_download_desc">下载音质、移动数据下载、下载目录...</string>
     <string name="settings_storage_desc">移动数据缓存、播放缓存大小...</string>
     <string name="settings_debug_desc">复制调试日志...</string>

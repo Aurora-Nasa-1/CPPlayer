@@ -55,12 +55,13 @@ enum class SettingsPage(val id: String, val usesVerticalScroll: Boolean = true) 
     Health("health"),
     LogViewer("logViewer"),
     Dsp("dsp", usesVerticalScroll = false),
-    ProviderTest("providerTest");
+    ProviderTest("providerTest"),
+    UiLogic("uiLogic");
 
     val parent: SettingsPage?
         get() = when (this) {
             Health, LogViewer, ProviderTest -> Debug
-            About -> Main
+            About, UiLogic -> Main
             Dsp -> Audio
             ProviderSettings -> Provider
             else -> null
@@ -170,6 +171,7 @@ fun SettingsScreen(
         SettingsPage.Sponsor -> R.string.sponsor
         SettingsPage.Health -> R.string.health_status
         SettingsPage.Dsp -> R.string.dsp_equalizer // Just a fallback, handled in DspSettingsScreen
+        SettingsPage.UiLogic -> R.string.settings_ui_logic
         SettingsPage.LogViewer -> R.string.app_logs
         else -> R.string.settings
     }
@@ -214,49 +216,56 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_appearance_desc),
                                 icon = { MonetIcon(Icons.Default.Palette, Color(0xFFE8F5E9), Color(0xFF2E7D32)) },
                                 onClick = { currentScreenId = SettingsPage.Appearance.id },
-                                shapes = ListItemDefaults.segmentedShapes(0, 6)
+                                shapes = ListItemDefaults.segmentedShapes(0, 7)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.playback_quality_cat),
                                 subtitle = stringResource(R.string.settings_audio_desc),
                                 icon = { MonetIcon(Icons.Default.Audiotrack, Color(0xFFE3F2FD), Color(0xFF1565C0)) },
                                 onClick = { currentScreenId = SettingsPage.Audio.id },
-                                shapes = ListItemDefaults.segmentedShapes(1, 6)
+                                shapes = ListItemDefaults.segmentedShapes(1, 7)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.settings_ui_logic),
+                                subtitle = stringResource(R.string.settings_ui_logic_desc),
+                                icon = { MonetIcon(Icons.Default.TouchApp, Color(0xFFE8F5E9), Color(0xFF388E3C)) },
+                                onClick = { currentScreenId = SettingsPage.UiLogic.id },
+                                shapes = ListItemDefaults.segmentedShapes(2, 7)
                             )
                             ExpressiveClickItem(
                                 title = "${stringResource(R.string.storage_cache)} & ${stringResource(R.string.download_settings)}",
                                 subtitle = stringResource(R.string.settings_storage_desc) + " " + stringResource(R.string.settings_download_desc),
                                 icon = { MonetIcon(Icons.Default.Storage, Color(0xFFFFF3E0), Color(0xFFEF6C00)) },
                                 onClick = { currentScreenId = SettingsPage.StorageDownload.id },
-                                shapes = ListItemDefaults.segmentedShapes(2, 6)
+                                shapes = ListItemDefaults.segmentedShapes(3, 7)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.debug),
                                 subtitle = stringResource(R.string.settings_debug_desc),
                                 icon = { MonetIcon(Icons.Default.BugReport, Color(0xFFFCE4EC), Color(0xFFC2185B)) },
                                 onClick = { currentScreenId = SettingsPage.Debug.id },
-                                shapes = ListItemDefaults.segmentedShapes(3, 6)
+                                shapes = ListItemDefaults.segmentedShapes(4, 7)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.provider_management),
                                 subtitle = stringResource(R.string.manage_music_source_modules),
                                 icon = { MonetIcon(Icons.Default.Extension, Color(0xFFFFFDE7), Color(0xFFF57F17)) },
                                 onClick = { currentScreenId = SettingsPage.Provider.id },
-                                shapes = ListItemDefaults.segmentedShapes(4, 6)
+                                shapes = ListItemDefaults.segmentedShapes(5, 7)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.about),
                                 subtitle = stringResource(R.string.settings_about_desc),
                                 icon = { MonetIcon(Icons.Default.HelpOutline, Color(0xFFEFEBE9), Color(0xFF4E342E)) },
                                 onClick = { currentScreenId = SettingsPage.About.id },
-                                shapes = ListItemDefaults.segmentedShapes(5, 7)
+                                shapes = ListItemDefaults.segmentedShapes(6, 8)
                             )
                             ExpressiveClickItem(
                                 title = stringResource(R.string.sponsor),
                                 subtitle = stringResource(R.string.settings_sponsor_desc),
                                 icon = { MonetIcon(Icons.Default.Favorite, Color(0xFFFCE4EC), Color(0xFFE91E63)) },
                                 onClick = { currentScreenId = SettingsPage.Sponsor.id },
-                                shapes = ListItemDefaults.segmentedShapes(6, 7)
+                                shapes = ListItemDefaults.segmentedShapes(7, 8)
                             )
                         }
                     }
@@ -349,24 +358,6 @@ fun SettingsScreen(
                                 selectedIndex = audioEngine,
                                 onSelect = { onAudioEngineChange(it) },
                                 shapes = ListItemDefaults.segmentedShapes(0, 1)
-                            )
-                        }
-
-                        // 播放行为
-                        SettingsSection(title = stringResource(R.string.playback_behavior)) {
-                            ExpressiveSwitchItem(
-                                title = stringResource(R.string.play_immediately),
-                                subtitle = stringResource(R.string.play_immediately_desc),
-                                checked = playImmediately,
-                                onCheckedChange = onPlayImmediatelyChange,
-                                shapes = ListItemDefaults.segmentedShapes(0, 2)
-                            )
-                            ExpressiveSwitchItem(
-                                title = stringResource(R.string.usb_audio_auto_resume),
-                                subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
-                                checked = autoResumeUsbAudio,
-                                onCheckedChange = onAutoResumeUsbAudioChange,
-                                shapes = ListItemDefaults.segmentedShapes(1, 2)
                             )
                         }
 
@@ -539,6 +530,26 @@ fun SettingsScreen(
                                 options = qualityLabels,
                                 selectedIndex = qualities.indexOf(currentQualityCellular).coerceAtLeast(0),
                                 onSelect = { onQualityCellularChange(qualities[it]) },
+                                shapes = ListItemDefaults.segmentedShapes(1, 2)
+                            )
+                        }
+
+                    }
+                    SettingsPage.UiLogic -> {
+                        // 播放行为
+                        SettingsSection(title = stringResource(R.string.playback_behavior)) {
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.play_immediately),
+                                subtitle = stringResource(R.string.play_immediately_desc),
+                                checked = playImmediately,
+                                onCheckedChange = onPlayImmediatelyChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, 2)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.usb_audio_auto_resume),
+                                subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
+                                checked = autoResumeUsbAudio,
+                                onCheckedChange = onAutoResumeUsbAudioChange,
                                 shapes = ListItemDefaults.segmentedShapes(1, 2)
                             )
                         }
