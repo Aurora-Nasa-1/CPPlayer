@@ -1,13 +1,14 @@
 package cp.player.ui.screen
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -160,16 +161,30 @@ fun BoxScope.AppPlayerOverlay(
                 )
             }
         } else {
-            val playerBottomPadding = if (useSideNav) 16.dp else if (hasBottomBar) 80.dp else 0.dp
+            // 动态计算 mini player 底部间距：底栏可见时 80dp，隐藏时 16dp
+            val density = LocalDensity.current
+            val navBarVisibleHeight = 80.dp
+            val navBarHiddenHeight = 16.dp
+            val animatedBottomPadding by animateDpAsState(
+                targetValue = if (useSideNav) 16.dp
+                else if (!hasBottomBar) 0.dp
+                else {
+                    // 根据底栏偏移量插值：offset=0 → 80dp, offset=maxOffset → 16dp
+                    val navBarHeightPx = with(density) { navBarVisibleHeight.toPx() }
+                    val progress = if (navBarHeightPx > 0) {
+                        (-bottomBarOffsetHeightPx.value / navBarHeightPx).coerceIn(0f, 1f)
+                    } else 0f
+                    navBarVisibleHeight * (1f - progress) + navBarHiddenHeight * progress
+                },
+                animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow),
+                label = "miniPlayerBottomPadding"
+            )
             Box(
                 modifier = Modifier
                     .padding(
-                        bottom = playerBottomPadding,
+                        bottom = animatedBottomPadding,
                         end = if (useSideNav) 0.dp else 16.dp
                     )
-                    .offset {
-                        if (useSideNav || !hasBottomBar) IntOffset.Zero else IntOffset(0, -bottomBarOffsetHeightPx.value.toInt())
-                    }
             ) {
                 val progress = if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
                 BottomPlaybackBar(

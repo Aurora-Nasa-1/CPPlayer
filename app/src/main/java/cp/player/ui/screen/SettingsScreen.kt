@@ -130,6 +130,8 @@ fun SettingsScreen(
     onLyricsSourceChange: (Int) -> Unit,
     amllPlatform: String,
     onAmllPlatformChange: (String) -> Unit,
+    hideNavbarOnScroll: Boolean,
+    onHideNavbarOnScrollChange: (Boolean) -> Unit,
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
@@ -589,6 +591,17 @@ fun SettingsScreen(
                                     shapes = ListItemDefaults.segmentedShapes(1, lyricsItemCount)
                                 )
                             }
+                        }
+
+                        // 导航栏行为
+                        SettingsSection(title = stringResource(R.string.navigation_bar)) {
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.hide_navbar_on_scroll),
+                                subtitle = stringResource(R.string.hide_navbar_on_scroll_desc),
+                                checked = hideNavbarOnScroll,
+                                onCheckedChange = onHideNavbarOnScrollChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                            )
                         }
                     }
                     SettingsPage.StorageDownload -> {

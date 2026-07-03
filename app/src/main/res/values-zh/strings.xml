@@ -552,4 +552,9 @@
 
     <!-- 未知用户 -->
     <string name="unknown_user">未知用户</string>
+
+    <!-- 导航栏 -->
+    <string name="navigation_bar">导航栏</string>
+    <string name="hide_navbar_on_scroll">底栏随页面滑动自动隐藏</string>
+    <string name="hide_navbar_on_scroll_desc">向下滚动页面时自动隐藏底栏，向上滚动时恢复显示</string>
 </resources>

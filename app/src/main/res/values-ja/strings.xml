@@ -565,4 +565,9 @@
     <string name="remove_from_playlist">プレイリストから削除</string>
     <string name="song_count_simple">%1$d 曲</string>
     <string name="share_playlist_text">このプレイリストをチェック：%1$s\n%2$s</string>
+
+    <!-- ナビゲーションバー -->
+    <string name="navigation_bar">ナビゲーションバー</string>
+    <string name="hide_navbar_on_scroll">スクロール時にバーを自動非表示</string>
+    <string name="hide_navbar_on_scroll_desc">ページを下にスクロールするとバーを非表示にし、上にスクロールで再表示します</string>
 </resources>

@@ -37,6 +37,7 @@ object UserPreferences {
     private const val KEY_PLAY_IMMEDIATELY = "play_immediately"
     private const val KEY_LYRICS_SOURCE = "lyrics_source" // 0: Provider API 优先, 1: AMLL 优先, 2: 仅 AMLL
     private const val KEY_AMLL_PLATFORM = "amll_platform" // "auto", "ncm", "qq", "am", "spotify"
+    private const val KEY_HIDE_NAVBAR_ON_SCROLL = "hide_navbar_on_scroll"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -416,5 +417,13 @@ object UserPreferences {
 
     fun getAmllPlatform(context: Context): String {
         return getPrefs(context).getString(KEY_AMLL_PLATFORM, "auto") ?: "auto"
+    }
+
+    fun saveHideNavbarOnScroll(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_HIDE_NAVBAR_ON_SCROLL, enabled).apply()
+    }
+
+    fun getHideNavbarOnScroll(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_HIDE_NAVBAR_ON_SCROLL, true) // 默认开启
     }
 }

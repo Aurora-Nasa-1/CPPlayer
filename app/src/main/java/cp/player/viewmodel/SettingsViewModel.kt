@@ -63,6 +63,8 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var amllPlatform by mutableStateOf(UserPreferences.getAmllPlatform(application))
         private set
+    var hideNavbarOnScroll by mutableStateOf(UserPreferences.getHideNavbarOnScroll(application))
+        private set
 
     fun updateQualityWifi(q: String) {
         qualityWifi = q
@@ -200,6 +202,11 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateAmllPlatform(platform: String) {
         amllPlatform = platform
         UserPreferences.saveAmllPlatform(getApplication(), platform)
+    }
+
+    fun updateHideNavbarOnScroll(enabled: Boolean) {
+        hideNavbarOnScroll = enabled
+        UserPreferences.saveHideNavbarOnScroll(getApplication(), enabled)
     }
 
     fun clearCache() {

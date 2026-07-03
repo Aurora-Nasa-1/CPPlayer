@@ -172,10 +172,10 @@ fun AppNavigation(
     val navBarHeightPx = with(density) { 90.dp.toPx() }
     val maxOffset = navBarHeightPx + WindowInsets.navigationBars.getBottom(density)
 
-    val nestedScrollConnection = remember {
+    val nestedScrollConnection = remember(settingsViewModel.hideNavbarOnScroll) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!isPlayerExpanded) {
+                if (!isPlayerExpanded && settingsViewModel.hideNavbarOnScroll) {
                     bottomBarOffsetHeightPx.value = (bottomBarOffsetHeightPx.value + available.y).coerceIn(-maxOffset, 0f)
                 }
                 return Offset.Zero
@@ -862,6 +862,8 @@ fun AppMainContent(
                                 onLyricsSourceChange = { settingsViewModel.updateLyricsSource(it) },
                                 amllPlatform = settingsViewModel.amllPlatform,
                                 onAmllPlatformChange = { settingsViewModel.updateAmllPlatform(it) },
+                                hideNavbarOnScroll = settingsViewModel.hideNavbarOnScroll,
+                                onHideNavbarOnScrollChange = { settingsViewModel.updateHideNavbarOnScroll(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(

@@ -2,6 +2,7 @@ package cp.player.ui.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.SkipNext
@@ -22,6 +23,9 @@ import coil3.compose.AsyncImage
 import cp.player.util.resized
 import cp.player.model.Song
 import androidx.compose.foundation.shape.CircleShape
+
+/** 上方圆角 28dp，下方圆角 12dp — 贴合底栏时视觉更紧凑 */
+private val MiniPlayerShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -44,10 +48,10 @@ fun BottomPlaybackBar(
 
     CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor) {
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = MiniPlayerShape,
             modifier = modifier
                 .fillMaxWidth(0.95f)
-                .padding(bottom = 8.dp)
+                .padding(bottom = 4.dp)
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                         with(sharedTransitionScope) {
@@ -60,13 +64,25 @@ fun BottomPlaybackBar(
                 )
                 .clickable { onClick() },
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 6.dp
+            shadowElevation = 4.dp
         ) {
             Column {
+                // 进度条贴在顶部边缘，紧贴 Surface
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    drawStopIndicator = {}
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+                        .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Album art — rounded square per M3 spec
@@ -164,17 +180,6 @@ fun BottomPlaybackBar(
                         }
                     }
                 }
-
-                // Thin progress indicator at the bottom
-                LinearProgressIndicator(
-                    progress = { progress.coerceIn(0f, 1f) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-                )
             }
         }
     }
