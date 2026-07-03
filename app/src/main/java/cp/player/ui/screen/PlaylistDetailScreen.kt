@@ -66,6 +66,10 @@ fun PlaylistDetailScreen(
     isFirstDownload: Boolean = false,
     onDownloadQualityChange: (String) -> Unit = {},
     onSortChange: (String) -> Unit = {},
+    isOwner: Boolean = true,
+    isFavorite: Boolean = false,
+    onSubscribeClick: (() -> Unit)? = null,
+    onUnsubscribeClick: (() -> Unit)? = null,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
@@ -244,6 +248,10 @@ fun PlaylistDetailScreen(
                             }
                             context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share_playlist)))
                         },
+                        isOwner = isOwner,
+                        isFavorite = isFavorite,
+                        onSubscribeClick = onSubscribeClick,
+                        onUnsubscribeClick = onUnsubscribeClick,
                         currentSortType = currentSortType,
                         onSortDefaultClick = {
                             currentSortType = "default"

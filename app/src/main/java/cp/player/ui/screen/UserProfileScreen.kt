@@ -51,6 +51,7 @@ fun UserProfileScreen(
     onPlayAllClick: (List<Song>) -> Unit = {},
     onAddToQueueAllClick: (List<Song>) -> Unit = {},
     onPlaylistSubscribeClick: (Playlist) -> Unit = {},
+    onPlaylistUnsubscribeClick: (Playlist) -> Unit = {},
     onMessageClick: (Long, String) -> Unit,
     currentSongId: String? = null,
     favoriteSongs: List<String> = emptyList(),
@@ -340,6 +341,10 @@ fun UserProfileScreen(
             isFavorite = subscribedPlaylists.contains(playlist.id),
             onSubscribeClick = {
                 onPlaylistSubscribeClick(playlist)
+                selectedPlaylistForOptions = null
+            },
+            onUnsubscribeClick = {
+                onPlaylistUnsubscribeClick(playlist)
                 selectedPlaylistForOptions = null
             }
         )

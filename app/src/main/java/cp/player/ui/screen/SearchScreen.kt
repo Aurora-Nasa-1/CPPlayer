@@ -59,6 +59,7 @@ fun SearchScreen(
     onPlaylistPlayAllClick: (cp.player.model.Playlist) -> Unit = {},
     onPlaylistAddToQueueClick: (cp.player.model.Playlist) -> Unit = {},
     onPlaylistSubscribeClick: (cp.player.model.Playlist) -> Unit = {},
+    onPlaylistUnsubscribeClick: (cp.player.model.Playlist) -> Unit = {},
     currentSongId: String? = null,
     completedSongs: Set<String> = emptySet(),
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
@@ -344,6 +345,10 @@ fun SearchScreen(
             isFavorite = subscribedPlaylists.contains(playlist.id),
             onSubscribeClick = {
                 onPlaylistSubscribeClick(playlist)
+                selectedPlaylistForOptions = null
+            },
+            onUnsubscribeClick = {
+                onPlaylistUnsubscribeClick(playlist)
                 selectedPlaylistForOptions = null
             }
         )

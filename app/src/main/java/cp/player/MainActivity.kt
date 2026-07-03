@@ -504,6 +504,9 @@ fun AppMainContent(
                                 onPlaylistSubscribeClick = { p ->
                                     userViewModel.subscribePlaylist(p.id)
                                 },
+                                onPlaylistUnsubscribeClick = { p ->
+                                    userViewModel.unsubscribePlaylist(p.id)
+                                },
                                 completedSongs = completedSongs,
                                 currentSongId = playbackViewModel.currentSong?.id,
                                 bottomContentPadding = PaddingValues(
@@ -592,6 +595,8 @@ fun AppMainContent(
                                 )
                             }
                             val completedSongs by downloadViewModel.completedSongs.collectAsState()
+                            val isPlaylistOwner = (userViewModel.currentPlaylistMetadata?.creatorUserId ?: 0L) == (userViewModel.userProfile?.userId ?: -1L)
+                            val isPlaylistFavorite = userViewModel.subscribedPlaylists.contains(pid)
                             PlaylistDetailScreen(
                                 playlist = userViewModel.currentPlaylistMetadata
                                     ?: cp.player.model.Playlist(pid, "Loading...", null, 0),
@@ -643,6 +648,10 @@ fun AppMainContent(
                                 onFetchSourcePlaylistSongs = { sourcePid ->
                                     userViewModel.getPlaylistSongs(sourcePid)
                                 },
+                                isOwner = isPlaylistOwner,
+                                isFavorite = isPlaylistFavorite,
+                                onSubscribeClick = { userViewModel.subscribePlaylist(pid) },
+                                onUnsubscribeClick = { userViewModel.unsubscribePlaylist(pid) },
                                 playbackQueue = playbackViewModel.currentQueue,
                                 completedSongs = completedSongs,
                                 currentSongId = playbackViewModel.currentSong?.id,
@@ -787,6 +796,9 @@ fun AppMainContent(
                                 },
                                 onPlaylistSubscribeClick = { p ->
                                     userViewModel.subscribePlaylist(p.id)
+                                },
+                                onPlaylistUnsubscribeClick = { p ->
+                                    userViewModel.unsubscribePlaylist(p.id)
                                 },
                                 onMessageClick = { u, n -> navController.navigate("chat/$u/$n") },
                                 currentSongId = playbackViewModel.currentSong?.id,
