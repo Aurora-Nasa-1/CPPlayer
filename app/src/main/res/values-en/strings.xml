@@ -123,6 +123,7 @@
     <string name="transient_focus_loss_behavior">When other apps play audio</string>
     <string name="focus_mode_duck">Duck Volume</string>
     <string name="focus_mode_pause">Pause Playback</string>
+    <string name="focus_mode_continue">Continue Playing</string>
     <string name="allow_ducking">Allow notifications to lower volume</string>
     <string name="allow_ducking_desc">Temporarily lower volume when notifications arrive</string>
     <string name="pause_on_noisy">Pause when unplugged</string>

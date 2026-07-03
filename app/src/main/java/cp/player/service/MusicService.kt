@@ -208,7 +208,9 @@ class MusicService : MediaSessionService() {
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 val mode = UserPreferences.getAudioFocusMode(this@MusicService)
-                if (mode == 1) { // 1 = Pause
+                if (mode == 2) { // 2 = Continue playing, ignore focus loss
+                    // 不暂停、不降低音量，保持播放
+                } else if (mode == 1) { // 1 = Pause
                     wasPlayingBeforeFocusLoss = activePlayer?.isPlaying == true || wasPlayingBeforeFocusLoss
                     players.forEach { it?.pause() }
                 } else if (mode == 0) { // Duck
@@ -216,7 +218,10 @@ class MusicService : MediaSessionService() {
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                if (UserPreferences.getAllowDucking(this@MusicService)) {
+                val mode = UserPreferences.getAudioFocusMode(this@MusicService)
+                if (mode == 2) { // 2 = Continue playing, ignore focus loss
+                    // 不暂停、不降低音量，保持播放
+                } else if (UserPreferences.getAllowDucking(this@MusicService)) {
                     players.forEach { it?.volume = 0.2f }
                 } else {
                     wasPlayingBeforeFocusLoss = activePlayer?.isPlaying == true || wasPlayingBeforeFocusLoss

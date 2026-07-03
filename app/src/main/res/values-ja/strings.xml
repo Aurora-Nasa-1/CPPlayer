@@ -125,6 +125,7 @@
     <string name="transient_focus_loss_behavior">他のアプリが音を鳴らす時</string>
     <string name="focus_mode_duck">音量を下げる</string>
     <string name="focus_mode_pause">一時停止</string>
+    <string name="focus_mode_continue">再生を続ける</string>
     <string name="allow_ducking">通知で音量を下げることを許可</string>
     <string name="allow_ducking_desc">通知が届いたときに一時的に音量を下げます</string>
     <string name="pause_on_noisy">イヤホンを抜いた時に一時停止</string>

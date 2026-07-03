@@ -121,6 +121,7 @@
     <string name="transient_focus_loss_behavior">其他应用播放声音时</string>
     <string name="focus_mode_duck">降低音量</string>
     <string name="focus_mode_pause">暂停播放</string>
+    <string name="focus_mode_continue">保持播放</string>
     <string name="allow_ducking">允许系统通知降低音量</string>
     <string name="allow_ducking_desc">收到通知时临时调低音乐音量</string>
     <string name="pause_on_noisy">拔出耳机时暂停播放</string>

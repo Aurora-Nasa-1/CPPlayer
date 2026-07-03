@@ -396,7 +396,7 @@ fun SettingsScreen(
 
                             if (showManual) {
                                 val manualStartIdx = if (isFlick) 1 else 2
-                                val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause))
+                                val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause), stringResource(R.string.focus_mode_continue))
                                 ExpressiveDropdownItem(
                                     title = stringResource(R.string.transient_focus_loss_behavior),
                                     subtitle = focusModes.getOrElse(audioFocusMode) { focusModes[0] },
