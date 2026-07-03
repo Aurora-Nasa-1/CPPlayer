@@ -772,6 +772,10 @@ fun AppMainContent(
                                 favoriteSongs = userViewModel.favoriteSongs,
                                 subscribedPlaylists = userViewModel.subscribedPlaylists,
                                 completedSongs = completedSongs,
+                                bottomContentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarHeight
+                                ),
                                 onBackPressed = { navController.popBackStack() })
                         }
                         composable("settings") {

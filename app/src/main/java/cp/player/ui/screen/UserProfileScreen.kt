@@ -56,6 +56,7 @@ fun UserProfileScreen(
     favoriteSongs: List<String> = emptyList(),
     subscribedPlaylists: Set<Long> = emptySet(),
     completedSongs: Set<String> = emptySet(),
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp),
     onBackPressed: () -> Unit
 ) {
     if (userProfile != null && userProfile.userId == 0L) {
@@ -72,6 +73,7 @@ fun UserProfileScreen(
 
     AppScaffold(
         title = userProfile?.nickname ?: "Profile",
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         onBackPressed = onBackPressed,
         actions = {
             userProfile?.let {
@@ -122,7 +124,9 @@ fun UserProfileScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + 16.dp
+                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp,
+                    start = 16.dp,
+                    end = 16.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -200,8 +204,7 @@ fun UserProfileScreen(
                             onClick = { onSongClick(song) },
                             index = index,
                             total = displaySongs.size,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
 
@@ -238,8 +241,7 @@ fun UserProfileScreen(
                             onOptionsClick = { selectedPlaylistForOptions = album },
                             index = index,
                             total = displayAlbums.size,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
 
@@ -276,8 +278,7 @@ fun UserProfileScreen(
                             onOptionsClick = { selectedPlaylistForOptions = playlist },
                             index = index,
                             total = displayPlaylists.size,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
 

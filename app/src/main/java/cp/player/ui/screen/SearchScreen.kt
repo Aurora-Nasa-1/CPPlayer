@@ -72,6 +72,10 @@ fun SearchScreen(
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
     var selectedPlaylistForOptions by remember { mutableStateOf<cp.player.model.Playlist?>(null) }
 
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
     Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(
             inputField = {
@@ -205,7 +209,7 @@ fun SearchScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+                    bottom = bottomContentPadding.calculateBottomPadding() + 80.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -254,8 +258,7 @@ fun SearchScreen(
                                     onOptionsClick = { selectedSongForOptions = song },
                                     onClick = { onSongClick(song) },
                                     showDivider = false,
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
                         }
@@ -267,8 +270,7 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onAlbumClick(playlist) },
                                     onOptionsClick = { selectedPlaylistForOptions = playlist },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
                         }
@@ -279,8 +281,7 @@ fun SearchScreen(
                                     index = index,
                                     total = searchArtists.size,
                                     onClick = { onArtistClick(artist) },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
                         }
@@ -292,8 +293,7 @@ fun SearchScreen(
                                     total = searchPlaylists.size,
                                     onClick = { onPlaylistClick(playlist) },
                                     onOptionsClick = { selectedPlaylistForOptions = playlist },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
                         }
@@ -301,6 +301,7 @@ fun SearchScreen(
                 }
             }
         }
+    }
     }
 
     selectedSongForOptions?.let { song ->
