@@ -3,6 +3,9 @@ package cp.player.ui.component
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,6 +16,7 @@ import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,7 +81,7 @@ fun BottomPlaybackBar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Album art — rounded square per M3 spec
@@ -173,30 +177,37 @@ fun BottomPlaybackBar(
                     }
                 }
 
-                // 进度条贴在底部边缘
+                // 进度条贴在底部边缘，左右留 12dp 内边距
                 if (useWavyProgress) {
+                    val density = LocalDensity.current
+                    val strokePx = with(density) { 3.dp.toPx() }
+                    val wavyStroke = remember(strokePx) { Stroke(width = strokePx, cap = StrokeCap.Round) }
                     LinearWavyProgressIndicator(
                         progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(4.dp),
+                            .padding(horizontal = 12.dp)
+                            .height(10.dp),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        stroke = wavyStroke,
+                        trackStroke = wavyStroke,
                         gapSize = 0.dp,
                         stopSize = 0.dp,
-                        amplitude = { 0.6f },
-                        wavelength = 40.dp,
-                        waveSpeed = 40.dp
+                        amplitude = { 0.8f },
+                        wavelength = 32.dp,
+                        waveSpeed = 32.dp
                     )
                 } else {
                     LinearProgressIndicator(
                         progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
                             .height(3.dp),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        strokeCap = StrokeCap.Round,
                         drawStopIndicator = {}
                     )
                 }
