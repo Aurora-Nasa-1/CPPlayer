@@ -11,36 +11,44 @@ import cp.player.model.Comment
 import cp.player.model.Playlist
 
 object JsonUtils {
+
+    private val JsonElement?.obj: JsonObject? get() = this?.takeIf { it.isJsonObject }?.asJsonObject
+    private val JsonElement?.arr: JsonArray? get() = this?.takeIf { it.isJsonArray }?.asJsonArray
+    private val JsonElement?.str: String? get() = this?.takeIf { it.isJsonPrimitive }?.asString
+    private val JsonElement?.long: Long? get() = this?.takeIf { it.isJsonPrimitive }?.asLong
+    private val JsonElement?.int: Int? get() = this?.takeIf { it.isJsonPrimitive }?.asInt
+    private val JsonElement?.bool: Boolean? get() = this?.takeIf { it.isJsonPrimitive }?.asBoolean
+
     fun parseSong(it: JsonElement): Song? {
         return try {
-            val item = it.asJsonObject
+            val item = it.obj ?: return null
 
             // Check for cloud song format first
             if (item.has("songId") && item.has("songName")) {
                 return parseCloudSongItem(item)
             }
 
-            val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
+            val obj = item.get("songInfo")?.obj ?: item
 
-            val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
-            val artistObj = artists?.get(0)?.asJsonObject
-            val artistName = artistObj?.get("name")?.asString ?: "Unknown"
-            val artistId = artistObj?.get("id")?.asString
-            val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
-            val albumName = album?.get("name")?.asString ?: "Unknown"
-            var picUrl = album?.get("picUrl")?.asString
+            val artists = obj.get("ar")?.arr ?: obj.get("artists")?.arr
+            val artistObj = artists?.get(0)?.obj
+            val artistName = artistObj?.get("name")?.str ?: "Unknown"
+            val artistId = artistObj?.get("id")?.str
+            val album = obj.get("al")?.obj ?: obj.get("album")?.obj
+            val albumName = album?.get("name")?.str ?: "Unknown"
+            var picUrl = album?.get("picUrl")?.str
             if (picUrl == null || picUrl.contains("null")) {
                 picUrl = findUrl(obj)
             }
 
             Song(
-                id = (obj.get("id") ?: obj.get("songId")).asJsonPrimitive.asString,
-                name = obj.get("name").asString,
+                id = (obj.get("id") ?: obj.get("songId"))?.str ?: return null,
+                name = obj.get("name")?.str ?: "Unknown",
                 artist = artistName,
                 artistId = artistId,
                 album = albumName,
                 albumArtUrl = picUrl,
-                durationMs = obj.get("dt")?.asLong ?: obj.get("duration")?.asLong ?: 0L
+                durationMs = obj.get("dt")?.long ?: obj.get("duration")?.long ?: 0L
             )
         } catch (e: Exception) {
             null
@@ -54,20 +62,20 @@ object JsonUtils {
      * 字段为 `songId`/`songName`/`artist`/`album` 等。
      * 优先从嵌套的 `simpleSong` 中提取封面。
      */
-    fun parseCloudSongItem(item: com.google.gson.JsonObject): Song? {
+    fun parseCloudSongItem(item: JsonObject): Song? {
         return try {
-            val songId = (item.get("songId") ?: item.get("id"))?.asString ?: return null
-            val songName = item.get("songName")?.asString ?: "Unknown"
-            val artist = item.get("artist")?.asString ?: "Unknown"
-            val album = item.get("album")?.asString ?: "Cloud Storage"
+            val songId = (item.get("songId") ?: item.get("id"))?.str ?: return null
+            val songName = item.get("songName")?.str ?: "Unknown"
+            val artist = item.get("artist")?.str ?: "Unknown"
+            val album = item.get("album")?.str ?: "Cloud Storage"
             // 尝试从 simpleSong 中获取封面
-            val simpleSong = item.get("simpleSong")?.takeIf { it.isJsonObject }?.asJsonObject
+            val simpleSong = item.get("simpleSong")?.obj
             val picUrl = simpleSong?.let { ss ->
-                ss.get("al")?.asJsonObject?.get("picUrl")?.asString
-                    ?: ss.get("album")?.asJsonObject?.get("picUrl")?.asString
+                ss.get("al")?.obj?.get("picUrl")?.str
+                    ?: ss.get("album")?.obj?.get("picUrl")?.str
             }
-            val duration = item.get("dt")?.asLong ?: item.get("duration")?.asLong
-                ?: simpleSong?.get("dt")?.asLong ?: 0L
+            val duration = item.get("dt")?.long ?: item.get("duration")?.long
+                ?: simpleSong?.get("dt")?.long ?: 0L
 
             Song(
                 id = "cloud_$songId",
@@ -84,31 +92,31 @@ object JsonUtils {
 
     fun parseComment(it: JsonElement): Comment? {
         return try {
-            val obj = it.asJsonObject
-            val user = obj.get("user")?.asJsonObject ?: obj.get("author")?.asJsonObject ?: return null
-            val beReplied = obj.get("beReplied")?.asJsonArray?.mapNotNull {
-                val replyObj = it.asJsonObject
-                val replyUser = replyObj.get("user")?.asJsonObject
+            val obj = it.obj ?: return null
+            val user = obj.get("user")?.obj ?: obj.get("author")?.obj ?: return null
+            val beReplied = obj.get("beReplied")?.arr?.mapNotNull { replyElement ->
+                val replyObj = replyElement.obj
+                val replyUser = replyObj?.get("user")?.obj
                 if (replyUser != null) {
                     Comment.Reply(
-                        userId = replyUser.get("userId")?.asLong ?: 0L,
-                        nickname = replyUser.get("nickname")?.asString ?: "Unknown",
-                        content = replyObj.get("content")?.asString ?: ""
+                        userId = replyUser.get("userId")?.long ?: 0L,
+                        nickname = replyUser.get("nickname")?.str ?: "Unknown",
+                        content = replyObj.get("content")?.str ?: ""
                     )
                 } else null
             }
 
             Comment(
-                id = (obj.get("commentId") ?: obj.get("id")).asLong,
-                userId = user.get("userId").asLong,
-                nickname = user.get("nickname").asString,
-                avatarUrl = user.get("avatarUrl").asString,
-                content = obj.get("content")?.asString ?: "",
-                time = obj.get("time").asLong,
-                timeStr = obj.get("timeStr")?.asString ?: "",
-                likedCount = obj.get("likedCount")?.asInt ?: 0,
-                liked = obj.get("liked")?.asBoolean ?: false,
-                replyCount = obj.get("replyCount")?.asInt ?: 0,
+                id = (obj.get("commentId") ?: obj.get("id"))?.long ?: return null,
+                userId = user.get("userId")?.long ?: 0L,
+                nickname = user.get("nickname")?.str ?: "Unknown",
+                avatarUrl = user.get("avatarUrl")?.str ?: "",
+                content = obj.get("content")?.str ?: "",
+                time = obj.get("time")?.long ?: 0L,
+                timeStr = obj.get("timeStr")?.str ?: "",
+                likedCount = obj.get("likedCount")?.int ?: 0,
+                liked = obj.get("liked")?.bool ?: false,
+                replyCount = obj.get("replyCount")?.int ?: 0,
                 beReplied = beReplied
             )
         } catch (e: Exception) {
@@ -118,37 +126,25 @@ object JsonUtils {
 
     fun parseContact(it: JsonElement): Contact? {
         return try {
-            val obj = it.asJsonObject
+            val obj = it.obj ?: return null
 
-            // Handle different variations of where user info might be stored
-            val fromUser = when {
-                obj.has("fromUser") && obj.get("fromUser").isJsonObject -> obj.get("fromUser").asJsonObject
-                obj.has("from") && obj.get("from").isJsonObject -> obj.get("from").asJsonObject
-                obj.has("user") && obj.get("user").isJsonObject -> obj.get("user").asJsonObject
-                obj.has("author") && obj.get("author").isJsonObject -> obj.get("author").asJsonObject
-                obj.has("profile") && obj.get("profile").isJsonObject -> obj.get("profile").asJsonObject
-                else -> null
-            }
+            val fromUserKeys = listOf("fromUser", "from", "user", "author", "profile")
+            val fromUser = fromUserKeys.firstNotNullOfOrNull { key -> obj.get(key)?.obj }
 
-            val lastMsgStr = when {
-                obj.has("lastMsg") && obj.get("lastMsg").isJsonPrimitive -> obj.get("lastMsg").asString
-                obj.has("msg") && obj.get("msg").isJsonPrimitive -> obj.get("msg").asString
-                else -> ""
-            }
-
+            val lastMsgStr = obj.get("lastMsg")?.str ?: obj.get("msg")?.str ?: ""
             val lastMsgObj = try {
-                if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).asJsonObject else null
+                if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).obj else null
             } catch (e: Exception) { null }
 
-            val messageText = lastMsgObj?.get("msg")?.asString ?: lastMsgStr
+            val messageText = lastMsgObj?.get("msg")?.str ?: lastMsgStr
 
             Contact(
-                userId = fromUser?.get("userId")?.asLong ?: fromUser?.get("id")?.asLong ?: 0L,
-                nickname = fromUser?.get("nickname")?.asString ?: fromUser?.get("userName")?.asString ?: "Unknown",
-                avatarUrl = fromUser?.get("avatarUrl")?.asString ?: "",
+                userId = fromUser?.get("userId")?.long ?: fromUser?.get("id")?.long ?: 0L,
+                nickname = fromUser?.get("nickname")?.str ?: fromUser?.get("userName")?.str ?: "Unknown",
+                avatarUrl = fromUser?.get("avatarUrl")?.str ?: "",
                 lastMessage = messageText,
-                lastMessageTime = obj.get("lastMsgTime")?.asLong ?: obj.get("time")?.asLong ?: 0L,
-                unreadCount = obj.get("newMsgCount")?.asInt ?: 0
+                lastMessageTime = obj.get("lastMsgTime")?.long ?: obj.get("time")?.long ?: 0L,
+                unreadCount = obj.get("newMsgCount")?.int ?: 0
             )
         } catch (e: Exception) {
             null
@@ -157,15 +153,15 @@ object JsonUtils {
 
     fun parsePlaylist(element: JsonElement): Playlist? {
         return try {
-            val obj = element.asJsonObject
-            val creatorObj = obj.get("creator")?.takeIf { it.isJsonObject }?.asJsonObject
-            val creatorUserId = creatorObj?.get("userId")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
-            val subscribed = obj.get("subscribed")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+            val obj = element.obj ?: return null
+            val creatorObj = obj.get("creator")?.obj
+            val creatorUserId = creatorObj?.get("userId")?.long ?: 0L
+            val subscribed = obj.get("subscribed")?.bool ?: false
             Playlist(
-                id = obj.get("id")?.takeIf { !it.isJsonNull }?.asLong ?: 0L,
+                id = obj.get("id")?.long ?: 0L,
                 name = getString(obj, "name") ?: "",
                 coverImgUrl = getString(obj, "coverImgUrl") ?: getString(obj, "picUrl"),
-                trackCount = if (obj.has("trackCount") && !obj.get("trackCount").isJsonNull) obj.get("trackCount").asInt else 0,
+                trackCount = obj.get("trackCount")?.int ?: 0,
                 creatorName = getString(creatorObj, "nickname"),
                 creatorUserId = creatorUserId,
                 subscribed = subscribed,
@@ -176,19 +172,19 @@ object JsonUtils {
 
     fun parseMessage(it: JsonElement, myUserId: Long): Message? {
         return try {
-            val obj = it.asJsonObject
-            val fromUser = obj.get("fromUser").asJsonObject
-            val msgStr = obj.get("msg")?.asString ?: "{}"
-            val msgContent = try { JsonParser.parseString(msgStr).asJsonObject } catch (e: Exception) { JsonObject() }
-            val userId = fromUser.get("userId").asLong
+            val obj = it.obj ?: return null
+            val fromUser = obj.get("fromUser")?.obj ?: return null
+            val msgStr = obj.get("msg")?.str ?: "{}"
+            val msgContent = try { JsonParser.parseString(msgStr).obj } catch (e: Exception) { null }
+            val userId = fromUser.get("userId")?.long ?: return null
 
             Message(
-                id = obj.get("id").asLong,
+                id = obj.get("id")?.long ?: return null,
                 fromUserId = userId,
-                fromNickname = fromUser.get("nickname").asString,
-                fromAvatarUrl = fromUser.get("avatarUrl").asString,
-                text = msgContent.get("msg")?.asString ?: "",
-                time = obj.get("time").asLong,
+                fromNickname = fromUser.get("nickname")?.str ?: "Unknown",
+                fromAvatarUrl = fromUser.get("avatarUrl")?.str ?: "",
+                text = msgContent?.get("msg")?.str ?: "",
+                time = obj.get("time")?.long ?: 0L,
                 isMe = userId == myUserId
             )
         } catch (e: Exception) {
@@ -197,36 +193,33 @@ object JsonUtils {
     }
 
     fun getString(element: JsonElement?, key: String, default: String? = null): String? {
-        val obj = if (element != null && element.isJsonObject) element.asJsonObject else return default
-        val field = obj.get(key)
-        return if (field != null && !field.isJsonNull && field.isJsonPrimitive) field.asString else default
+        return element?.obj?.get(key)?.str ?: default
     }
 
     fun findUrl(element: JsonElement?): String? {
         if (element == null || element.isJsonNull) return null
 
-        if (element.isJsonPrimitive && element.asJsonPrimitive.isString) {
-            val s = element.asString
-            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) return s
+        val str = element.str
+        if (str != null && str.startsWith("http") && str.length > 12 && !str.contains("null")) {
+            return str
         }
 
-        if (element.isJsonObject) {
-            val obj = element.asJsonObject
+        element.obj?.let { obj ->
             // Direct check
             val url = getString(obj, "url") ?: getString(obj, "picUrl") ?: getString(obj, "coverImgUrl") ?: getString(obj, "avatarUrl")
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
             listOf("al", "album", "data", "result", "songs", "urlInfo").firstNotNullOfOrNull { key ->
-                obj.get(key)?.let { findUrl(it) }
+                findUrl(obj.get(key))
             }?.let { return it }
 
             // Exhaustive search
             return obj.entrySet().firstNotNullOfOrNull { findUrl(it.value) }
         }
 
-        if (element.isJsonArray) {
-            return element.asJsonArray.firstNotNullOfOrNull { findUrl(it) }
+        element.arr?.let { arr ->
+            return arr.firstNotNullOfOrNull { findUrl(it) }
         }
 
         return null
@@ -235,15 +228,15 @@ object JsonUtils {
     fun findJsonArray(element: JsonElement?, key: String): JsonArray? {
         if (element == null || element.isJsonNull) return null
 
-        if (element.isJsonObject) {
-            val obj = element.asJsonObject
-            if (obj.has(key) && obj.get(key).isJsonArray) return obj.getAsJsonArray(key)
+        element.obj?.let { obj ->
+            val arr = obj.get(key)?.arr
+            if (arr != null) return arr
 
             return obj.entrySet().firstNotNullOfOrNull { findJsonArray(it.value, key) }
         }
 
-        if (element.isJsonArray) {
-            return element.asJsonArray.firstNotNullOfOrNull { findJsonArray(it, key) }
+        element.arr?.let { arr ->
+            return arr.firstNotNullOfOrNull { findJsonArray(it, key) }
         }
 
         return null
