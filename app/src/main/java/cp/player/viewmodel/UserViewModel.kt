@@ -687,37 +687,21 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     var albums = emptyList<Playlist>()
                     var isArtist = false
 
-                    val profileJson = userBody?.get("profile")?.asJsonObject
-                    if (profileJson != null) {
+                    // 先检查是否为艺人（艺人 ID 和用户 ID 在同一数值空间但指向不同实体）
+                    val artistData = artistBody?.get("data")?.asJsonObject
+                    val artist = artistData?.get("artist")?.asJsonObject
+
+                    if (artist != null) {
+                        // 是艺人页面：始终使用艺人数据构建 profile，避免被无关用户数据覆盖
+                        isArtist = true
                         profile = UserProfile(
                             userId = uid,
-                            nickname = profileJson.get("nickname")?.asString ?: "Unknown",
-                            avatarUrl = profileJson.get("avatarUrl")?.asString ?: "",
-                            signature = profileJson.get("signature")?.asString,
-                            follows = profileJson.get("follows")?.asInt ?: 0,
-                            followeds = profileJson.get("followeds")?.asInt ?: 0
+                            nickname = artist.get("name")?.asString ?: "Unknown",
+                            avatarUrl = artist.get("cover")?.asString ?: artist.get("picUrl")?.asString ?: "",
+                            signature = artist.get("briefDesc")?.asString,
+                            follows = 0,
+                            followeds = artistData.get("user")?.asJsonObject?.get("followeds")?.asInt ?: 0
                         )
-                        // 使用 user/playlist 获取该用户的全部歌单
-                        val plBody = api.getUserPlaylists(uid)
-                        playlists = extractPlaylistArray(plBody)?.mapNotNull {
-                            JsonUtils.parsePlaylist(it)
-                        } ?: emptyList()
-                    }
-
-                    val artistData = artistBody?.get("data")?.asJsonObject
-                    if (artistData != null) {
-                        isArtist = true
-                        val artist = artistData.get("artist")?.asJsonObject
-                        if (profile == null) {
-                            profile = UserProfile(
-                                userId = uid,
-                                nickname = artist?.get("name")?.asString ?: "Unknown",
-                                avatarUrl = artist?.get("cover")?.asString ?: artist?.get("picUrl")?.asString ?: "",
-                                signature = artist?.get("briefDesc")?.asString,
-                                follows = 0,
-                                followeds = artistData.get("user")?.asJsonObject?.get("followeds")?.asInt ?: 0
-                            )
-                        }
 
                         val songsBody = api.getArtistSongs(uid)
                         val rawSongs = songsBody.get("songs")?.asJsonArray
@@ -733,6 +717,23 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         albums = albumBody.get("hotAlbums")?.asJsonArray?.mapNotNull {
                             JsonUtils.parsePlaylist(it)
                         } ?: emptyList()
+                    } else {
+                        // 普通用户页面：使用 user/detail 的数据
+                        val profileJson = userBody?.get("profile")?.asJsonObject
+                        if (profileJson != null) {
+                            profile = UserProfile(
+                                userId = uid,
+                                nickname = profileJson.get("nickname")?.asString ?: "Unknown",
+                                avatarUrl = profileJson.get("avatarUrl")?.asString ?: "",
+                                signature = profileJson.get("signature")?.asString,
+                                follows = profileJson.get("follows")?.asInt ?: 0,
+                                followeds = profileJson.get("followeds")?.asInt ?: 0
+                            )
+                            val plBody = api.getUserPlaylists(uid)
+                            playlists = extractPlaylistArray(plBody)?.mapNotNull {
+                                JsonUtils.parsePlaylist(it)
+                            } ?: emptyList()
+                        }
                     }
 
                     withContext(Dispatchers.Main) {

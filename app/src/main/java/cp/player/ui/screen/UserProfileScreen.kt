@@ -153,9 +153,9 @@ fun UserProfileScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             if (isArtist) {
-                                UserStatItem(count = 0, label = "Songs")
-                                UserStatItem(count = userProfile.follows, label = "Albums")
-                                UserStatItem(count = userProfile.followeds, label = "MVs")
+                                UserStatItem(count = songs.size, label = "Songs")
+                                UserStatItem(count = albums.size, label = "Albums")
+                                UserStatItem(count = userProfile.followeds, label = "Fans")
                             } else {
                                 UserStatItem(count = userProfile.follows, label = "Follows")
                                 UserStatItem(count = userProfile.followeds, label = "Followers")
