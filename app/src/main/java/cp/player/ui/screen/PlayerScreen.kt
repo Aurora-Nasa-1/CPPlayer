@@ -329,9 +329,9 @@ fun PlayerScreen(
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                if (useCoverColor && coverColor != null && useFluidBackground) {
+                if (useFluidBackground) {
                     FluidBackground(
-                        color = Color(coverColor),
+                        color = if (coverColor != null) Color(coverColor) else MaterialTheme.colorScheme.primary,
                         isDark = isSystemInDarkTheme()
                     )
                 } else {
