@@ -4,8 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.CircularProgressIndicator
@@ -13,14 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import cp.player.util.resized
 import cp.player.model.Song
@@ -32,6 +29,7 @@ fun BottomPlaybackBar(
     song: Song?,
     isPlaying: Boolean,
     isBuffering: Boolean = false,
+    progress: Float = 0f,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -45,12 +43,11 @@ fun BottomPlaybackBar(
     if (song == null) return
 
     CoverThemeWrapper(useCoverColor = useCoverColor, coverColor = coverColor) {
-        // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
-            shape = CircleShape,
+            shape = MaterialTheme.shapes.extraLarge,
             modifier = modifier
                 .fillMaxWidth(0.95f)
-                .padding(bottom = 8.dp) // Lift it up slightly
+                .padding(bottom = 8.dp)
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                         with(sharedTransitionScope) {
@@ -62,111 +59,122 @@ fun BottomPlaybackBar(
                     } else Modifier
                 )
                 .clickable { onClick() },
-            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
-            shadowElevation = 8.dp
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = 6.dp
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Circular Avatar for Expressive feel
-                AsyncImage(
-                    model = song.albumArtUrl.resized(800),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .then(
-                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                                with(sharedTransitionScope) {
-                                    Modifier.sharedBounds(
-                                        sharedContentState = rememberSharedContentState(key = "player_cover"),
-                                        animatedVisibilityScope = animatedVisibilityScope,
-                                        clipInOverlayDuringTransition = OverlayClip(CircleShape)
-                                    )
-                                }
-                            } else Modifier
-                        )
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                ) {
-                    Text(
-                        text = song.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    Text(
-                        text = song.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-
+            Column {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Skip Previous Button
-                    IconButton(
-                        onClick = onSkipPrevious,
-                        modifier = Modifier.size(40.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
+                    // Album art — rounded square per M3 spec
+                    AsyncImage(
+                        model = song.albumArtUrl.resized(800),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .then(
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                        Modifier.sharedBounds(
+                                            sharedContentState = rememberSharedContentState(key = "player_cover"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            clipInOverlayDuringTransition = OverlayClip(MaterialTheme.shapes.medium)
+                                        )
+                                    }
+                                } else Modifier
+                            )
+                            .clip(MaterialTheme.shapes.medium),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipPrevious,
-                            contentDescription = "Previous",
-                            modifier = Modifier.size(28.dp)
+                        Text(
+                            text = song.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = song.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    // Play/Pause Button
-                    FilledIconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(48.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        if (isBuffering) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.tertiaryContainer)
-                        } else {
+                        // Skip Previous
+                        IconButton(
+                            onClick = onSkipPrevious,
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(28.dp)
+                                imageVector = Icons.Outlined.SkipPrevious,
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Play / Pause
+                        FilledIconButton(
+                            onClick = onPlayPause,
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            if (isBuffering) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        // Skip Next
+                        IconButton(
+                            onClick = onSkipNext,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.SkipNext,
+                                contentDescription = "Next",
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
-
-                    // Skip Next Button
-                    IconButton(
-                        onClick = onSkipNext,
-                        modifier = Modifier.size(40.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
                 }
+
+                // Thin progress indicator at the bottom
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
             }
         }
     }

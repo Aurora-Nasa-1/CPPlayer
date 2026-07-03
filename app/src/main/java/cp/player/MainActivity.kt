@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.windowsizeclass.*
@@ -190,24 +191,37 @@ fun AppNavigation(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (hasBottomBar && !useSideNav && !isPlayerExpanded) {
-                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-                ShortNavigationBar(
+                NavigationBar(
                     modifier = Modifier
                         .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) },
                     windowInsets = WindowInsets.navigationBars
                 ) {
                     navItems.forEach { (route, label, icon) ->
-                        ShortNavigationBarItem(
-                            icon = { Icon(icon, contentDescription = label) },
+                        val isSelected = currentDestination?.hierarchy?.any { it.route == route } == true
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    imageVector = if (isSelected) icon else when (route) {
+                                        "main" -> Icons.Outlined.Home
+                                        "search" -> Icons.Outlined.Search
+                                        "library" -> Icons.Outlined.LibraryMusic
+                                        else -> icon
+                                    },
+                                    contentDescription = label
+                                )
+                            },
                             label = { Text(label) },
-                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                            selected = isSelected,
                             onClick = {
                                 navController.navigate(route) {
                                     popUpTo("main") { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
-                            }
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
                         )
                     }
                 }

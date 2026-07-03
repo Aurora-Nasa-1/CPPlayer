@@ -171,12 +171,14 @@ fun BoxScope.AppPlayerOverlay(
                         if (useSideNav || !hasBottomBar) IntOffset.Zero else IntOffset(0, -bottomBarOffsetHeightPx.value.toInt())
                     }
             ) {
+                val progress = if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
                 BottomPlaybackBar(
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = this@AnimatedContent,
                     song = uiState.song,
                     isPlaying = uiState.isPlaying,
                     isBuffering = uiState.isBuffering,
+                    progress = progress,
                     onPlayPause = callbacks.onPlayPause,
                     onSkipNext = callbacks.onSkipNext,
                     onSkipPrevious = callbacks.onSkipPrevious,
