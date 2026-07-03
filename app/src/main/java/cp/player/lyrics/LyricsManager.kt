@@ -14,6 +14,8 @@ import cp.player.util.EmbeddedLyricsExtractor
 import cp.player.util.LyricUtils
 import cp.player.util.SyncedLyricsConverter
 import cp.player.util.UserPreferences
+import cp.player.util.YrcToTtmlConverter
+import com.mocharealm.accompanist.lyrics.core.parser.AutoParser
 import io.github.proify.lyricon.lyric.model.RichLyricLine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -391,15 +393,33 @@ object LyricsManager {
     /**
      * 构建 Provider API 成功状态。
      * 将 List<LyricLine> 转换为 SyncedLyrics + RichLyricLine。
+     *
+     * 对于 YRC 逐字歌词，使用 YrcToTtmlConverter 转换为 TTML 格式，
+     * 再由 AutoParser 解析，确保与 AMLL TTML 歌词使用相同的解析路径。
      */
     private fun buildProviderSuccess(songId: String, lines: List<LyricLine>): LyricsState.Success {
+        val hasWords = lines.any { it.words != null && it.words.isNotEmpty() }
+
         val syncedLyrics = if (lines.isNotEmpty()) {
-            SyncedLyricsConverter.convert(lines)
+            if (hasWords) {
+                // YRC 逐字歌词：转换为 TTML 再由 AutoParser 解析
+                try {
+                    val ttml = YrcToTtmlConverter.convert(lines)
+                    DebugLog.i("LyricsManager: YRC→TTML conversion, ttml length=${ttml.length}")
+                    val parser = AutoParser()
+                    parser.parse(ttml)
+                } catch (e: Exception) {
+                    DebugLog.e("LyricsManager: YRC→TTML conversion failed, fallback to SyncedLyricsConverter", e)
+                    SyncedLyricsConverter.convert(lines)
+                }
+            } else {
+                // 普通 LRC 歌词：直接使用 SyncedLyricsConverter
+                SyncedLyricsConverter.convert(lines)
+            }
         } else {
             null
         }
 
-        val hasWords = lines.any { it.words != null && it.words.isNotEmpty() }
         val hasTranslation = lines.any { !it.translation.isNullOrEmpty() }
         val hasPhonetic = lines.any { !it.romanization.isNullOrEmpty() }
         val format = when {
