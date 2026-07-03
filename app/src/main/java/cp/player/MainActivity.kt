@@ -864,6 +864,8 @@ fun AppMainContent(
                                 onAmllPlatformChange = { settingsViewModel.updateAmllPlatform(it) },
                                 hideNavbarOnScroll = settingsViewModel.hideNavbarOnScroll,
                                 onHideNavbarOnScrollChange = { settingsViewModel.updateHideNavbarOnScroll(it) },
+                                wavyProgress = settingsViewModel.wavyProgress,
+                                onWavyProgressChange = { settingsViewModel.updateWavyProgress(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(

@@ -1,39 +1,38 @@
 package cp.player.ui.component
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import cp.player.util.resized
 import cp.player.model.Song
-import androidx.compose.foundation.shape.CircleShape
+import cp.player.util.resized
 
 /** 上方圆角 28dp，下方圆角 12dp — 贴合底栏时视觉更紧凑 */
 private val MiniPlayerShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BottomPlaybackBar(
     song: Song?,
     isPlaying: Boolean,
     isBuffering: Boolean = false,
     progress: Float = 0f,
+    useWavyProgress: Boolean = true,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -50,8 +49,8 @@ fun BottomPlaybackBar(
         Surface(
             shape = MiniPlayerShape,
             modifier = modifier
-                .fillMaxWidth(0.95f)
-                .padding(bottom = 4.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                         with(sharedTransitionScope) {
@@ -67,18 +66,6 @@ fun BottomPlaybackBar(
             shadowElevation = 4.dp
         ) {
             Column {
-                // 进度条贴在顶部边缘，紧贴 Surface
-                LinearProgressIndicator(
-                    progress = { progress.coerceIn(0f, 1f) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    drawStopIndicator = {}
-                )
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -131,7 +118,6 @@ fun BottomPlaybackBar(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        // Skip Previous
                         IconButton(
                             onClick = onSkipPrevious,
                             modifier = Modifier.size(40.dp)
@@ -143,7 +129,6 @@ fun BottomPlaybackBar(
                             )
                         }
 
-                        // Play / Pause
                         FilledIconButton(
                             onClick = onPlayPause,
                             modifier = Modifier.size(40.dp),
@@ -167,7 +152,6 @@ fun BottomPlaybackBar(
                             }
                         }
 
-                        // Skip Next
                         IconButton(
                             onClick = onSkipNext,
                             modifier = Modifier.size(40.dp)
@@ -179,6 +163,34 @@ fun BottomPlaybackBar(
                             )
                         }
                     }
+                }
+
+                // 进度条贴在底部边缘
+                if (useWavyProgress) {
+                    LinearWavyProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        gapSize = 0.dp,
+                        stopSize = 0.dp,
+                        amplitude = { 0.6f },
+                        wavelength = 40.dp,
+                        waveSpeed = 40.dp
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        drawStopIndicator = {}
+                    )
                 }
             }
         }

@@ -194,6 +194,7 @@ fun BoxScope.AppPlayerOverlay(
                     isPlaying = uiState.isPlaying,
                     isBuffering = uiState.isBuffering,
                     progress = progress,
+                    useWavyProgress = settingsViewModel.wavyProgress,
                     onPlayPause = callbacks.onPlayPause,
                     onSkipNext = callbacks.onSkipNext,
                     onSkipPrevious = callbacks.onSkipPrevious,

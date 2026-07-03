@@ -570,4 +570,9 @@
     <string name="navigation_bar">ナビゲーションバー</string>
     <string name="hide_navbar_on_scroll">スクロール時にバーを自動非表示</string>
     <string name="hide_navbar_on_scroll_desc">ページを下にスクロールするとバーを非表示にし、上にスクロールで再表示します</string>
+
+    <!-- プレーヤースタイル -->
+    <string name="player_style">プレーヤースタイル</string>
+    <string name="wavy_progress">ウェーブ進捗バー</string>
+    <string name="wavy_progress_desc">ウェーブアニメーションの進捗バーを使用します。オフにするとフラットなバーになります</string>
 </resources>

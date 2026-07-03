@@ -572,5 +572,8 @@
     <string name="navigation_bar">导航栏</string>
     <string name="hide_navbar_on_scroll">底栏随页面滑动自动隐藏</string>
     <string name="hide_navbar_on_scroll_desc">向下滚动页面时自动隐藏底栏，向上滚动时恢复显示</string>
+    <string name="player_style">播放器样式</string>
+    <string name="wavy_progress">波浪进度条</string>
+    <string name="wavy_progress_desc">使用波浪形动画进度条，关闭则显示平直进度条</string>
 
 </resources>

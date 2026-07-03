@@ -38,6 +38,7 @@ object UserPreferences {
     private const val KEY_LYRICS_SOURCE = "lyrics_source" // 0: Provider API 优先, 1: AMLL 优先, 2: 仅 AMLL
     private const val KEY_AMLL_PLATFORM = "amll_platform" // "auto", "ncm", "qq", "am", "spotify"
     private const val KEY_HIDE_NAVBAR_ON_SCROLL = "hide_navbar_on_scroll"
+    private const val KEY_WAVY_PROGRESS = "wavy_progress"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -425,5 +426,13 @@ object UserPreferences {
 
     fun getHideNavbarOnScroll(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_HIDE_NAVBAR_ON_SCROLL, true) // 默认开启
+    }
+
+    fun saveWavyProgress(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_WAVY_PROGRESS, enabled).apply()
+    }
+
+    fun getWavyProgress(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_WAVY_PROGRESS, true) // 默认波浪
     }
 }

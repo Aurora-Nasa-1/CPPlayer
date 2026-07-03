@@ -132,6 +132,8 @@ fun SettingsScreen(
     onAmllPlatformChange: (String) -> Unit,
     hideNavbarOnScroll: Boolean,
     onHideNavbarOnScrollChange: (Boolean) -> Unit,
+    wavyProgress: Boolean,
+    onWavyProgressChange: (Boolean) -> Unit,
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
@@ -600,6 +602,17 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.hide_navbar_on_scroll_desc),
                                 checked = hideNavbarOnScroll,
                                 onCheckedChange = onHideNavbarOnScrollChange,
+                                shapes = ListItemDefaults.segmentedShapes(0, 1)
+                            )
+                        }
+
+                        // 播放器样式
+                        SettingsSection(title = stringResource(R.string.player_style)) {
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.wavy_progress),
+                                subtitle = stringResource(R.string.wavy_progress_desc),
+                                checked = wavyProgress,
+                                onCheckedChange = onWavyProgressChange,
                                 shapes = ListItemDefaults.segmentedShapes(0, 1)
                             )
                         }
