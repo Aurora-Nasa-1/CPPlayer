@@ -50,9 +50,11 @@ fun UserProfileScreen(
     onDownloadClick: ((Song) -> Unit)? = null,
     onPlayAllClick: (List<Song>) -> Unit = {},
     onAddToQueueAllClick: (List<Song>) -> Unit = {},
+    onPlaylistSubscribeClick: (Playlist) -> Unit = {},
     onMessageClick: (Long, String) -> Unit,
     currentSongId: String? = null,
     favoriteSongs: List<String> = emptyList(),
+    subscribedPlaylists: Set<Long> = emptySet(),
     completedSongs: Set<String> = emptySet(),
     onBackPressed: () -> Unit
 ) {
@@ -233,15 +235,11 @@ fun UserProfileScreen(
                         PlaylistItem(
                             playlist = album,
                             onClick = { onAlbumClick(album) },
+                            onOptionsClick = { selectedPlaylistForOptions = album },
                             index = index,
                             total = displayAlbums.size,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            trailingContent = {
-                                IconButton(onClick = { selectedPlaylistForOptions = album }) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "More")
-                                }
-                            }
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
 
@@ -275,15 +273,11 @@ fun UserProfileScreen(
                         PlaylistItem(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) },
+                            onOptionsClick = { selectedPlaylistForOptions = playlist },
                             index = index,
                             total = displayPlaylists.size,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            trailingContent = {
-                                IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "More")
-                                }
-                            }
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
 
@@ -340,6 +334,12 @@ fun UserProfileScreen(
                     putExtra(android.content.Intent.EXTRA_TEXT, "https://music.163.com/#/playlist?id=${playlist.id}")
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                selectedPlaylistForOptions = null
+            },
+            isOwner = false,
+            isFavorite = subscribedPlaylists.contains(playlist.id),
+            onSubscribeClick = {
+                onPlaylistSubscribeClick(playlist)
                 selectedPlaylistForOptions = null
             }
         )

@@ -433,6 +433,7 @@ fun AppMainContent(
                                 searchPlaylists = searchViewModel.searchPlaylists,
                                 searchArtists = searchViewModel.searchArtists,
                                 favoriteSongs = userViewModel.favoriteSongs,
+                                subscribedPlaylists = userViewModel.subscribedPlaylists,
                                 hotSearches = searchViewModel.hotSearches,
                                 searchHistory = searchViewModel.searchHistory,
                                 suggestions = searchViewModel.searchSuggestions,
@@ -478,6 +479,9 @@ fun AppMainContent(
                                         val songs = userViewModel.getPlaylistSongs(p.id)
                                         if (songs.isNotEmpty()) playbackViewModel.addSongsToQueue(songs)
                                     }
+                                },
+                                onPlaylistSubscribeClick = { p ->
+                                    userViewModel.subscribePlaylist(p.id)
                                 },
                                 completedSongs = completedSongs,
                                 currentSongId = playbackViewModel.currentSong?.id,
@@ -760,9 +764,13 @@ fun AppMainContent(
                                 onAddToQueueAllClick = { songs ->
                                     if (songs.isNotEmpty()) playbackViewModel.addSongsToQueue(songs)
                                 },
+                                onPlaylistSubscribeClick = { p ->
+                                    userViewModel.subscribePlaylist(p.id)
+                                },
                                 onMessageClick = { u, n -> navController.navigate("chat/$u/$n") },
                                 currentSongId = playbackViewModel.currentSong?.id,
                                 favoriteSongs = userViewModel.favoriteSongs,
+                                subscribedPlaylists = userViewModel.subscribedPlaylists,
                                 completedSongs = completedSongs,
                                 onBackPressed = { navController.popBackStack() })
                         }

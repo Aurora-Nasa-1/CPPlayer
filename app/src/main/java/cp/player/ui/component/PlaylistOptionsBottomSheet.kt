@@ -35,7 +35,9 @@ fun PlaylistOptionsBottomSheet(
     onShareClick: () -> Unit = {},
     onDeleteClick: (() -> Unit)? = null,
     onUnsubscribeClick: (() -> Unit)? = null,
+    onSubscribeClick: (() -> Unit)? = null,
     isOwner: Boolean = true,
+    isFavorite: Boolean = false,
     currentSortType: String = "default",
     onSortDefaultClick: (() -> Unit)? = null,
     onSortByNameClick: (() -> Unit)? = null,
@@ -152,8 +154,8 @@ fun PlaylistOptionsBottomSheet(
                     }
                 }
                 
-                // Delete / Unsubscribe (optional)
-                if (!isOwner && onUnsubscribeClick != null) {
+                // Delete / Unsubscribe / Subscribe (optional)
+                if (!isOwner && isFavorite && onUnsubscribeClick != null) {
                     // 收藏的歌单 → 取消收藏
                     Surface(
                         shape = CircleShape,
@@ -170,6 +172,27 @@ fun PlaylistOptionsBottomSheet(
                                 imageVector = Icons.Rounded.BookmarkRemove,
                                 contentDescription = stringResource(R.string.unsubscribe),
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                } else if (!isOwner && !isFavorite && onSubscribeClick != null) {
+                    // 未收藏的歌单 → 收藏
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clickable {
+                                onSubscribeClick()
+                                onDismissRequest()
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.BookmarkAdd,
+                                contentDescription = stringResource(R.string.subscribe),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(32.dp)
                             )
                         }

@@ -294,6 +294,7 @@
     <string name="unknown">未知</string>
     <string name="delete_playlist">删除歌单</string>
     <string name="unsubscribe">取消收藏</string>
+    <string name="subscribe">收藏</string>
     <string name="delete_playlist_confirm">确定要删除「%1$s」吗？</string>
     <string name="unsubscribe_confirm">确定要取消收藏「%1$s」吗？</string>
     <string name="delete">删除</string>

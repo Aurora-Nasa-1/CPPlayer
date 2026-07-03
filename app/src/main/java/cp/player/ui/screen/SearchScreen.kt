@@ -40,6 +40,7 @@ fun SearchScreen(
     searchPlaylists: List<cp.player.model.Playlist>,
     searchArtists: List<Artist> = emptyList(),
     favoriteSongs: List<String>,
+    subscribedPlaylists: Set<Long> = emptySet(),
     hotSearches: List<Pair<String, String>>,
     searchHistory: List<String>,
     suggestions: List<String>,
@@ -57,6 +58,7 @@ fun SearchScreen(
     onDownloadClick: ((Song) -> Unit)? = null,
     onPlaylistPlayAllClick: (cp.player.model.Playlist) -> Unit = {},
     onPlaylistAddToQueueClick: (cp.player.model.Playlist) -> Unit = {},
+    onPlaylistSubscribeClick: (cp.player.model.Playlist) -> Unit = {},
     currentSongId: String? = null,
     completedSongs: Set<String> = emptySet(),
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
@@ -264,13 +266,9 @@ fun SearchScreen(
                                     index = index,
                                     total = searchPlaylists.size,
                                     onClick = { onAlbumClick(playlist) },
+                                    onOptionsClick = { selectedPlaylistForOptions = playlist },
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    trailingContent = {
-                                        IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
-                                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                                        }
-                                    }
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                 )
                             }
                         }
@@ -293,13 +291,9 @@ fun SearchScreen(
                                     index = index,
                                     total = searchPlaylists.size,
                                     onClick = { onPlaylistClick(playlist) },
+                                    onOptionsClick = { selectedPlaylistForOptions = playlist },
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    trailingContent = {
-                                        IconButton(onClick = { selectedPlaylistForOptions = playlist }) {
-                                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                                        }
-                                    }
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                 )
                             }
                         }
@@ -345,6 +339,12 @@ fun SearchScreen(
                     putExtra(android.content.Intent.EXTRA_TEXT, "https://music.163.com/#/playlist?id=${playlist.id}")
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                selectedPlaylistForOptions = null
+            },
+            isOwner = false,
+            isFavorite = subscribedPlaylists.contains(playlist.id),
+            onSubscribeClick = {
+                onPlaylistSubscribeClick(playlist)
                 selectedPlaylistForOptions = null
             }
         )

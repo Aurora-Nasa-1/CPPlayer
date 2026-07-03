@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -22,6 +24,7 @@ import cp.player.util.resized
 fun PlaylistItem(
     playlist: Playlist,
     onClick: (() -> Unit)? = null,
+    onOptionsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     index: Int = 0,
     total: Int = 1,
@@ -76,7 +79,23 @@ fun PlaylistItem(
                     }
                 }
             },
-            trailingContent = trailingContent,
+            trailingContent = trailingContent ?: if (onOptionsClick != null) {
+                {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.size(40.dp).clickable(onClick = onOptionsClick)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else null,
             colors = ListItemDefaults.colors(containerColor = containerColor)
         )
         if (bottomContent != null) {

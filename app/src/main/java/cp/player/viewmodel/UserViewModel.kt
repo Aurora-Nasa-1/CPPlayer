@@ -41,6 +41,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     private var fetchingPlaylistId: Long? = null
 
     var likedSongsPlaylistId by mutableLongStateOf(0L)
+    var subscribedPlaylists by mutableStateOf<Set<Long>>(emptySet())
     var otherUserViewState by mutableStateOf(OtherUserViewState())
 
     // 专辑详情页数据
@@ -157,6 +158,9 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         val plBody = withContext(Dispatchers.IO) { api.getUserPlaylists(resolvedUid) }
                         userPlaylists = extractPlaylistArray(plBody)?.mapNotNull { JsonUtils.parsePlaylist(it) } ?: emptyList()
                         likedSongsPlaylistId = userPlaylists.find { it.name.contains("喜欢的音乐") }?.id ?: userPlaylists.firstOrNull()?.id ?: 0L
+
+                        // 订阅的歌单 ID 集合
+                        subscribedPlaylists = userPlaylists.filter { it.subscribed }.map { it.id }.toSet()
 
                         // 缓存歌单数据
                         CacheManager.save(
@@ -577,6 +581,21 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
             if (body.get("code")?.asInt == 200) {
                 withContext(Dispatchers.Main) {
                     userPlaylists = userPlaylists.filter { it.id != pid }
+                }
+            }
+        }
+    }
+
+    /**
+     * 收藏歌单。使用类型安全 API。
+     */
+    fun subscribePlaylist(pid: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val body = api.subscribePlaylist(pid, 1) // t=1 = subscribe
+            if (body.get("code")?.asInt == 200) {
+                withContext(Dispatchers.Main) {
+                    // 重新获取用户歌单列表以更新状态
+                    fetchUserData()
                 }
             }
         }
