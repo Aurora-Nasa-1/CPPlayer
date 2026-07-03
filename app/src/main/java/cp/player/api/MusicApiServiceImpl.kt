@@ -272,6 +272,16 @@ class MusicApiServiceImpl(
     override suspend fun getLyric(songId: String): JsonObject =
         callApi(MusicApiMethod.LYRIC_NEW, mapOf("id" to songId))
 
+    override suspend fun scrobble(songId: String, sourceId: String, playedSeconds: Int): JsonObject =
+        callApi(
+            MusicApiMethod.SCROBBLE,
+            mapOf(
+                "id" to songId,
+                "sourceid" to sourceId,
+                "time" to playedSeconds.toString()
+            )
+        )
+
     // ======================== 社交 Social ========================
 
     override suspend fun getComments(id: String, type: String, limit: Int, offset: Int, sortType: Int): JsonObject =

@@ -432,6 +432,7 @@ nativeCallApi(mappedMethod, paramsJson)
 |-----------|------|------|
 | `song/url/v1/302` | 302 重定向播放 URL | `id`, `level`, `cookie?` |
 | `song/download/url/v1` | 下载 URL | `id`, `level`, `cookie?` |
+| `scrobble` | 听歌打卡（上报播放进度，影响推荐算法和听歌排行） | `id`, `sourceid`, `time` (秒), `cookie` |
 | `personal_fm` | 私人 FM | `timestamp`, `cookie` |
 | `playmode/intelligence/list` | 心动模式 | `id`, `pid`, `sid`, `count` |
 
@@ -1349,6 +1350,34 @@ nativeCallApi(mappedMethod, paramsJson)
 **请求：** 同 `song/url/v1`
 
 **响应：** 同 `song/url/v1`
+
+#### `scrobble` — 听歌打卡
+
+上报播放进度，影响推荐算法和听歌排行榜。CPPlayer 在每首歌播放结束或切换时自动调用。
+
+**请求：**
+```json
+{
+    "id": "123456",
+    "sourceid": "67890",
+    "time": "180",
+    "cookie": "MUSIC_U=xxx"
+}
+```
+
+| 参数 | 说明 |
+|------|------|
+| `id` | 歌曲 ID |
+| `sourceid` | 来源歌单/专辑 ID（可为空字符串） |
+| `time` | 已播放时长（秒） |
+| `cookie` | 认证 cookie |
+
+**响应：**
+```json
+{
+    "code": 200
+}
+```
 
 #### `personal_fm` — 私人 FM
 

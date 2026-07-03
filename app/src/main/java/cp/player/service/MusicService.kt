@@ -130,6 +130,10 @@ class MusicService : MediaSessionService() {
     private val likedSongIds = mutableSetOf<String>()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    // 听歌打卡：追踪当前歌曲的播放开始时间
+    private var scrobbleSongId: String? = null
+    private var scrobbleStartTime: Long = 0L
+
     // Live engine switch listener
     private val enginePrefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == "audio_engine") {
@@ -304,6 +308,25 @@ class MusicService : MediaSessionService() {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     DebugLog.i("MusicService: onMediaItemTransition id=${mediaItem?.mediaId} reason=$reason player==$activePlayer?${player == activePlayer}")
                     if (player != activePlayer) return
+
+                    // 听歌打卡：上报上一首歌的播放数据
+                    val prevSongId = scrobbleSongId
+                    if (prevSongId != null && scrobbleStartTime > 0) {
+                        val playedSeconds = ((System.currentTimeMillis() - scrobbleStartTime) / 1000).toInt()
+                        if (playedSeconds > 0) {
+                            serviceScope.launch(Dispatchers.IO) {
+                                try {
+                                    MusicApiServiceFactory.instance.scrobble(prevSongId, "", playedSeconds)
+                                    DebugLog.i("MusicService: scrobble reported id=$prevSongId time=${playedSeconds}s")
+                                } catch (e: Exception) {
+                                    DebugLog.w("MusicService: scrobble failed: ${e.message}")
+                                }
+                            }
+                        }
+                    }
+                    // 记录新歌曲的打卡信息
+                    scrobbleSongId = mediaItem?.mediaId
+                    scrobbleStartTime = System.currentTimeMillis()
 
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                         // LiveSort per-song 淡入覆盖

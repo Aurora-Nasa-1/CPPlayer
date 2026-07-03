@@ -196,6 +196,15 @@ interface MusicApiService {
     /** 获取歌词 */
     suspend fun getLyric(songId: String): JsonObject
 
+    /**
+     * 听歌打卡（上报播放进度，影响推荐算法和听歌排行）。
+     *
+     * @param songId 歌曲 ID
+     * @param sourceId 来源歌单/专辑 ID
+     * @param playedSeconds 已播放时长（秒）
+     */
+    suspend fun scrobble(songId: String, sourceId: String, playedSeconds: Int): JsonObject
+
     // ======================== 社交 Social ========================
 
     /**

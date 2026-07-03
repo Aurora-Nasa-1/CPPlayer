@@ -156,6 +156,9 @@ object MusicApiMethod {
     /** 获取歌词 */
     const val LYRIC_NEW = "lyric/new"
 
+    /** 听歌打卡（上报播放进度，影响推荐算法） */
+    const val SCROBBLE = "scrobble"
+
     // ======================== 社交 Social ========================
 
     /** 音乐评论 */
