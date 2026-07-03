@@ -122,8 +122,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                             val artist = args.getString("artist") ?: "Unknown"
                             val album = args.getString("album") ?: "Unknown"
                             val artworkUri = args.getString("artworkUri")
+                            val artistId = args.getString("artistId")
                             DebugLog.i("PlaybackVM: ACTION_SONG_CHANGED id=$mediaId title=$title")
-                            val song = Song(id = mediaId, name = title, artist = artist, album = album, albumArtUrl = artworkUri)
+                            val song = Song(id = mediaId, name = title, artist = artist, artistId = artistId, album = album, albumArtUrl = artworkUri)
                             currentSong = song
                             LyricsManager.fetch(mediaId, getApplication(), songTitle = title, songArtist = artist)
                             extractColorFromUrl(artworkUri)

@@ -330,6 +330,7 @@ class MusicService : MediaSessionService() {
                             putString("artist", it.mediaMetadata.artist?.toString() ?: "")
                             putString("album", it.mediaMetadata.albumTitle?.toString() ?: "")
                             putString("artworkUri", it.mediaMetadata.artworkUri?.toString() ?: "")
+                            putString("artistId", it.mediaMetadata.extras?.getString("artistId"))
                         }
                         mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_SONG_CHANGED", android.os.Bundle.EMPTY), extras)
                     }
@@ -528,6 +529,7 @@ class MusicService : MediaSessionService() {
                             putString("artist", it.mediaMetadata.artist?.toString() ?: "")
                             putString("album", it.mediaMetadata.albumTitle?.toString() ?: "")
                             putString("artworkUri", it.mediaMetadata.artworkUri?.toString() ?: "")
+                            putString("artistId", it.mediaMetadata.extras?.getString("artistId"))
                         }
                         mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_SONG_CHANGED", android.os.Bundle.EMPTY), extras)
                     }
