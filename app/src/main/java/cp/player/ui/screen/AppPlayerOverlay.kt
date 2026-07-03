@@ -166,8 +166,7 @@ fun BoxScope.AppPlayerOverlay(
             val navBarVisibleHeight = 80.dp
             val navBarHiddenHeight = 16.dp
             val animatedBottomPadding by animateDpAsState(
-                targetValue = if (useSideNav) 16.dp
-                else if (!hasBottomBar) 0.dp
+                targetValue = if (!hasBottomBar || useSideNav) 16.dp
                 else {
                     // 根据底栏偏移量插值：offset=0 → 80dp, offset=maxOffset → 16dp
                     val navBarHeightPx = with(density) { navBarVisibleHeight.toPx() }
