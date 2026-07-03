@@ -574,20 +574,18 @@ class MusicApiServiceImpl(
             if (s.startsWith("http") && s.length > 12 && !s.contains("null")) return s
         }
         if (element.isJsonObject) {
+            val obj = element.asJsonObject
             // 优先检查常见字段名
-            listOf("url", "picUrl", "coverImgUrl", "avatarUrl").forEach { key ->
-                element.asJsonObject.get(key)?.asString?.let { v ->
-                    if (v.startsWith("http") && v.length > 12 && !v.contains("null")) return v
+            listOf("url", "picUrl", "coverImgUrl", "avatarUrl").firstNotNullOfOrNull { key ->
+                obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf {
+                    it.startsWith("http") && it.length > 12 && !it.contains("null")
                 }
-            }
-            for (entry in element.asJsonObject.entrySet()) {
-                findUrlRecursive(entry.value)?.let { return it }
-            }
+            }?.let { return it }
+
+            return obj.entrySet().firstNotNullOfOrNull { findUrlRecursive(it.value) }
         }
         if (element.isJsonArray) {
-            for (i in 0 until element.asJsonArray.size()) {
-                findUrlRecursive(element.asJsonArray.get(i))?.let { return it }
-            }
+            return element.asJsonArray.firstNotNullOfOrNull { findUrlRecursive(it) }
         }
         return null
     }
