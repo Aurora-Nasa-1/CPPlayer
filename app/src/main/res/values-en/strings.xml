@@ -163,7 +163,7 @@
     <string name="engine_flick">Flick Engine (Local, USB Exclusive) [BETA]</string>
     <string name="usb_exclusive_title">USB Exclusive Mode [BETA]</string>
     <string name="usb_exclusive_subtitle">Take exclusive control of USB DACs</string>
-    <string name="font_roundness">Font Roundness</string>
+    <string name="font_roundness">Font</string>
     <string name="font_roundness_desc">Switch Google Sans Flex font roundness mode, similar to Android 16 QPR2</string>
     <string name="font_roundness_standard">Standard</string>
     <string name="font_roundness_expressive">Expressive</string>

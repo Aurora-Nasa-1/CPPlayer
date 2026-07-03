@@ -169,7 +169,7 @@
     <string name="engine_flick">Flick 引擎 [BETA]</string>
     <string name="usb_exclusive_title">USB 独占模式 [BETA]</string>
     <string name="usb_exclusive_subtitle">获取外置 USB DAC 的独占控制权</string>
-    <string name="font_roundness">字体圆润度</string>
+    <string name="font_roundness">字体</string>
     <string name="font_roundness_desc">切换 Google Sans Flex 的字体圆润模式，类似 Android 16 QPR2 效果</string>
     <string name="font_roundness_standard">标准模式</string>
     <string name="font_roundness_expressive">Expressive 模式</string>
