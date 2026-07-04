@@ -343,7 +343,25 @@ fun PlayerScreen(
                         @OptIn(ExperimentalMaterial3Api::class)
                         TopAppBar(
                             title = {
-                                if (!isWideScreen) {
+                                if (isWideScreen) {
+                                    // 横屏：顶栏显示歌曲名 + 歌手
+                                    Column {
+                                        Text(
+                                            song.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            song.artist,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                } else {
                                     AnimatedContent(
                                         targetState = pagerState.currentPage,
                                         transitionSpec = {
@@ -448,6 +466,10 @@ fun PlayerScreen(
                             .padding(innerPadding)
                     ) {
                         if (isWideScreen) {
+                                // 歌词自动预加载
+                                LaunchedEffect(song.id) {
+                                    cp.player.lyrics.LyricsManager.fetch(song.id, context, songTitle = song.name, songArtist = song.artist)
+                                }
                                 PlayerWideLayout(
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
@@ -475,9 +497,7 @@ fun PlayerScreen(
                                 onArtistClick = onArtistClick,
                                 onShuffleClick = onShuffleClick,
                                 onRepeatClick = onRepeatClick,
-                                onCommentClick = {
-                                    onCommentClick()
-                                },
+                                onCommentClick = { onCommentClick() },
                                 onQueueClick = { showQueueBottomSheet = true },
                                 onMoreClick = { showMoreMenu = true },
                                 showMoreMenu = showMoreMenu,
@@ -486,7 +506,20 @@ fun PlayerScreen(
                                 onDownloadClick = onDownloadClick,
                                 onSleepTimerClick = { showSleepTimerBottomSheet = true },
                                 onInfoClick = { showSongInfoDialog = true },
-                                onDislikeClick = onDislikeClick
+                                onDislikeClick = onDislikeClick,
+                                hotComments = hotComments,
+                                newestComments = newestComments,
+                                commentTotal = commentTotal,
+                                isCommentsLoading = isCommentsLoading,
+                                hasMoreComments = hasMoreComments,
+                                commentSortType = commentSortType,
+                                onLoadMoreComments = onLoadMoreComments,
+                                onLikeComment = onLikeComment,
+                                onReplyComment = onReplyComment,
+                                onPostComment = onPostComment,
+                                onAvatarClick = onAvatarClick,
+                                onCommentSortChange = onCommentSortChange,
+                                onViewFloorClick = onViewFloorClick
                             )
                         } else {
                                 // 歌词自动预加载：切换歌曲时获取歌词（传入标题/歌手用于本地歌曲自动搜索云端绑定）
@@ -608,9 +641,24 @@ private fun PlayerWideLayout(
     onDownloadClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onInfoClick: () -> Unit,
-    onDislikeClick: () -> Unit
+    onDislikeClick: () -> Unit,
+    hotComments: List<Comment>,
+    newestComments: List<Comment>,
+    commentTotal: Int,
+    isCommentsLoading: Boolean,
+    hasMoreComments: Boolean,
+    commentSortType: Int,
+    onLoadMoreComments: () -> Unit,
+    onLikeComment: (Comment) -> Unit,
+    onReplyComment: (Comment) -> Unit,
+    onPostComment: (String) -> Unit,
+    onAvatarClick: (Long) -> Unit,
+    onCommentSortChange: (Int) -> Unit,
+    onViewFloorClick: (Comment) -> Unit
 ) {
-    val context = LocalContext.current
+    // 右侧面板切换：0 = 歌词，1 = 评论
+    var rightPanel by remember { mutableIntStateOf(0) }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -671,58 +719,13 @@ private fun PlayerWideLayout(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Controls section
             Column(
                 modifier = Modifier.fillMaxWidth(0.95f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Info Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            song.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            maxLines = 1
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            song.artist,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(onClick = onCommentClick, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(28.dp))
-                        }
-                        IconButton(onClick = onLikeClick, modifier = Modifier.size(48.dp)) {
-                            AnimatedContent(
-                                targetState = isFavorite,
-                                label = "LikeAnimation",
-                                transitionSpec = {
-                                    scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)) togetherWith
-                                            scaleOut(animationSpec = spring(stiffness = Spring.StiffnessLow))
-                                }
-                            ) { targetFavorite ->
-                                Icon(
-                                    if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Like",
-                                    modifier = Modifier.size(32.dp),
-                                    tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                                )
-                            }
-                        }
-                    }
-                }
-
                 // Progress Bar
                 Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                     Slider(
@@ -745,18 +748,18 @@ private fun PlayerWideLayout(
                     }
                 }
 
-                // Main Playback Controls Wide
+                // Main Playback Controls — compact for wide screen
                 cp.player.ui.component.PlaybackControls(
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
                     onPlayPause = onPlayPause,
                     onSkipNext = onSkipNext,
                     onSkipPrevious = onSkipPrevious,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    sideButtonModifier = Modifier.weight(1f).height(80.dp),
-                    centerButtonModifier = Modifier.weight(1.2f).height(100.dp),
-                    sideIconSize = 36.dp,
-                    centerIconSize = 56.dp
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    sideButtonModifier = Modifier.weight(1f).height(52.dp),
+                    centerButtonModifier = Modifier.weight(1.2f).height(60.dp),
+                    sideIconSize = 26.dp,
+                    centerIconSize = 36.dp
                 )
 
                 // Secondary Controls
@@ -765,21 +768,22 @@ private fun PlayerWideLayout(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // 左侧：shuffle + repeat
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
                             onClick = onShuffleClick,
-                            modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(
                                 Icons.Default.Shuffle,
                                 contentDescription = "Shuffle",
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             )
                         }
                         IconButton(
                             onClick = onRepeatClick,
-                            modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
                             val icon = when (repeatMode) {
                                 Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
@@ -788,32 +792,43 @@ private fun PlayerWideLayout(
                             Icon(
                                 icon,
                                 contentDescription = "Repeat",
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             )
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Surface(
-                            onClick = onQueueClick,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Text("Queue", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                    // 右侧：like + comment + queue + more
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onLikeClick, modifier = Modifier.size(40.dp)) {
+                            AnimatedContent(
+                                targetState = isFavorite,
+                                label = "LikeAnimation",
+                                transitionSpec = {
+                                    scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)) togetherWith
+                                            scaleOut(animationSpec = spring(stiffness = Spring.StiffnessLow))
+                                }
+                            ) { targetFavorite ->
+                                Icon(
+                                    if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Like",
+                                    modifier = Modifier.size(22.dp),
+                                    tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
                             }
+                        }
+                        IconButton(onClick = onCommentClick, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(20.dp))
+                        }
+                        IconButton(onClick = onQueueClick, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue", modifier = Modifier.size(20.dp))
                         }
                         Box {
                             IconButton(
                                 onClick = onMoreClick,
-                                modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                                modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                             ) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(20.dp))
                             }
                             if (showMoreMenu) {
                                 cp.player.ui.component.PlayerSongOptionsBottomSheet(
@@ -850,14 +865,92 @@ private fun PlayerWideLayout(
             }
         }
 
-        // Right Side: Lyrics
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            LyricContent(
-                syncedLyrics = syncedLyrics,
-                currentPosition = currentPosition,
-                contentPadding = PaddingValues(vertical = 120.dp, horizontal = 24.dp),
-                onSeek = onSeek
-            )
+        // Right Side: Lyrics / Comments toggle
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            // 切换器
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val panelOptions = listOf("歌词", "评论")
+                panelOptions.forEachIndexed { index, label ->
+                    val selected = rightPanel == index
+                    Surface(
+                        onClick = { rightPanel = index },
+                        shape = when (index) {
+                            0 -> RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            else -> RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                        },
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (index < panelOptions.lastIndex) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                }
+            }
+
+            // 内容区域
+            AnimatedContent(
+                targetState = rightPanel,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                transitionSpec = {
+                    (fadeIn() + slideInHorizontally { w -> w }) togetherWith
+                            (fadeOut() + slideOutHorizontally { w -> -w })
+                },
+                label = "RightPanelContent"
+            ) { panel ->
+                when (panel) {
+                    0 -> {
+                        // 歌词
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LyricContent(
+                                syncedLyrics = syncedLyrics,
+                                currentPosition = currentPosition,
+                                contentPadding = PaddingValues(vertical = 80.dp, horizontal = 24.dp),
+                                onSeek = onSeek
+                            )
+                        }
+                    }
+                    1 -> {
+                        // 评论 — 首次切换时加载
+                        LaunchedEffect(Unit) {
+                            onCommentClick()
+                        }
+                        cp.player.ui.component.CommentPage(
+                            hotComments = hotComments,
+                            newestComments = newestComments,
+                            totalCount = commentTotal,
+                            isLoading = isCommentsLoading,
+                            hasMore = hasMoreComments,
+                            currentSort = commentSortType,
+                            onLoadMore = onLoadMoreComments,
+                            onLikeClick = onLikeComment,
+                            onReplyClick = onReplyComment,
+                            onPostComment = onPostComment,
+                            onAvatarClick = onAvatarClick,
+                            onSortChange = onCommentSortChange,
+                            onViewFloorClick = onViewFloorClick
+                        )
+                    }
+                }
+            }
         }
     }
 }
