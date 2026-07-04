@@ -13,10 +13,13 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,17 +29,28 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
+import coil3.imageLoader
 import cp.player.R
 import cp.player.util.resized
 import cp.player.model.Song
@@ -305,7 +319,7 @@ fun MainScreen(
             if (recommendedSongs.isNotEmpty()) {
                 item {
                     DailyMixCard(
-                        songs = recommendedSongs.take(5),
+                        songs = recommendedSongs,
                         onSongClick = onSongClick,
                         onViewAll = { playlist -> onPlaylistClick(playlist) }
                     )
@@ -471,139 +485,215 @@ fun DailyMixCard(
     onViewAll: ((Playlist) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    // 暗色模式下使用更亮的背景色
-    val cardColor = if (androidx.compose.foundation.isSystemInDarkTheme())
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    else MaterialTheme.colorScheme.surfaceContainerLow
+    val context = LocalContext.current
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+
+    // 从第一首歌的封面提取主色调
+    val coverUrl = songs.firstOrNull()?.albumArtUrl
+    var dominantColor by remember { mutableStateOf<Color?>(null) }
+
+    LaunchedEffect(coverUrl) {
+        if (coverUrl.isNullOrBlank()) return@LaunchedEffect
+        withContext(Dispatchers.IO) {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(coverUrl.resized(200))
+                    .allowHardware(false)
+                    .size(128)
+                    .build()
+                val result = context.imageLoader.execute(request)
+                if (result is SuccessResult) {
+                    val bitmap = result.image.toBitmap(128, 128)
+                    val palette = Palette.from(bitmap).generate()
+                    val color = palette.getVibrantColor(
+                        palette.getDominantColor(
+                            palette.getMutedColor(0xFF6750A4.toInt())
+                        )
+                    )
+                    dominantColor = Color(color)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    val baseColor = dominantColor ?: if (isDark)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+    else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+
+    val bgSurface = if (isDark) Color(0xFF121218) else Color(0xFFF0ECF8)
+    val gap = 2.dp
+    val cardHeight = 240.dp
+
+    // 专辑封面 URL 列表（循环使用）
+    val allUrls = remember(songs) { songs.map { it.albumArtUrl ?: "" }.filter { it.isNotEmpty() } }
+    fun urlAt(index: Int) = allUrls.getOrElse(index % allUrls.size.coerceAtLeast(1)) { allUrls.firstOrNull() ?: "" }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = cardColor
+        color = bgSurface,
     ) {
-        Column {
-            // 头部：渐变背景 + 重叠封面
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // ═══ 模糊封面背景 ═══
+            if (coverUrl != null) {
+                AsyncImage(
+                    model = coverUrl.resized(600),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(cardHeight)
+                        .blur(48.dp)
+                        .graphicsLayer { alpha = 0.55f },
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            // ═══ 渐变叠加（延伸到底部，自然过渡到背景色）═══
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(cardHeight)
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to baseColor.copy(alpha = if (isDark) 0.85f else 0.7f),
+                                0.35f to baseColor.copy(alpha = if (isDark) 0.9f else 0.8f),
+                                0.65f to bgSurface.copy(alpha = 0.6f),
+                                0.85f to bgSurface.copy(alpha = 0.9f),
+                                1.0f to bgSurface
+                            )
+                        )
+                    )
+            )
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // ═══ 标题行：标题 + 查看全部按钮 ═══
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.daily_mix_title),
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                            color = Color.White
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = stringResource(R.string.daily_mix_subtitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                            text = "${songs.size} ${stringResource(R.string.daily_mix_subtitle)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
                         )
                     }
 
-                    // 重叠封面集群
-                    if (songs.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .width(100.dp)
-                                .height(80.dp),
-                            contentAlignment = Alignment.CenterEnd
+                    val dailyMixName = stringResource(R.string.daily_mix_title)
+                    Surface(
+                        onClick = {
+                            onViewAll?.invoke(
+                                Playlist(
+                                    id = -2L,
+                                    name = dailyMixName,
+                                    trackCount = songs.size,
+                                    coverImgUrl = coverUrl
+                                )
+                            )
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        color = Color.White.copy(alpha = 0.2f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            songs.take(3).reversed().forEachIndexed { index, song ->
-                                val offset = (index * 20).dp
-                                val size = 64.dp
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.check_all_daily_mix),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // ═══ 专辑墙：不规则马赛克布局，统一间隙 ═══
+                // 使用 6 列网格，Tile(colSpan, rowSpan, urlIndex)
+                data class Tile(val colSpan: Int, val rowSpan: Int, val urlIndex: Int)
+
+                val rows = listOf(
+                    listOf(Tile(2, 2, 0), Tile(2, 1, 1), Tile(2, 1, 2)),
+                    listOf(Tile(2, 1, 5), Tile(2, 1, 6), Tile(2, 2, 3)),
+                    listOf(Tile(2, 1, 7), Tile(2, 1, 8), Tile(2, 1, 4)),
+                    listOf(Tile(2, 2, 9), Tile(2, 1, 10), Tile(2, 1, 11)),
+                    listOf(Tile(2, 1, 13), Tile(2, 1, 14), Tile(2, 2, 12)),
+                    listOf(Tile(2, 1, 15), Tile(2, 1, 16), Tile(2, 1, 17)),
+                )
+
+                val gapPx: Float
+                val tileHeightPx: Float
+                LocalDensity.current.run {
+                    gapPx = gap.toPx()
+                    tileHeightPx = 62.dp.toPx()
+                }
+
+                val cornerRadius = 6.dp
+
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    val totalWidthPx = constraints.maxWidth.toFloat()
+                    val colWidthPx = totalWidthPx / 6f
+
+                    // 计算总高度
+                    val rowHeightPx = rows.map { row -> row.maxOf { it.rowSpan } * tileHeightPx }
+                    val totalHeightPx = rowHeightPx.sum() + (rows.size - 1) * gapPx
+                    val totalHeightDp = with(LocalDensity.current) { totalHeightPx.toDp() }
+
+                    // 预计算每行 Y 偏移
+                    val rowYOffsets = mutableListOf<Float>()
+                    var cumY = 0f
+                    for (rh in rowHeightPx) {
+                        rowYOffsets.add(cumY)
+                        cumY += rh + gapPx
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(totalHeightDp)) {
+                        for ((rowIdx, row) in rows.withIndex()) {
+                            var colAccum = 0
+
+                            for (tile in row) {
+                                val wDp = with(LocalDensity.current) { (tile.colSpan * colWidthPx).toDp() }
+                                val hDp = with(LocalDensity.current) { (tile.rowSpan * tileHeightPx).toDp() }
+                                val xDp = with(LocalDensity.current) { (colAccum * colWidthPx).toDp() }
+                                val yDp = with(LocalDensity.current) { rowYOffsets[rowIdx].toDp() }
+
                                 AsyncImage(
-                                    model = (song.albumArtUrl ?: "").resized(300),
+                                    model = urlAt(tile.urlIndex).resized(300),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(size)
-                                        .offset(x = -offset)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface),
+                                        .offset(x = xDp, y = yDp)
+                                        .size(wDp, hDp)
+                                        .clip(RoundedCornerShape(cornerRadius)),
                                     contentScale = ContentScale.Crop
                                 )
+
+                                colAccum += tile.colSpan
                             }
                         }
                     }
                 }
-            }
-
-            // 歌曲列表
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
-                songs.forEachIndexed { index, song ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSongClick(song) }
-                            .padding(horizontal = 24.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // 序号
-                        Text(
-                            text = "${index + 1}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        AsyncImage(
-                            model = (song.albumArtUrl ?: "").resized(150),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(MaterialTheme.shapes.medium),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = song.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = song.artist,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 底部操作按钮
-            val dailyMixName = stringResource(R.string.daily_mix_title)
-            FilledTonalButton(
-                onClick = {
-                    onViewAll?.invoke(
-                        Playlist(
-                            id = -2L,
-                            name = dailyMixName,
-                            trackCount = songs.size
-                        )
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(stringResource(R.string.check_all_daily_mix))
             }
         }
     }
