@@ -626,20 +626,59 @@ fun DailyMixCard(
                     }
                 }
 
-                // ═══ 专辑墙：不规则马赛克布局（仅 1×1 和 2×2），12 块，统一间隙 ═══
-                // 6 列 4 行，4 个 2×2 + 8 个 1×1 = 12 块
+                // ═══ 专辑墙：随机马赛克布局（仅 1×1 和 2×2），最多 12 块 ═══
                 data class MosaicTile(val col: Int, val row: Int, val span: Int, val urlIndex: Int)
 
                 val gridCols = 6
                 val gridRows = 4
-                val tiles = listOf(
-                    MosaicTile(0, 0, 2, 0),  MosaicTile(2, 0, 1, 1),  MosaicTile(3, 0, 1, 2),
-                    MosaicTile(4, 0, 2, 3),
-                    MosaicTile(2, 1, 1, 4),  MosaicTile(3, 1, 1, 5),
-                    MosaicTile(0, 2, 1, 6),  MosaicTile(1, 2, 1, 7),  MosaicTile(2, 2, 2, 8),
-                    MosaicTile(4, 2, 1, 9),
-                    MosaicTile(0, 3, 2, 10), MosaicTile(4, 3, 1, 11),
-                )
+                val maxBigTiles = 4
+                val maxTiles = 12
+
+                // 根据歌曲列表 + 启动时间生成种子，同一会话内稳定，每次启动不同
+                val launchTime = remember { System.currentTimeMillis() }
+                val seed = remember(songs, launchTime) {
+                    songs.take(6).fold(launchTime) { acc, s -> acc * 31 + s.id.hashCode().toLong() }
+                }
+
+                val tiles = remember(seed) {
+                    val rng = java.util.Random(seed)
+                    val occupied = Array(gridRows) { BooleanArray(gridCols) }
+                    val result = mutableListOf<MosaicTile>()
+                    var urlIdx = 0
+
+                    // 随机打乱候选位置，放置 2×2 块
+                    val bigCandidates = mutableListOf<Pair<Int, Int>>()
+                    for (r in 0 until gridRows - 1) {
+                        for (c in 0 until gridCols - 1) {
+                            bigCandidates.add(c to r)
+                        }
+                    }
+                    bigCandidates.shuffle(rng)
+
+                    var bigPlaced = 0
+                    for ((c, r) in bigCandidates) {
+                        if (bigPlaced >= maxBigTiles) break
+                        if (!occupied[r][c] && !occupied[r][c + 1] && !occupied[r + 1][c] && !occupied[r + 1][c + 1]) {
+                            occupied[r][c] = true
+                            occupied[r][c + 1] = true
+                            occupied[r + 1][c] = true
+                            occupied[r + 1][c + 1] = true
+                            result.add(MosaicTile(c, r, 2, urlIdx++))
+                            bigPlaced++
+                        }
+                    }
+
+                    // 填充剩余空位为 1×1 块
+                    for (r in 0 until gridRows) {
+                        for (c in 0 until gridCols) {
+                            if (!occupied[r][c]) {
+                                result.add(MosaicTile(c, r, 1, urlIdx++))
+                            }
+                        }
+                    }
+
+                    result.take(maxTiles)
+                }
 
                 val cellSize = 62.dp
                 val gapPx: Float
@@ -657,7 +696,6 @@ fun DailyMixCard(
                         .padding(horizontal = 16.dp)
                 ) {
                     val totalWidthPx = constraints.maxWidth.toFloat()
-                    // 6 列，列间 5 个间隙：cellW = (total - 5*gap) / 6
                     val cellW = (totalWidthPx - (gridCols - 1) * gapPx) / gridCols
                     val totalHeightPx = gridRows * cellPx + (gridRows - 1) * gapPx
                     val totalHeightDp = with(LocalDensity.current) { totalHeightPx.toDp() }
@@ -665,10 +703,8 @@ fun DailyMixCard(
                     Box(modifier = Modifier.fillMaxWidth().height(totalHeightDp)) {
                         for (tile in tiles) {
                             val s = tile.span
-                            // tile 尺寸 = s 个 cell + (s-1) 个间隙
                             val wPx = s * cellW + (s - 1) * gapPx
                             val hPx = s * cellPx + (s - 1) * gapPx
-                            // tile 位置 = col * (cellW + gap)
                             val xPx = tile.col * (cellW + gapPx)
                             val yPx = tile.row * (cellPx + gapPx)
 
