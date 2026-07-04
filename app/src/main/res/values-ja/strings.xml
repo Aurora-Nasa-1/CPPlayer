@@ -184,6 +184,10 @@
 
     <!-- UI翻新新增字符串 -->
     <string name="quick_access">クイックアクセス</string>
+    <string name="quick_recommend_title">あなたにおすすめ</string>
+    <string name="quick_recommend_subtitle">音楽のセンスを発見</string>
+    <string name="quick_fm_title">プライベートFM</string>
+    <string name="quick_fm_subtitle">あなただけのラジオ</string>
     <string name="recommended_playlists">おすすめプレイリスト</string>
     <string name="greeting_morning">おはようございます</string>
     <string name="greeting_afternoon">こんにちは</string>

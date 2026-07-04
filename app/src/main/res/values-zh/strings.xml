@@ -190,6 +190,10 @@
 
     <!-- UI翻新新增字符串 -->
     <string name="quick_access">快速访问</string>
+    <string name="quick_recommend_title">为你推荐</string>
+    <string name="quick_recommend_subtitle">发现你的音乐品味</string>
+    <string name="quick_fm_title">私人FM</string>
+    <string name="quick_fm_subtitle">专属你的电台</string>
     <string name="recommended_playlists">推荐歌单</string>
     <string name="greeting_morning">早上好</string>
     <string name="greeting_afternoon">下午好</string>

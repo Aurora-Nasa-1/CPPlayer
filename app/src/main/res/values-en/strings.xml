@@ -182,6 +182,10 @@
     <string name="setup_desc">To start using the app, please import a backend module (.zip file) containing the provider definitions.</string>
     <string name="importing_module">Importing module...</string>
     <string name="quick_access">Quick Access</string>
+    <string name="quick_recommend_title">For You</string>
+    <string name="quick_recommend_subtitle">Discover your music taste</string>
+    <string name="quick_fm_title">Private FM</string>
+    <string name="quick_fm_subtitle">Your personal radio</string>
     <string name="recommended_playlists">Recommended Playlists</string>
     <string name="greeting_morning">Good Morning</string>
     <string name="greeting_afternoon">Good Afternoon</string>

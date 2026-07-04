@@ -1,6 +1,7 @@
 package cp.player.ui.screen
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -61,9 +62,7 @@ import cp.player.ui.component.SongItem
 import cp.player.ui.component.SongCard
 import cp.player.ui.component.AppScaffold
 import cp.player.ui.component.QuickAccessCard
-import cp.player.ui.component.SongPreviewList
 import cp.player.ui.component.PlaylistPreview
-import cp.player.ui.component.DiscoveryPreview
 import cp.player.viewmodel.DiscoveryViewModel
 
 /**
@@ -196,23 +195,19 @@ fun MainScreen(
                 // 准备快速访问项数据
                 val quickAccessItems = mutableListOf<QuickAccessItem>()
 
-                // FM入口
-                if (recommendedSongs.isNotEmpty()) {
-                    quickAccessItems.add(
-                        QuickAccessItem(
-                            selectedIcon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
-                            preview = {
-                                SongPreviewList(
-                                    songs = recommendedSongs.take(3),
-                                    onSongClick = onSongClick,
-                                    onArrowClick = onPersonalFmClick,
-                                    onHeartbeatClick = onHeartbeatClick
-                                )
-                            },
-                            onNavigate = onPersonalFmClick
-                        )
+                // FM入口 - 为你推荐 & 私人FM 双板块
+                quickAccessItems.add(
+                    QuickAccessItem(
+                        selectedIcon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
+                        preview = {
+                            FmQuickAccessContent(
+                                onRecommendClick = onHeartbeatClick,
+                                onFmClick = onPersonalFmClick
+                            )
+                        },
+                        onNavigate = onPersonalFmClick
                     )
-                }
+                )
 
                 // 用户歌单
                 val displayPlaylists = userPlaylists.take(5)
@@ -762,6 +757,164 @@ fun ExpressiveListCard(
                 )
             }
             content()
+        }
+    }
+}
+
+/**
+ * FM快速访问卡片内容 - 为你推荐 & 私人FM 双板块。
+ * 两个并排的渐变色小卡片，替代原来的歌曲列表。
+ */
+@Composable
+fun FmQuickAccessContent(
+    onRecommendClick: () -> Unit,
+    onFmClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Row(
+        modifier = modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 为你推荐板块
+        Surface(
+            onClick = onRecommendClick,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            shape = MaterialTheme.shapes.large,
+            color = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = if (isDark) listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.65f)
+                            ) else listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            ) {
+                // 装饰圆形
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .offset(x = 40.dp, y = (-15).dp)
+                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.AutoGraph,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = stringResource(R.string.quick_recommend_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = stringResource(R.string.quick_recommend_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.75f),
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+
+        // 私人FM板块
+        Surface(
+            onClick = onFmClick,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            shape = MaterialTheme.shapes.large,
+            color = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = if (isDark) listOf(
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+                            ) else listOf(
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            ) {
+                // 装饰圆形
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .offset(x = 50.dp, y = 40.dp)
+                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Radio,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = stringResource(R.string.quick_fm_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = stringResource(R.string.quick_fm_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.75f),
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
         }
     }
 }
