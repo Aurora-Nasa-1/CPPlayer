@@ -57,7 +57,7 @@ fun CloudMusicContent(
                 itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                     SongItem(
                         song = song,
-                        isFavorite = false, // 云盘歌曲不显示收藏状态
+                        isFavorite = favoriteSongs.contains(song.id),
                         isCurrentlyPlaying = song.id == playbackViewModel?.currentSong?.id,
                         onClick = { onSongClick(song) },
                         onOptionsClick = { selectedSongForOptions = song },
@@ -72,16 +72,19 @@ fun CloudMusicContent(
     }
 
     selectedSongForOptions?.let { song ->
-        // 云盘歌曲的更多选项 - 不包含收藏、分享、添加歌单、INFO
+        // 云盘歌曲的更多选项
         cp.player.ui.component.SongOptionsBottomSheet(
             song = song,
-            isFavorite = false,
+            isFavorite = favoriteSongs.contains(song.id),
             onDismissRequest = { selectedSongForOptions = null },
             onPlayClick = {
                 onSongClick(song)
                 selectedSongForOptions = null
             },
-            onFavoriteClick = { /* 云盘歌曲无法收藏 */ },
+            onFavoriteClick = {
+                onLikeClick(song)
+                selectedSongForOptions = null
+            },
             onAddToQueueClick = {
                 playbackViewModel?.addToQueue(song)
                 selectedSongForOptions = null
@@ -96,7 +99,7 @@ fun CloudMusicContent(
                 selectedSongForOptions = null
             },
             isDownloaded = downloadedSongIds.contains(song.id),
-            showFavorite = false,
+            showFavorite = true,
             showShare = false,
             showPlaylist = false,
             showInfo = false,
