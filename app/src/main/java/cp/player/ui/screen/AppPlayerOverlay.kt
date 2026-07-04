@@ -165,9 +165,10 @@ fun BoxScope.AppPlayerOverlay(
                 )
             }
         } else {
-            // 动态计算 mini player 底部间距：底栏可见时 80dp，隐藏时 16dp
+            // 动态计算 mini player 底部间距：底栏可见时 80dp + 小白条高度，隐藏时 16dp
             val density = LocalDensity.current
-            val navBarVisibleHeight = 80.dp
+            val gestureInsetDp = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
+            val navBarVisibleHeight = 80.dp + gestureInsetDp
             val navBarHiddenHeight = 16.dp
             val animatedBottomPadding by animateDpAsState(
                 targetValue = if (!hasBottomBar || useSideNav) 16.dp
