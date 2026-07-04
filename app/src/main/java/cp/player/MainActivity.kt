@@ -930,7 +930,11 @@ fun AppMainContent(
                                 onViewAllTopSongs = {
                                     discoveryViewModel.fetchTopSongs()
                                 },
-                                onBackPressed = { navController.popBackStack() }
+                                onBackPressed = { navController.popBackStack() },
+                                bottomContentPadding = PaddingValues(
+                                    top = innerPadding.calculateTopPadding(),
+                                    bottom = bottomBarHeight
+                                )
                             )
                         }
                         composable("ranking/{playlistId}") { backStackEntry ->

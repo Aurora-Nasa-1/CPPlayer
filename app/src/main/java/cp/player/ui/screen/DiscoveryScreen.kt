@@ -1,17 +1,12 @@
 package cp.player.ui.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import cp.player.model.Playlist
 import cp.player.model.Song
+import cp.player.ui.component.AppScaffold
 import cp.player.ui.component.SongItem
 import cp.player.util.resized
 import cp.player.viewmodel.ToplistEntry
@@ -33,7 +29,6 @@ import cp.player.viewmodel.ToplistEntry
 /**
  * 发现页 — 排行榜 + 音乐推荐。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoveryScreen(
     toplists: List<ToplistEntry>,
@@ -46,37 +41,22 @@ fun DiscoveryScreen(
     onPlaylistClick: (Playlist) -> Unit,
     onSongClick: (Song) -> Unit,
     onViewAllTopSongs: () -> Unit,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("发现") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        if (isDiscoveryLoading && toplists.isEmpty() && personalizedPlaylists.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-            return@Scaffold
-        }
-
+    AppScaffold(
+        title = "发现",
+        onBackPressed = onBackPressed,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        isLoading = isDiscoveryLoading && toplists.isEmpty() && personalizedPlaylists.isEmpty()
+    ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = 8.dp,
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // ==================== 排行榜 ====================
             if (toplists.isNotEmpty()) {
@@ -85,8 +65,8 @@ fun DiscoveryScreen(
                 }
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(toplists) { entry ->
                             ToplistCard(entry = entry, onClick = { onToplistClick(entry) })
@@ -102,11 +82,11 @@ fun DiscoveryScreen(
                 }
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(personalizedPlaylists) { playlist ->
-                            DiscoveryPlaylistCard(
+                        items(items = personalizedPlaylists, key = { "rec_pl_${it.id}" }) { playlist ->
+                            RecommendedPlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) }
                             )
@@ -123,7 +103,8 @@ fun DiscoveryScreen(
                 itemsIndexed(personalizedNewSongs) { index, song ->
                     SongItem(
                         song = song,
-                        index = index + 1,
+                        index = index,
+                        total = personalizedNewSongs.size,
                         onClick = { onSongClick(song) }
                     )
                 }
@@ -141,7 +122,8 @@ fun DiscoveryScreen(
                 itemsIndexed(topSongs.take(10)) { index, song ->
                     SongItem(
                         song = song,
-                        index = index + 1,
+                        index = index,
+                        total = topSongs.take(10).size,
                         onClick = { onSongClick(song) }
                     )
                 }
@@ -154,11 +136,11 @@ fun DiscoveryScreen(
                 }
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(highqualityPlaylists) { playlist ->
-                            DiscoveryPlaylistCard(
+                        items(items = highqualityPlaylists, key = { "hq_pl_${it.id}" }) { playlist ->
+                            RecommendedPlaylistCard(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) }
                             )
@@ -181,18 +163,21 @@ private fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 0.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         if (actionText != null && onAction != null) {
-            TextButton(onClick = onAction) {
-                Text(actionText, style = MaterialTheme.typography.labelMedium)
+            FilledTonalButton(
+                onClick = onAction,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text(actionText, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -208,8 +193,8 @@ private fun ToplistCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.width(150.dp)
     ) {
         Column {
@@ -218,12 +203,15 @@ private fun ToplistCard(
                     model = entry.coverImgUrl?.resized(300),
                     contentDescription = entry.name,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 )
                 // 渐变遮罩
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
@@ -258,68 +246,6 @@ private fun ToplistCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-        }
-    }
-}
-
-/**
- * 发现页歌单卡片 — 封面 + 名称 + 播放量。
- */
-@Composable
-private fun DiscoveryPlaylistCard(
-    playlist: Playlist,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = 2.dp,
-        modifier = Modifier.width(140.dp)
-    ) {
-        Column {
-            Box(modifier = Modifier.height(140.dp).fillMaxWidth()) {
-                AsyncImage(
-                    model = playlist.coverImgUrl?.resized(280),
-                    contentDescription = playlist.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                // 播放量
-                if (playlist.trackCount > 0) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color.Black.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = "${playlist.trackCount}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-            )
         }
     }
 }
