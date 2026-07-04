@@ -54,52 +54,24 @@ fun QuickAccessCard(
         color = cardColor
     ) {
         Column {
-            // 顶部：图标 + 标题 + 箭头按钮
+            // 顶部：图标 + 标题
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, top = 24.dp, end = 16.dp, bottom = 16.dp),
+                    .padding(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // 图标
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            icon()
-                        }
-                    }
-                    // 标题
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                // 箭头按钮
-                Surface(
-                    onClick = onArrowClick,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = "查看全部",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+                // 图标（底部指示器选中样式）
+                icon()
+                // 标题
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             // 预览内容
@@ -127,6 +99,7 @@ fun QuickAccessCard(
 fun SongPreviewList(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    onArrowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -173,6 +146,25 @@ fun SongPreviewList(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                // 箭头按钮（只在最后一首歌曲右边显示）
+                if (index == songs.take(3).size - 1) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        onClick = onArrowClick,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = "查看全部",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -191,6 +183,7 @@ fun SongPreviewList(
 fun PlaylistPreview(
     playlist: Playlist,
     onClick: () -> Unit,
+    onArrowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -226,6 +219,23 @@ fun PlaylistPreview(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // 箭头按钮
+        Spacer(modifier = Modifier.width(8.dp))
+        Surface(
+            onClick = onArrowClick,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "查看全部",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }
 
@@ -242,10 +252,11 @@ fun PlaylistPreview(
 fun DiscoveryPreview(
     toplists: List<ToplistEntry>,
     onToplistClick: (Long) -> Unit,
+    onArrowClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        toplists.take(3).forEach { toplist ->
+        toplists.take(3).forEachIndexed { index, toplist ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -279,6 +290,25 @@ fun DiscoveryPreview(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                // 箭头按钮（只在最后一个榜单右边显示）
+                if (index == toplists.take(3).size - 1) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        onClick = onArrowClick,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = "查看全部",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

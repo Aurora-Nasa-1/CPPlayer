@@ -31,12 +31,7 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.foundation.background
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.PlayArrow
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.util.resized
@@ -52,16 +47,6 @@ import cp.player.ui.component.SongPreviewList
 import cp.player.ui.component.PlaylistPreview
 import cp.player.ui.component.DiscoveryPreview
 import cp.player.viewmodel.DiscoveryViewModel
-
-/**
- * 快速访问项数据类。
- */
-data class QuickAccessItem(
-    val title: String,
-    val icon: @Composable () -> Unit,
-    val preview: @Composable () -> Unit,
-    val onNavigate: () -> Unit
-)
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -172,153 +157,102 @@ fun MainScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 快速访问区域 - 分页卡片
+            // 快速访问区域 - 卡片列表
             item {
-                Column {
-                    Text(
-                        stringResource(R.string.quick_access),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
-                    )
-
-                    // 准备快速访问项数据
-                    val quickAccessItems = mutableListOf<QuickAccessItem>()
-
-                    // 每日推荐
-                    quickAccessItems.add(
-                        QuickAccessItem(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // 每日推荐卡片
+                    if (recommendedSongs.isNotEmpty()) {
+                        QuickAccessCard(
                             title = stringResource(R.string.good_day),
-                            icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
-                            preview = {
+                            icon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            },
+                            previewContent = {
                                 SongPreviewList(
                                     songs = recommendedSongs.take(3),
-                                    onSongClick = onSongClick
+                                    onSongClick = onSongClick,
+                                    onArrowClick = onPersonalFmClick
                                 )
                             },
-                            onNavigate = onPersonalFmClick
-                        )
-                    )
-
-                    // 为你推荐
-                    quickAccessItems.add(
-                        QuickAccessItem(
-                            title = stringResource(R.string.made_for_you),
-                            icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
-                            preview = {
-                                SongPreviewList(
-                                    songs = recommendedSongs.take(3),
-                                    onSongClick = onSongClick
-                                )
-                            },
-                            onNavigate = onHeartbeatClick
-                        )
-                    )
-
-                    // 发现
-                    quickAccessItems.add(
-                        QuickAccessItem(
-                            title = "发现",
-                            icon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
-                            preview = {
-                                DiscoveryPreview(
-                                    toplists = discoveryViewModel.toplists,
-                                    onToplistClick = { playlistId ->
-                                        // 这里可以导航到榜单详情，暂时跳过
-                                    }
-                                )
-                            },
-                            onNavigate = onNavigateToDiscover
-                        )
-                    )
-
-                    // 用户歌单
-                    val displayPlaylists = userPlaylists.take(5)
-                    displayPlaylists.forEach { p ->
-                        quickAccessItems.add(
-                            QuickAccessItem(
-                                title = p.name,
-                                icon = {
-                                    AsyncImage(
-                                        model = (p.coverImgUrl ?: "").resized(150),
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                },
-                                preview = {
-                                    PlaylistPreview(
-                                        playlist = p,
-                                        onClick = { onPlaylistClick(p) }
-                                    )
-                                },
-                                onNavigate = { onPlaylistClick(p) }
-                            )
+                            onArrowClick = onPersonalFmClick
                         )
                     }
 
-                    // HorizontalPager 实现分页滑动
-                    val pagerState = androidx.compose.foundation.pager.rememberPagerState { quickAccessItems.size }
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        androidx.compose.foundation.pager.HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            pageSpacing = 12.dp
-                        ) { page ->
-                            val item = quickAccessItems[page]
-                            var isVisible by remember { mutableStateOf(false) }
-
-                            LaunchedEffect(page) {
-                                kotlinx.coroutines.delay(50L * page)
-                                isVisible = true
-                            }
-
-                            AnimatedVisibility(
-                                visible = isVisible,
-                                enter = slideInVertically(
-                                    initialOffsetY = { it / 2 },
-                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
-                                ) + fadeIn(
-                                    animationSpec = tween(durationMillis = 400)
-                                ) + scaleIn(
-                                    initialScale = 0.9f,
-                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
-                                )
-                            ) {
-                                QuickAccessCard(
-                                    title = item.title,
-                                    icon = item.icon,
-                                    previewContent = item.preview,
-                                    onArrowClick = item.onNavigate
-                                )
-                            }
-                        }
-
-                        // 页面指示器
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            repeat(quickAccessItems.size) { index ->
+                    // 为你推荐卡片
+                    if (recommendedSongs.isNotEmpty()) {
+                        QuickAccessCard(
+                            title = stringResource(R.string.made_for_you),
+                            icon = {
                                 Box(
                                     modifier = Modifier
-                                        .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                        .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            if (index == pagerState.currentPage)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                        )
+                                        .background(MaterialTheme.colorScheme.secondary)
                                 )
-                            }
-                        }
+                            },
+                            previewContent = {
+                                SongPreviewList(
+                                    songs = recommendedSongs.take(3),
+                                    onSongClick = onSongClick,
+                                    onArrowClick = onHeartbeatClick
+                                )
+                            },
+                            onArrowClick = onHeartbeatClick
+                        )
+                    }
+
+                    // 发现卡片
+                    if (discoveryViewModel.toplists.isNotEmpty()) {
+                        QuickAccessCard(
+                            title = "发现",
+                            icon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.tertiary)
+                                )
+                            },
+                            previewContent = {
+                                DiscoveryPreview(
+                                    toplists = discoveryViewModel.toplists.take(3),
+                                    onToplistClick = { playlistId ->
+                                        // 这里可以导航到榜单详情
+                                    },
+                                    onArrowClick = onNavigateToDiscover
+                                )
+                            },
+                            onArrowClick = onNavigateToDiscover
+                        )
+                    }
+
+                    // 用户歌单卡片
+                    val displayPlaylists = userPlaylists.take(3)
+                    displayPlaylists.forEach { p ->
+                        QuickAccessCard(
+                            title = p.name,
+                            icon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.outline)
+                                )
+                            },
+                            previewContent = {
+                                PlaylistPreview(
+                                    playlist = p,
+                                    onClick = { onPlaylistClick(p) },
+                                    onArrowClick = { onPlaylistClick(p) }
+                                )
+                            },
+                            onArrowClick = { onPlaylistClick(p) }
+                        )
                     }
                 }
             }
