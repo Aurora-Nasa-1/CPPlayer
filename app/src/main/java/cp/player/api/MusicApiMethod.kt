@@ -205,4 +205,60 @@ object MusicApiMethod {
 
     /** 发送文本消息 */
     const val MESSAGE_SEND_TEXT = "send/text"
+
+    // ======================== 排行榜 Ranking ========================
+
+    /** 所有榜单列表 */
+    const val TOPLIST = "toplist"
+
+    /** 所有榜单内容摘要 */
+    const val TOPLIST_DETAIL = "toplist_detail"
+
+    /** 新歌速递 */
+    const val TOP_SONG = "top_song"
+
+    /** 新碟上架 */
+    const val TOP_ALBUM = "top_album"
+
+    /** 热门歌手 */
+    const val TOP_ARTISTS = "top_artists"
+
+    /** 热门歌单（网友精选碟） */
+    const val TOP_PLAYLIST = "top_playlist"
+
+    /** 精品歌单 */
+    const val TOP_PLAYLIST_HIGHQUALITY = "top_playlist_highquality"
+
+    // ======================== 推荐 Discovery ========================
+
+    /** 推荐歌单（非每日推荐，无需登录） */
+    const val PERSONALIZED = "personalized"
+
+    /** 推荐新音乐 */
+    const val PERSONALIZED_NEWSONG = "personalized_newsong"
+
+    /** 首页 Banner 轮播图 */
+    const val BANNER = "banner"
+
+    /** 历史日推可用日期列表 */
+    const val HISTORY_RECOMMEND_SONGS = "history_recommend_songs"
+
+    /** 历史日推详情 */
+    const val HISTORY_RECOMMEND_SONGS_DETAIL = "history_recommend_songs_detail"
+
+    // ======================== 相似 Similar ========================
+
+    /** 相似歌曲 */
+    const val SIMI_SONG = "simi_song"
+
+    /** 相似歌手 */
+    const val SIMI_ARTIST = "simi_artist"
+
+    /** 相似歌单 */
+    const val SIMI_PLAYLIST = "simi_playlist"
+
+    // ======================== 签到 Signin ========================
+
+    /** 每日签到 */
+    const val DAILY_SIGNIN = "daily/signin"
 }

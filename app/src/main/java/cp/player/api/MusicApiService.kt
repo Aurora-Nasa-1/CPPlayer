@@ -282,4 +282,60 @@ interface MusicApiService {
 
     /** 发送文本消息 */
     suspend fun sendMessage(uid: Long, text: String): JsonObject
+
+    // ======================== 排行榜 Ranking ========================
+
+    /** 获取所有榜单列表 */
+    suspend fun getToplist(): JsonObject
+
+    /** 获取所有榜单内容摘要 */
+    suspend fun getToplistDetail(): JsonObject
+
+    /** 新歌速递 @param type 地区: 0=全部, 7=华语, 96=欧美, 8=日本, 16=韩国 */
+    suspend fun getTopSongs(type: Int = 0): JsonObject
+
+    /** 新碟上架 @param area ALL/ZH/EA/KR/JP */
+    suspend fun getTopAlbums(area: String = "ALL", limit: Int = 30): JsonObject
+
+    /** 热门歌手 */
+    suspend fun getTopArtists(limit: Int = 30): JsonObject
+
+    /** 热门歌单 @param order new/hot @param cat 分类标签 */
+    suspend fun getTopPlaylists(order: String = "hot", cat: String = "全部", limit: Int = 30): JsonObject
+
+    /** 精品歌单 */
+    suspend fun getHighqualityPlaylists(cat: String = "全部", limit: Int = 30): JsonObject
+
+    // ======================== 推荐 Discovery ========================
+
+    /** 推荐歌单（无需登录） */
+    suspend fun getPersonalizedPlaylists(limit: Int = 30): JsonObject
+
+    /** 推荐新音乐 */
+    suspend fun getPersonalizedNewSongs(limit: Int = 10): JsonObject
+
+    /** 首页 Banner */
+    suspend fun getBanner(): JsonObject
+
+    /** 历史日推可用日期列表 */
+    suspend fun getHistoryRecommendSongs(): JsonObject
+
+    /** 历史日推详情 @param date 日期字符串 */
+    suspend fun getHistoryRecommendSongsDetail(date: String): JsonObject
+
+    // ======================== 相似 Similar ========================
+
+    /** 获取相似歌曲 */
+    suspend fun getSimilarSongs(songId: String): JsonObject
+
+    /** 获取相似歌手 */
+    suspend fun getSimilarArtists(artistId: Long): JsonObject
+
+    /** 获取相似歌单 */
+    suspend fun getSimilarPlaylists(songId: String): JsonObject
+
+    // ======================== 签到 Signin ========================
+
+    /** 每日签到 */
+    suspend fun dailySignin(): JsonObject
 }

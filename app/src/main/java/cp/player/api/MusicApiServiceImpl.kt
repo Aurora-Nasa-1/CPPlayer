@@ -358,6 +358,62 @@ class MusicApiServiceImpl(
     override suspend fun sendMessage(uid: Long, text: String): JsonObject =
         callApi(MusicApiMethod.MESSAGE_SEND_TEXT, mapOf("user_ids" to uid.toString(), "msg" to text))
 
+    // ======================== 排行榜 Ranking ========================
+
+    override suspend fun getToplist(): JsonObject =
+        callApi(MusicApiMethod.TOPLIST)
+
+    override suspend fun getToplistDetail(): JsonObject =
+        callApi(MusicApiMethod.TOPLIST_DETAIL)
+
+    override suspend fun getTopSongs(type: Int): JsonObject =
+        callApi(MusicApiMethod.TOP_SONG, mapOf("type" to type.toString()))
+
+    override suspend fun getTopAlbums(area: String, limit: Int): JsonObject =
+        callApi(MusicApiMethod.TOP_ALBUM, mapOf("area" to area, "limit" to limit.toString()))
+
+    override suspend fun getTopArtists(limit: Int): JsonObject =
+        callApi(MusicApiMethod.TOP_ARTISTS, mapOf("limit" to limit.toString()))
+
+    override suspend fun getTopPlaylists(order: String, cat: String, limit: Int): JsonObject =
+        callApi(MusicApiMethod.TOP_PLAYLIST, mapOf("order" to order, "cat" to cat, "limit" to limit.toString()))
+
+    override suspend fun getHighqualityPlaylists(cat: String, limit: Int): JsonObject =
+        callApi(MusicApiMethod.TOP_PLAYLIST_HIGHQUALITY, mapOf("cat" to cat, "limit" to limit.toString()))
+
+    // ======================== 推荐 Discovery ========================
+
+    override suspend fun getPersonalizedPlaylists(limit: Int): JsonObject =
+        callApi(MusicApiMethod.PERSONALIZED, mapOf("limit" to limit.toString()))
+
+    override suspend fun getPersonalizedNewSongs(limit: Int): JsonObject =
+        callApi(MusicApiMethod.PERSONALIZED_NEWSONG, mapOf("limit" to limit.toString()))
+
+    override suspend fun getBanner(): JsonObject =
+        callApi(MusicApiMethod.BANNER, mapOf("type" to "1"))  // type=1 for Android
+
+    override suspend fun getHistoryRecommendSongs(): JsonObject =
+        callApi(MusicApiMethod.HISTORY_RECOMMEND_SONGS)
+
+    override suspend fun getHistoryRecommendSongsDetail(date: String): JsonObject =
+        callApi(MusicApiMethod.HISTORY_RECOMMEND_SONGS_DETAIL, mapOf("date" to date))
+
+    // ======================== 相似 Similar ========================
+
+    override suspend fun getSimilarSongs(songId: String): JsonObject =
+        callApi(MusicApiMethod.SIMI_SONG, mapOf("id" to songId))
+
+    override suspend fun getSimilarArtists(artistId: Long): JsonObject =
+        callApi(MusicApiMethod.SIMI_ARTIST, mapOf("id" to artistId.toString()))
+
+    override suspend fun getSimilarPlaylists(songId: String): JsonObject =
+        callApi(MusicApiMethod.SIMI_PLAYLIST, mapOf("id" to songId))
+
+    // ======================== 签到 Signin ========================
+
+    override suspend fun dailySignin(): JsonObject =
+        callApi(MusicApiMethod.DAILY_SIGNIN)
+
     // ======================== 多 Provider 容灾 ========================
 
     /**
@@ -472,7 +528,20 @@ class MusicApiServiceImpl(
         MusicApiMethod.MESSAGE_RECENT_CONTACT to "data",
         MusicApiMethod.SONG_URL_V1 to "data",
         MusicApiMethod.SONG_URL_V1_302 to "data",
-        MusicApiMethod.SONG_DOWNLOAD_URL to "data"
+        MusicApiMethod.SONG_DOWNLOAD_URL to "data",
+        MusicApiMethod.TOPLIST to "list",
+        MusicApiMethod.TOPLIST_DETAIL to "list",
+        MusicApiMethod.TOP_SONG to "data",
+        MusicApiMethod.TOP_ALBUM to "albums",
+        MusicApiMethod.TOP_ARTISTS to "artists",
+        MusicApiMethod.TOP_PLAYLIST to "playlists",
+        MusicApiMethod.TOP_PLAYLIST_HIGHQUALITY to "playlists",
+        MusicApiMethod.PERSONALIZED to "result",
+        MusicApiMethod.PERSONALIZED_NEWSONG to "result",
+        MusicApiMethod.BANNER to "banners",
+        MusicApiMethod.SIMI_SONG to "songs",
+        MusicApiMethod.SIMI_ARTIST to "artists",
+        MusicApiMethod.SIMI_PLAYLIST to "playlists"
     )
 
     /** 回退候选字段（当主字段不存在时依次检查） */

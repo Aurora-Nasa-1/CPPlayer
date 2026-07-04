@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
@@ -65,6 +66,7 @@ fun MainScreen(
     completedSongs: Set<String> = emptySet(),
     currentSongId: String? = null,
     onNavigateToSettings: () -> Unit,
+    onNavigateToDiscover: () -> Unit = {},
     onFetchUserData: () -> Unit = {},
     onDownloadClick: ((Song) -> Unit)? = null,
     onViewAllRecent: ((Playlist) -> Unit)? = null,
@@ -176,6 +178,13 @@ fun MainScreen(
                                 title = stringResource(R.string.made_for_you),
                                 icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
                                 onClick = onHeartbeatClick
+                            )
+                        }
+                        item {
+                            FavoriteCircleItem(
+                                title = "发现",
+                                icon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
+                                onClick = onNavigateToDiscover
                             )
                         }
                         val displayPlaylists = userPlaylists.take(5)

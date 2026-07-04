@@ -55,6 +55,15 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     /** LiveSort 播放时的 per-song 淡入淡出覆盖。key = song.id, value = (fadeInSec, fadeOutSec) */
     var livesortFadeOverrides by mutableStateOf<Map<String, Pair<Float, Float>>>(emptyMap())
 
+    /** 当前歌曲的相似歌曲列表 */
+    var similarSongs by mutableStateOf<List<Song>>(emptyList())
+
+    /** 是否正在加载相似歌曲 */
+    var isSimilarSongsLoading by mutableStateOf(false)
+
+    /** 已请求过相似歌曲的歌曲 ID（避免重复请求） */
+    private var similarSongsFetchedFor: String? = null
+
     private var sleepTimerJob: Job? = null
     private var isFetchingMoreFm = false
 
@@ -202,6 +211,11 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         mediaItem?.let {
             val song = it.toSong()
             DebugLog.i("PlaybackVM: updateSong id=${song.id} name=${song.name}")
+            if (currentSong?.id != song.id) {
+                // 歌曲切换，清空相似歌曲（下次打开播放页时重新获取）
+                similarSongs = emptyList()
+                similarSongsFetchedFor = null
+            }
             currentSong = song
             // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，此处不重复调用
             extractColorFromUrl(song.albumArtUrl)
@@ -374,6 +388,28 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 DebugLog.e("Heartbeat error: ${e.message}")
             } finally {
                 isHeartbeatLoading = false
+            }
+        }
+    }
+
+    /**
+     * 获取当前歌曲的相似歌曲。
+     * 如果已经为当前歌曲获取过，不会重复请求。
+     */
+    fun fetchSimilarSongs() {
+        val songId = currentSong?.id ?: return
+        if (similarSongsFetchedFor == songId || isSimilarSongsLoading) return
+        viewModelScope.launch {
+            isSimilarSongsLoading = true
+            try {
+                val body = withContext(Dispatchers.IO) { api.getSimilarSongs(songId) }
+                val songsArr = body.get("songs")?.asJsonArray
+                similarSongs = songsArr?.mapNotNull { cp.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                similarSongsFetchedFor = songId
+            } catch (e: Exception) {
+                android.util.Log.e("PlaybackVM", "Failed to fetch similar songs", e)
+            } finally {
+                isSimilarSongsLoading = false
             }
         }
     }

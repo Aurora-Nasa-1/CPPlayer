@@ -56,6 +56,9 @@ data class PlayerUiState(
     val activeParentComment: Comment? = null,
     // 歌单
     val allPlaylists: List<Playlist> = emptyList(),
+    // 相似歌曲
+    val similarSongs: List<Song> = emptyList(),
+    val isSimilarSongsLoading: Boolean = false,
 )
 
 /**
@@ -93,5 +96,7 @@ data class PlayerCallbacks(
     val onLoadMoreFloor: (Comment) -> Unit = {},
     val onDismissFloor: () -> Unit = {},
     val onSetSleepTimer: (Int) -> Unit = {},
-    val onBackPressed: () -> Unit = {}
+    val onBackPressed: () -> Unit = {},
+    val onFetchSimilarSongs: () -> Unit = {},
+    val onPlaySimilarSong: (Song) -> Unit = {}
 )

@@ -75,7 +75,9 @@ fun BoxScope.AppPlayerOverlay(
         floorCommentTotal = socialViewModel.floorCommentTotal,
         floorHasMore = socialViewModel.floorHasMore,
         activeParentComment = socialViewModel.activeParentComment,
-        allPlaylists = userViewModel.userPlaylists
+        allPlaylists = userViewModel.userPlaylists,
+        similarSongs = playbackViewModel.similarSongs,
+        isSimilarSongsLoading = playbackViewModel.isSimilarSongsLoading
     )
 
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -139,7 +141,9 @@ fun BoxScope.AppPlayerOverlay(
             },
             onDismissFloor = { socialViewModel.activeParentComment = null },
             onSetSleepTimer = { playbackViewModel.startSleepTimer(it) },
-            onBackPressed = { onSetPlayerExpanded(false) }
+            onBackPressed = { onSetPlayerExpanded(false) },
+            onFetchSimilarSongs = { playbackViewModel.fetchSimilarSongs() },
+            onPlaySimilarSong = { song -> playbackViewModel.playSong(song, playbackViewModel.similarSongs) }
         )
     }
 

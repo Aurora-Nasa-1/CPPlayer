@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private val downloadViewModel: DownloadViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val liveSortViewModel: LiveSortViewModel by viewModels()
+    private val discoveryViewModel: DiscoveryViewModel by viewModels()
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,7 +97,7 @@ class MainActivity : ComponentActivity() {
                         lifecycleOwner.lifecycle.addObserver(observer)
                         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                     }
-                    AppNavigation(loginViewModel, playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, useSideNav, intent)
+                    AppNavigation(loginViewModel, playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, discoveryViewModel, useSideNav, intent)
                 }
             }
         }
@@ -137,6 +138,7 @@ fun AppNavigation(
     downloadViewModel: DownloadViewModel,
     settingsViewModel: SettingsViewModel,
     liveSortViewModel: LiveSortViewModel,
+    discoveryViewModel: DiscoveryViewModel,
     useSideNav: Boolean,
     intent: Intent? = null
 ) {
@@ -241,6 +243,7 @@ fun AppNavigation(
     ) { innerPadding ->
         AppMainContent(
             playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel,
+            discoveryViewModel,
             innerPadding, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context,
             currentDestination, bottomBarOffsetHeightPx, navItems,
             isPlayerExpanded = isPlayerExpanded, onSetPlayerExpanded = { isPlayerExpanded = it },
@@ -259,6 +262,7 @@ fun AppMainContent(
     downloadViewModel: DownloadViewModel,
     settingsViewModel: SettingsViewModel,
     liveSortViewModel: LiveSortViewModel,
+    discoveryViewModel: DiscoveryViewModel,
     innerPadding: PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
     navController: androidx.navigation.NavHostController,
@@ -430,6 +434,7 @@ fun AppMainContent(
                                 unreadMessagesCount = socialViewModel.unreadCount,
                                 onNavigateToMessages = { navController.navigate("messages") },
                                 onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToDiscover = { navController.navigate("discover") },
                                 onFetchUserData = {
                                     userViewModel.fetchUserData()
                                     socialViewModel.fetchUnreadCount()
@@ -896,6 +901,67 @@ fun AppMainContent(
                                     bottom = bottomBarHeight
                                 ),
                                 isPlayerExpanded = isPlayerExpanded
+                            )
+                        }
+                        composable("discover") {
+                            LaunchedEffect(Unit) {
+                                discoveryViewModel.fetchDiscoveryData()
+                                discoveryViewModel.fetchToplist()
+                            }
+                            DiscoveryScreen(
+                                toplists = discoveryViewModel.toplists,
+                                personalizedPlaylists = discoveryViewModel.personalizedPlaylists,
+                                personalizedNewSongs = discoveryViewModel.personalizedNewSongs,
+                                highqualityPlaylists = discoveryViewModel.highqualityPlaylists,
+                                topSongs = discoveryViewModel.topSongs,
+                                isDiscoveryLoading = discoveryViewModel.isDiscoveryLoading,
+                                onToplistClick = { entry ->
+                                    discoveryViewModel.fetchRankingDetail(entry.id)
+                                    navController.navigate("ranking/${entry.id}")
+                                },
+                                onPlaylistClick = { p ->
+                                    userViewModel.fetchPlaylistSongs(p.id)
+                                    navController.navigate("playlist/${p.id}")
+                                },
+                                onSongClick = { s ->
+                                    playbackViewModel.playSong(s, discoveryViewModel.personalizedNewSongs)
+                                    if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                },
+                                onViewAllTopSongs = {
+                                    discoveryViewModel.fetchTopSongs()
+                                },
+                                onBackPressed = { navController.popBackStack() }
+                            )
+                        }
+                        composable("ranking/{playlistId}") { backStackEntry ->
+                            val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+                            RankingDetailScreen(
+                                playlist = discoveryViewModel.rankingDetailMetadata,
+                                songs = discoveryViewModel.rankingDetailSongs,
+                                isLoading = discoveryViewModel.isRankingDetailLoading,
+                                favoriteSongs = userViewModel.favoriteSongs,
+                                onSongClick = { s ->
+                                    playbackViewModel.playSong(s, discoveryViewModel.rankingDetailSongs)
+                                    if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                },
+                                onPlayAllClick = { songs ->
+                                    if (songs.isNotEmpty()) {
+                                        playbackViewModel.playSong(songs[0], songs)
+                                        if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                    }
+                                },
+                                onShufflePlayClick = { songs ->
+                                    if (songs.isNotEmpty()) {
+                                        val shuffled = songs.shuffled()
+                                        playbackViewModel.playSong(shuffled[0], shuffled)
+                                        if (!settingsViewModel.playImmediately) onSetPlayerExpanded(true)
+                                    }
+                                },
+                                onLikeClick = { s ->
+                                    val isLiked = !userViewModel.favoriteSongs.contains(s.id)
+                                    userViewModel.toggleLike(s.id, isLiked)
+                                },
+                                onBackPressed = { navController.popBackStack() }
                             )
                         }
                         composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }

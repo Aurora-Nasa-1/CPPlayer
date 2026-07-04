@@ -34,7 +34,8 @@ fun CommentPage(
     onPostComment: (String) -> Unit,
     onAvatarClick: (Long) -> Unit,
     onSortChange: (Int) -> Unit = {},
-    onViewFloorClick: (Comment) -> Unit = {}
+    onViewFloorClick: (Comment) -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     var commentText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -53,7 +54,7 @@ fun CommentPage(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .navigationBarsPadding()
     ) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -554,7 +555,11 @@ fun PlayerScreen(
                                 onPostComment = onPostComment,
                                 onAvatarClick = onAvatarClick,
                                 onCommentSortChange = onCommentSortChange,
-                                onViewFloorClick = onViewFloorClick
+                                onViewFloorClick = onViewFloorClick,
+                                similarSongs = uiState.similarSongs,
+                                isSimilarSongsLoading = uiState.isSimilarSongsLoading,
+                                onFetchSimilarSongs = callbacks.onFetchSimilarSongs,
+                                onPlaySimilarSong = callbacks.onPlaySimilarSong
                             )
                         }
                     }
@@ -910,7 +915,11 @@ private fun PlayerMobileLayout(
     onPostComment: (String) -> Unit,
     onAvatarClick: (Long) -> Unit,
     onCommentSortChange: (Int) -> Unit,
-    onViewFloorClick: (Comment) -> Unit
+    onViewFloorClick: (Comment) -> Unit,
+    similarSongs: List<Song> = emptyList(),
+    isSimilarSongsLoading: Boolean = false,
+    onFetchSimilarSongs: () -> Unit = {},
+    onPlaySimilarSong: (Song) -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -1240,24 +1249,123 @@ private fun PlayerMobileLayout(
             2 -> {
                 LaunchedEffect(Unit) {
                     onCommentClick()
+                    onFetchSimilarSongs()
                 }
-                CommentPage(
-                    hotComments = hotComments,
-                    newestComments = newestComments,
-                    totalCount = commentTotal,
-                    isLoading = isCommentsLoading,
-                    hasMore = hasMoreComments,
-                    currentSort = commentSortType,
-                    onLoadMore = { onLoadMoreComments() },
-                    onLikeClick = onLikeComment,
-                    onReplyClick = { comment -> onReplyComment(comment) },
-                    onPostComment = onPostComment,
-                    onAvatarClick = onAvatarClick,
-                    onSortChange = onCommentSortChange,
-                    onViewFloorClick = onViewFloorClick
-                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // 相似歌曲区域
+                    if (similarSongs.isNotEmpty() || isSimilarSongsLoading) {
+                        SimilarSongsSection(
+                            songs = similarSongs,
+                            isLoading = isSimilarSongsLoading,
+                            onSongClick = onPlaySimilarSong
+                        )
+                    }
+                    // 评论区域
+                    CommentPage(
+                        hotComments = hotComments,
+                        newestComments = newestComments,
+                        totalCount = commentTotal,
+                        isLoading = isCommentsLoading,
+                        hasMore = hasMoreComments,
+                        currentSort = commentSortType,
+                        onLoadMore = { onLoadMoreComments() },
+                        onLikeClick = onLikeComment,
+                        onReplyClick = { comment -> onReplyComment(comment) },
+                        onPostComment = onPostComment,
+                        onAvatarClick = onAvatarClick,
+                        onSortChange = onCommentSortChange,
+                        onViewFloorClick = onViewFloorClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * 相似歌曲区域 — 水平滚动卡片列表。
+ */
+@Composable
+private fun SimilarSongsSection(
+    songs: List<Song>,
+    isLoading: Boolean,
+    onSongClick: (Song) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = "相似歌曲",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+
+        if (isLoading && songs.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                itemsIndexed(songs) { _, song ->
+                    SimilarSongCard(song = song, onClick = { onSongClick(song) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimilarSongCard(
+    song: Song,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.width(140.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = song.albumArtUrl?.resized(100),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(4.dp))
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = song.artist,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
