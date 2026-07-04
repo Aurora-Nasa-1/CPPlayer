@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -279,12 +280,27 @@ fun AppMainContent(
     snackbarHostState: SnackbarHostState
 ) {
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+        // 全屏展开时驱动主内容下沉的连续进度值
+        val expandProgress by animateFloatAsState(
+            targetValue = if (isPlayerExpanded) 1f else 0f,
+            animationSpec = tween(400, easing = EaseOutCubic),
+            label = "contentSinkProgress"
+        )
+
         Box(
             modifier = Modifier.fillMaxSize()
                 .then(if (!isPlayerExpanded) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
         ) {
-            // MAIN APP NAVIGATION LAYER
-            Row(modifier = Modifier.fillMaxSize()) {
+            // MAIN APP NAVIGATION LAYER — 全屏播放器展开时微量下沉
+            Row(modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val scale = 1f - expandProgress * 0.03f
+                    scaleX = scale
+                    scaleY = scale
+                    translationY = expandProgress * 8f
+                }
+            ) {
                 if (hasBottomBar && !isPlayerExpanded && useSideNav) {
                     // M3 Expressive Navigation Rail
                     NavigationRail(

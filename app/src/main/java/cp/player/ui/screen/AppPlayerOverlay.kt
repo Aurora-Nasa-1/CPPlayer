@@ -9,7 +9,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -171,14 +170,7 @@ fun BoxScope.AppPlayerOverlay(
             fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
         },
         modifier = Modifier
-            .align(if (useSideNav) Alignment.BottomCenter else Alignment.BottomEnd)
-            .graphicsLayer {
-                // 微量下沉：展开时内容略微缩小并下移
-                val scale = 1f - expandProgress * 0.03f
-                scaleX = scale
-                scaleY = scale
-                translationY = expandProgress * 8f
-            },
+            .align(if (useSideNav) Alignment.BottomCenter else Alignment.BottomEnd),
         label = "PlayerTransition"
     ) { expanded ->
         if (expanded) {
