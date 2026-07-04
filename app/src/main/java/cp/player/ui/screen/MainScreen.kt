@@ -55,7 +55,6 @@ import cp.player.viewmodel.DiscoveryViewModel
  * 快速访问项数据类。
  */
 data class QuickAccessItem(
-    val title: String,
     val selectedIcon: @Composable () -> Unit,
     val preview: @Composable () -> Unit,
     val onNavigate: () -> Unit
@@ -179,7 +178,6 @@ fun MainScreen(
                 if (recommendedSongs.isNotEmpty()) {
                     quickAccessItems.add(
                         QuickAccessItem(
-                            title = stringResource(R.string.good_day),
                             selectedIcon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
                             preview = {
                                 SongPreviewList(
@@ -197,7 +195,6 @@ fun MainScreen(
                 if (recommendedSongs.isNotEmpty()) {
                     quickAccessItems.add(
                         QuickAccessItem(
-                            title = stringResource(R.string.made_for_you),
                             selectedIcon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
                             preview = {
                                 SongPreviewList(
@@ -215,7 +212,6 @@ fun MainScreen(
                 if (discoveryViewModel.toplists.isNotEmpty()) {
                     quickAccessItems.add(
                         QuickAccessItem(
-                            title = "发现",
                             selectedIcon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
                             preview = {
                                 DiscoveryPreview(
@@ -236,7 +232,6 @@ fun MainScreen(
                 displayPlaylists.forEach { p ->
                     quickAccessItems.add(
                         QuickAccessItem(
-                            title = p.name,
                             selectedIcon = {
                                 AsyncImage(
                                     model = (p.coverImgUrl ?: "").resized(150),
@@ -272,7 +267,6 @@ fun MainScreen(
                             pageSpacing = 12.dp
                         ) { page ->
                             val item = quickAccessItems[page]
-                            val isSelected = page == pagerState.currentPage
                             var isVisible by remember { mutableStateOf(false) }
 
                             LaunchedEffect(page) {
@@ -293,52 +287,32 @@ fun MainScreen(
                                 )
                             ) {
                                 QuickAccessCard(
-                                    title = item.title,
-                                    icon = {
-                                        // 选中时显示图标，未选中时显示圆点
-                                        if (isSelected) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.primaryContainer,
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    item.selectedIcon()
-                                                }
-                                            }
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(12.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.outline)
-                                            )
-                                        }
-                                    },
                                     previewContent = item.preview,
                                     onArrowClick = item.onNavigate
                                 )
                             }
                         }
 
-                        // 页面指示器
+                        // 页面指示器（显示图标）
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            repeat(quickAccessItems.size) { index ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (index == pagerState.currentPage)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                        )
-                                )
+                            quickAccessItems.forEachIndexed { index, item ->
+                                val isSelected = index == pagerState.currentPage
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier.size(if (isSelected) 44.dp else 36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        item.selectedIcon()
+                                    }
+                                }
                             }
                         }
                     }

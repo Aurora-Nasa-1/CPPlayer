@@ -38,8 +38,6 @@ import cp.player.viewmodel.ToplistEntry
  */
 @Composable
 fun QuickAccessCard(
-    title: String,
-    icon: @Composable () -> Unit,
     previewContent: @Composable () -> Unit,
     onArrowClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -53,35 +51,13 @@ fun QuickAccessCard(
         shape = MaterialTheme.shapes.extraLarge,
         color = cardColor
     ) {
-        Column {
-            // 顶部：图标 + 标题
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 图标（底部指示器选中样式）
-                icon()
-                // 标题
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            // 预览内容
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                previewContent()
-            }
+        // 预览内容
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            previewContent()
         }
     }
 }
