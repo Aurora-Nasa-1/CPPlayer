@@ -4,11 +4,13 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -32,7 +34,10 @@ fun BoxScope.AppPlayerOverlay(
     useSideNav: Boolean,
     hasBottomBar: Boolean,
     bottomBarOffsetHeightPx: MutableState<Float>,
-    sharedTransitionScope: SharedTransitionScope
+    sharedTransitionScope: SharedTransitionScope,
+    navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>> = emptyList(),
+    currentRoute: String? = null,
+    onNavigate: (String) -> Unit = {}
 ) {
     val s = playbackViewModel.currentSong
     val completedSongs by downloadViewModel.completedSongs.collectAsState()
@@ -206,22 +211,91 @@ fun BoxScope.AppPlayerOverlay(
                     .padding(bottom = animatedBottomPadding)
             ) {
                 val progress = if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
-                BottomPlaybackBar(
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = this@AnimatedContent,
-                    song = uiState.song,
-                    isPlaying = uiState.isPlaying,
-                    isBuffering = uiState.isBuffering,
-                    progress = progress,
-                    useWavyProgress = settingsViewModel.wavyProgress,
-                    onPlayPause = callbacks.onPlayPause,
-                    onSkipNext = callbacks.onSkipNext,
-                    onSkipPrevious = callbacks.onSkipPrevious,
-                    onClick = { onSetPlayerExpanded(true) },
-                    useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                    coverColor = uiState.coverColor,
-                    modifier = if (useSideNav) Modifier.widthIn(max = 500.dp) else Modifier
-                )
+                if (useSideNav) {
+                    // 横屏：mini 播放器 + 导航胶囊水平排列
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        BottomPlaybackBar(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = this@AnimatedContent,
+                            song = uiState.song,
+                            isPlaying = uiState.isPlaying,
+                            isBuffering = uiState.isBuffering,
+                            progress = progress,
+                            useWavyProgress = settingsViewModel.wavyProgress,
+                            onPlayPause = callbacks.onPlayPause,
+                            onSkipNext = callbacks.onSkipNext,
+                            onSkipPrevious = callbacks.onSkipPrevious,
+                            onClick = { onSetPlayerExpanded(true) },
+                            useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                            coverColor = uiState.coverColor,
+                            modifier = Modifier.widthIn(max = 500.dp).weight(1f, fill = false)
+                        )
+                        NavigationCapsule(
+                            navItems = navItems,
+                            currentRoute = currentRoute,
+                            onNavigate = onNavigate
+                        )
+                    }
+                } else {
+                    // 竖屏：仅 mini 播放器
+                    BottomPlaybackBar(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = this@AnimatedContent,
+                        song = uiState.song,
+                        isPlaying = uiState.isPlaying,
+                        isBuffering = uiState.isBuffering,
+                        progress = progress,
+                        useWavyProgress = settingsViewModel.wavyProgress,
+                        onPlayPause = callbacks.onPlayPause,
+                        onSkipNext = callbacks.onSkipNext,
+                        onSkipPrevious = callbacks.onSkipPrevious,
+                        onClick = { onSetPlayerExpanded(true) },
+                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                        coverColor = uiState.coverColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 横屏时替代 NavigationRail 的紧凑导航胶囊 */
+@Composable
+private fun NavigationCapsule(
+    navItems: List<Triple<String, String, ImageVector>>,
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+        modifier = modifier.padding(start = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            navItems.forEach { (route, _, icon) ->
+                val isSelected = currentRoute == route
+                IconButton(
+                    onClick = { onNavigate(route) },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = route,
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }

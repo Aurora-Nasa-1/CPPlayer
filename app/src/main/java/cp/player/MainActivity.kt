@@ -129,6 +129,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(
     loginViewModel: LoginViewModel,
@@ -163,9 +164,9 @@ fun AppNavigation(
     val navItems = listOf(Triple("main", navHome, Icons.Filled.Home), Triple("search", navSearch, Icons.Filled.Search), Triple("library", navLibrary, Icons.Filled.LibraryMusic))
     val topLevelRoutes = navItems.map { it.first }
     val isTopLevel = currentDestination?.route in topLevelRoutes
-    val hasBottomBar = showNav && isTopLevel // Show bottom bar only on top-level routes
+    val hasBottomBar = showNav && isTopLevel // 仅在顶层路由显示导航项
     val hasMiniPlayer = playbackViewModel.currentSong != null
-    
+
     // Calculate total bottom padding needed for screens (Mini player + Navigation Bar)
     val bottomBarHeight = when {
         hasBottomBar && hasMiniPlayer -> 150.dp
@@ -173,7 +174,7 @@ fun AppNavigation(
         !hasBottomBar && hasMiniPlayer -> 80.dp // Only mini player
         else -> 0.dp
     }
-    
+
     val density = LocalDensity.current
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
     val navBarHeightPx = with(density) { 90.dp.toPx() }
@@ -301,42 +302,7 @@ fun AppMainContent(
                     translationY = expandProgress * 8f
                 }
             ) {
-                if (hasBottomBar && !isPlayerExpanded && useSideNav) {
-                    // M3 Expressive Navigation Rail
-                    NavigationRail(
-                        modifier = Modifier
-                            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp)
-                            .clip(MaterialTheme.shapes.extraLarge)
-                            .width(88.dp),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ) {
-                        Spacer(Modifier.height(32.dp))
-                        navItems.forEach { (route, label, icon) ->
-                            val isSelected =
-                                currentDestination?.hierarchy?.any { it.route == route } == true
-                            NavigationRailItem(
-                                icon = { Icon(icon, contentDescription = label) },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                                selected = isSelected,
-                                onClick = {
-                                    navController.navigate(route) {
-                                        popUpTo("main") {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                colors = NavigationRailItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
-                                )
-                            )
-                        }
-                    }
-                }
+                // 横屏时不再显示 NavigationRail，改为在 mini 播放器右侧显示导航胶囊
 
                 Box(modifier = Modifier.weight(1f).fillMaxHeight().padding(top = 0.dp)) {
                     NavHost(
@@ -689,7 +655,8 @@ fun AppMainContent(
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
-                                )
+                                ),
+                                useSideNav = useSideNav
                             )
                         }
                         composable("album/{albumId}") { backStackEntry ->
@@ -751,7 +718,8 @@ fun AppMainContent(
                                 bottomContentPadding = PaddingValues(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
-                                )
+                                ),
+                                useSideNav = useSideNav
                             )
                         }
                         composable("messages") {
@@ -921,7 +889,8 @@ fun AppMainContent(
                                     top = innerPadding.calculateTopPadding(),
                                     bottom = bottomBarHeight
                                 ),
-                                isPlayerExpanded = isPlayerExpanded
+                                isPlayerExpanded = isPlayerExpanded,
+                                useSideNav = useSideNav
                             )
                         }
                         composable("discover") {
@@ -992,9 +961,10 @@ fun AppMainContent(
                         composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }
                     }
                 }
+
             } // Close Main Row
 
-            // PLAYER OVERLAY (Replaces NavHost routing for "player")
+            // 竖屏播放器覆盖层（保持原有 scrim + 全屏展开逻辑）
             if (playbackViewModel.currentSong != null) {
                 AppPlayerOverlay(
                     playbackViewModel = playbackViewModel,
@@ -1008,7 +978,16 @@ fun AppMainContent(
                     useSideNav = useSideNav,
                     hasBottomBar = hasBottomBar,
                     bottomBarOffsetHeightPx = bottomBarOffsetHeightPx,
-                    sharedTransitionScope = this@SharedTransitionLayout
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    navItems = navItems,
+                    currentRoute = currentDestination?.route,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo("main") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
 
