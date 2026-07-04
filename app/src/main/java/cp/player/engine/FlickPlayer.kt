@@ -548,16 +548,15 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             while (isActive && isDownloading && !downloadComplete) {
                 delay(UNDERRUN_POLL_MS)
 
-                // 计算恢复播放所需的最小下载量：
-                // 必须确保 Seek 目标位置的数据已经下载到文件中，
-                // 否则 play() 重启解码器后 seek() 到未下载位置会再次失败（从头播放）。
-                val targetBytes = if (lastBitrate > 0) {
-                    // Seek 位置对应的字节 + 5秒安全缓冲
-                    (lastBitrate.toLong() * (positionToRecover + TARGET_PRE_BUFFER_SECS * 1000L)) / 8000
+                // 计算恢复播放所需的最小下载量
+                // 使用更宽松的阈值：只需确保目标位置有数据 + 少量安全缓冲
+                val safetyBytes = MIN_PRE_BUFFER_BYTES  // 240KB 安全缓冲
+                val targetBytes = if (lastBitrate > 0 && positionToRecover > 0) {
+                    // 目标位置对应的字节 + 安全缓冲
+                    (lastBitrate.toLong() * positionToRecover) / 8000 + safetyBytes
                 } else {
-                    // bitrate 未知：使用已下载数据量 + 预缓冲量作为恢复阈值。
-                    // 避免 Long.MAX_VALUE 导致永远等不到恢复（流式播放不需要等整首歌下载完）。
-                    underrunAtBytes + MIN_PRE_BUFFER_BYTES
+                    // bitrate 未知：只需比 underrun 时多下载一些
+                    underrunAtBytes + safetyBytes
                 }
 
                 if (bytesDownloaded > targetBytes) {
@@ -859,7 +858,6 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         positionMs: Long,
         seekCommand: Int
     ): ListenableFuture<*> {
-        // 如果用户执行了 Seek，并且 playWhenReady 是 true，我们认为用户希望继续播放
         if (playWhenReady) {
             pauseRequested = false
         }
@@ -871,36 +869,62 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         } else {
             lastSeekTimeMs.set(System.currentTimeMillis())
 
-            // 流媒体播放中 Seek：保持 bufferingActive，标记等待数据
-            // Rust 引擎 Seek 后会立即发送 "Playing"（解码器已创建），
-            // 但如果 Seek 目标超出已下载范围，解码器无法产出有效音频。
-            // 通过 seekDuringStreaming 标志延迟接受 "Playing"，直到收到进度事件。
             if (isDownloading && !downloadComplete) {
-                bufferingActive = true
-                seekDuringStreaming = true
-                isPlaying = false
-                playbackState = Player.STATE_BUFFERING
-                underrunWatchJob?.cancel()
-                seekWatchdogJob?.cancel()
-            }
+                // 流媒体 Seek：先检查目标位置是否已下载
+                val targetSecs = targetPosition / 1000.0
+                val targetBytes = estimateBytePosition(targetPosition)
 
-            // JNI 调用移到引擎线程
-            val seekPosMs = targetPosition
-            scope.launch(Dispatchers.IO) {
-                RustEngine.seek(seekPosMs / 1000.0)
-            }
-            updatePosition(targetPosition)
+                if (targetBytes > 0 && targetBytes > bytesDownloaded) {
+                    // 目标位置未下载 → 进入缓冲等待，下载到位后再 seek
+                    Log.i(TAG, "Seek to ${targetPosition}ms (byte $targetBytes) beyond downloaded ($bytesDownloaded), waiting for data")
+                    bufferingActive = true
+                    seekDuringStreaming = true
+                    underrunPositionMs = targetPosition
+                    isPlaying = false
+                    playbackState = Player.STATE_BUFFERING
+                    underrunWatchJob?.cancel()
+                    seekWatchdogJob?.cancel()
+                    updatePosition(targetPosition)
+                    startUnderrunWatch()
+                } else {
+                    // 目标位置已下载 → 直接 seek
+                    Log.d(TAG, "Seek to ${targetPosition}ms within downloaded range, seeking directly")
+                    bufferingActive = true
+                    seekDuringStreaming = true
+                    isPlaying = false
+                    playbackState = Player.STATE_BUFFERING
+                    underrunWatchJob?.cancel()
+                    seekWatchdogJob?.cancel()
 
-            // 流媒体 Seek 后恢复看门狗：
-            // Rust 引擎对正在写入的文件执行 Seek 可能失败（静默暂停），
-            // 导致 playWhenReady=true 但 isPlaying=false，UI 显示播放但无声音。
-            // 1.5s 后检测：若 playWhenReady 且引擎未在播放，强制 stop+play+seek 恢复。
-            if (isDownloading && !downloadComplete) {
-                startSeekRecoveryWatchdog(seekPosMs)
+                    scope.launch(Dispatchers.IO) {
+                        RustEngine.seek(targetSecs)
+                    }
+                    updatePosition(targetPosition)
+                    startSeekRecoveryWatchdog(targetPosition)
+                }
+            } else {
+                // 本地文件或下载完成 → 直接 seek
+                scope.launch(Dispatchers.IO) {
+                    RustEngine.seek(targetPosition / 1000.0)
+                }
+                updatePosition(targetPosition)
             }
         }
         invalidateState()
         return Futures.immediateVoidFuture()
+    }
+
+    /**
+     * 根据 positionMs 估算对应的字节位置。
+     * 用于判断 seek 目标是否已下载。
+     */
+    private fun estimateBytePosition(positionMs: Long): Long {
+        if (durationMs <= 0 || bytesDownloaded <= 0) return 0
+        // 使用已下载数据量和当前播放位置来估算字节/毫秒比率
+        val currentPosMs = currentPositionMs.get()
+        if (currentPosMs <= 0) return 0
+        val bytesPerMs = bytesDownloaded.toDouble() / currentPosMs.coerceAtLeast(1)
+        return (bytesPerMs * positionMs).toLong()
     }
 
     override fun handleStop(): ListenableFuture<*> {
