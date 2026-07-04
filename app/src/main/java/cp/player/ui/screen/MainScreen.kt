@@ -235,7 +235,11 @@ fun MainScreen(
                 }
 
                 if (quickAccessItems.isNotEmpty()) {
-                    val pagerState = androidx.compose.foundation.pager.rememberPagerState { quickAccessItems.size }
+                    // 默认展示第二项（索引1），只有一项时展示第一项
+                    val initialPage = if (quickAccessItems.size > 1) 1 else 0
+                    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+                        initialPage = initialPage
+                    ) { quickAccessItems.size }
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -268,7 +272,8 @@ fun MainScreen(
                             }
                         }
 
-                        // 底部状态指示器（固定高度，避免颠簸）
+                        // 底部状态指示器（仅多项时显示）
+                        if (quickAccessItems.size > 1) {
                         Box(
                             modifier = Modifier
                                 .height(48.dp)
@@ -306,6 +311,7 @@ fun MainScreen(
                                 }
                             }
                         }
+                        } // if quickAccessItems.size > 1
                     }
                 }
             }
