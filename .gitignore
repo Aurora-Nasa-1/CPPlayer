@@ -46,3 +46,4 @@ obj/
 # Sentry Config File
 sentry.properties
 sentry-wizard
+.kotlin/
