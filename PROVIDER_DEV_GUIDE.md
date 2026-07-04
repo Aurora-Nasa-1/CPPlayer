@@ -456,7 +456,38 @@ nativeCallApi(mappedMethod, paramsJson)
 | `msg/private/mark/read` | 标记已读 | `uid`, `cookie` |
 | `send/text` | 发送消息 | `user_ids`, `msg`, `cookie` |
 
-### 7.8 模块设置（自定义界面）
+### 7.8 排行榜 & 音乐发现
+
+| API 方法名 | 说明 | 参数 |
+|-----------|------|------|
+| `toplist` | 所有榜单列表 | 无 |
+| `toplist_detail` | 所有榜单内容摘要 | 无 |
+| `top_song` | 新歌速递 | `type` (0=全部, 7=华语, 96=欧美, 8=日本, 16=韩国) |
+| `top_album` | 新碟上架 | `area` (ALL/ZH/EA/KR/JP), `limit`, `offset` |
+| `top_artists` | 热门歌手 | `limit`, `offset` |
+| `top_playlist` | 热门歌单（网友精选碟） | `order` (new/hot), `cat` (分类标签), `limit`, `offset` |
+| `top_playlist_highquality` | 精品歌单 | `cat`, `limit`, `before` |
+| `personalized` | 推荐歌单（无需登录） | `limit` |
+| `personalized_newsong` | 推荐新音乐 | `limit` |
+| `banner` | 首页 Banner 轮播图 | `type` (0=pc, 1=android, 2=iphone, 3=ipad) |
+| `history_recommend_songs` | 历史日推可用日期列表 | `cookie` |
+| `history_recommend_songs_detail` | 历史日推详情 | `date`, `cookie` |
+
+### 7.9 相似推荐
+
+| API 方法名 | 说明 | 参数 |
+|-----------|------|------|
+| `simi_song` | 相似歌曲 | `id` |
+| `simi_artist` | 相似歌手 | `id` |
+| `simi_playlist` | 相似歌单 | `id` |
+
+### 7.10 签到
+
+| API 方法名 | 说明 | 参数 |
+|-----------|------|------|
+| `daily/signin` | 每日签到 | `type` (0=安卓, 1=web), `cookie` |
+
+### 7.11 模块设置（自定义界面）
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|

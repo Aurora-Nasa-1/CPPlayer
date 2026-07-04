@@ -75,6 +75,7 @@ All extend [BaseViewModel.kt](app/src/main/java/cp/player/viewmodel/BaseViewMode
 - [SettingsViewModel.kt](app/src/main/java/cp/player/viewmodel/SettingsViewModel.kt) — Preferences
 - [DownloadViewModel.kt](app/src/main/java/cp/player/viewmodel/DownloadViewModel.kt) — Downloads
 - [SocialViewModel.kt](app/src/main/java/cp/player/viewmodel/SocialViewModel.kt) — Comments, messaging
+- [DiscoveryViewModel.kt](app/src/main/java/cp/player/viewmodel/DiscoveryViewModel.kt) — Rankings, personalized playlists, new songs
 
 ## UI Screens
 
@@ -90,6 +91,8 @@ All extend [BaseViewModel.kt](app/src/main/java/cp/player/viewmodel/BaseViewMode
 - [CloudMusicScreen.kt](app/src/main/java/cp/player/ui/screen/CloudMusicScreen.kt) — Cloud music
 - [SetupScreen.kt](app/src/main/java/cp/player/ui/screen/SetupScreen.kt) — First-run setup
 - [ChatScreen.kt](app/src/main/java/cp/player/ui/screen/ChatScreen.kt) — Messaging
+- [DiscoveryScreen.kt](app/src/main/java/cp/player/ui/screen/DiscoveryScreen.kt) — Rankings, recommended playlists, new songs
+- [RankingDetailScreen.kt](app/src/main/java/cp/player/ui/screen/RankingDetailScreen.kt) — Ranking detail with song list
 
 ## Rust Native (`app/src/main/rust/`)
 
