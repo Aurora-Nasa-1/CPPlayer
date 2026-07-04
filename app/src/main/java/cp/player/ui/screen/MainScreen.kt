@@ -626,28 +626,19 @@ fun DailyMixCard(
                     }
                 }
 
-                // ═══ 专辑墙：不规则马赛克布局（仅 1×1 和 2×2），统一间隙 ═══
+                // ═══ 专辑墙：不规则马赛克布局（仅 1×1 和 2×2），12 块，统一间隙 ═══
+                // 6 列 4 行，4 个 2×2 + 8 个 1×1 = 12 块
                 data class MosaicTile(val col: Int, val row: Int, val span: Int, val urlIndex: Int)
 
                 val gridCols = 6
-                val gridRows = 6
+                val gridRows = 4
                 val tiles = listOf(
-                    // 2×2 大封面散布各处，其余填 1×1
                     MosaicTile(0, 0, 2, 0),  MosaicTile(2, 0, 1, 1),  MosaicTile(3, 0, 1, 2),
-                    MosaicTile(4, 0, 1, 3),  MosaicTile(5, 0, 1, 4),
-                    /* row1 */                MosaicTile(2, 1, 1, 5),  MosaicTile(3, 1, 1, 6),
-                    MosaicTile(4, 1, 2, 7),  // 2×2
-                    MosaicTile(0, 2, 1, 8),  MosaicTile(1, 2, 1, 9),  MosaicTile(2, 2, 2, 10), // 2×2
-                    /* row3 */                MosaicTile(4, 2, 1, 12), MosaicTile(5, 2, 1, 13),
-                    MosaicTile(0, 3, 2, 14), // 2×2
-                    /* row3 */                MosaicTile(2, 3, 1, 16), MosaicTile(3, 3, 1, 17),
-                    MosaicTile(4, 3, 1, 18), MosaicTile(5, 3, 1, 19),
-                    MosaicTile(0, 4, 1, 20), MosaicTile(1, 4, 1, 21), MosaicTile(2, 4, 1, 22),
-                    MosaicTile(3, 4, 2, 23), // 2×2
-                    /* row5 */                MosaicTile(5, 4, 1, 25),
-                    MosaicTile(0, 5, 1, 26), MosaicTile(1, 5, 2, 27), // 2×2
-                    /* row5 */                MosaicTile(3, 5, 1, 29), MosaicTile(4, 5, 1, 30),
-                    MosaicTile(5, 5, 1, 31),
+                    MosaicTile(4, 0, 2, 3),
+                    MosaicTile(2, 1, 1, 4),  MosaicTile(3, 1, 1, 5),
+                    MosaicTile(0, 2, 1, 6),  MosaicTile(1, 2, 1, 7),  MosaicTile(2, 2, 2, 8),
+                    MosaicTile(4, 2, 1, 9),
+                    MosaicTile(0, 3, 2, 10), MosaicTile(4, 3, 1, 11),
                 )
 
                 val cellSize = 62.dp
