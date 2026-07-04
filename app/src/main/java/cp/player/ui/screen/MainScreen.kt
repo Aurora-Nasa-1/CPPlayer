@@ -31,6 +31,9 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
@@ -44,6 +47,21 @@ import cp.player.ui.component.UserAccountDialog
 import cp.player.ui.component.SongItem
 import cp.player.ui.component.SongCard
 import cp.player.ui.component.AppScaffold
+import cp.player.ui.component.QuickAccessCard
+import cp.player.ui.component.SongPreviewList
+import cp.player.ui.component.PlaylistPreview
+import cp.player.ui.component.DiscoveryPreview
+import cp.player.viewmodel.DiscoveryViewModel
+
+/**
+ * 快速访问项数据类。
+ */
+data class QuickAccessItem(
+    val title: String,
+    val icon: @Composable () -> Unit,
+    val preview: @Composable () -> Unit,
+    val onNavigate: () -> Unit
+)
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -53,6 +71,7 @@ fun MainScreen(
     userPlaylists: List<Playlist>,
     userProfile: UserProfile?,
     loginViewModel: cp.player.viewmodel.LoginViewModel,
+    discoveryViewModel: DiscoveryViewModel,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onPersonalFmClick: () -> Unit,
@@ -153,7 +172,7 @@ fun MainScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 快速访问区域
+            // 快速访问区域 - 分页卡片
             item {
                 Column {
                     Text(
@@ -162,34 +181,62 @@ fun MainScreen(
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
                     )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        item {
-                            FavoriteCircleItem(
-                                title = stringResource(R.string.good_day),
-                                icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
-                                onClick = onPersonalFmClick
-                            )
-                        }
-                        item {
-                            FavoriteCircleItem(
-                                title = stringResource(R.string.made_for_you),
-                                icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
-                                onClick = onHeartbeatClick
-                            )
-                        }
-                        item {
-                            FavoriteCircleItem(
-                                title = "发现",
-                                icon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
-                                onClick = onNavigateToDiscover
-                            )
-                        }
-                        val displayPlaylists = userPlaylists.take(5)
-                        items(displayPlaylists) { p ->
-                            FavoriteCircleItem(
+
+                    // 准备快速访问项数据
+                    val quickAccessItems = mutableListOf<QuickAccessItem>()
+
+                    // 每日推荐
+                    quickAccessItems.add(
+                        QuickAccessItem(
+                            title = stringResource(R.string.good_day),
+                            icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
+                            preview = {
+                                SongPreviewList(
+                                    songs = recommendedSongs.take(3),
+                                    onSongClick = onSongClick
+                                )
+                            },
+                            onNavigate = onPersonalFmClick
+                        )
+                    )
+
+                    // 为你推荐
+                    quickAccessItems.add(
+                        QuickAccessItem(
+                            title = stringResource(R.string.made_for_you),
+                            icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
+                            preview = {
+                                SongPreviewList(
+                                    songs = recommendedSongs.take(3),
+                                    onSongClick = onSongClick
+                                )
+                            },
+                            onNavigate = onHeartbeatClick
+                        )
+                    )
+
+                    // 发现
+                    quickAccessItems.add(
+                        QuickAccessItem(
+                            title = "发现",
+                            icon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
+                            preview = {
+                                DiscoveryPreview(
+                                    toplists = discoveryViewModel.toplists,
+                                    onToplistClick = { playlistId ->
+                                        // 这里可以导航到榜单详情，暂时跳过
+                                    }
+                                )
+                            },
+                            onNavigate = onNavigateToDiscover
+                        )
+                    )
+
+                    // 用户歌单
+                    val displayPlaylists = userPlaylists.take(5)
+                    displayPlaylists.forEach { p ->
+                        quickAccessItems.add(
+                            QuickAccessItem(
                                 title = p.name,
                                 icon = {
                                     AsyncImage(
@@ -199,8 +246,78 @@ fun MainScreen(
                                         contentScale = ContentScale.Crop
                                     )
                                 },
-                                onClick = { onPlaylistClick(p) }
+                                preview = {
+                                    PlaylistPreview(
+                                        playlist = p,
+                                        onClick = { onPlaylistClick(p) }
+                                    )
+                                },
+                                onNavigate = { onPlaylistClick(p) }
                             )
+                        )
+                    }
+
+                    // HorizontalPager 实现分页滑动
+                    val pagerState = androidx.compose.foundation.pager.rememberPagerState { quickAccessItems.size }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        androidx.compose.foundation.pager.HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            pageSpacing = 12.dp
+                        ) { page ->
+                            val item = quickAccessItems[page]
+                            var isVisible by remember { mutableStateOf(false) }
+
+                            LaunchedEffect(page) {
+                                kotlinx.coroutines.delay(50L * page)
+                                isVisible = true
+                            }
+
+                            AnimatedVisibility(
+                                visible = isVisible,
+                                enter = slideInVertically(
+                                    initialOffsetY = { it / 2 },
+                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
+                                ) + fadeIn(
+                                    animationSpec = tween(durationMillis = 400)
+                                ) + scaleIn(
+                                    initialScale = 0.9f,
+                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
+                                )
+                            ) {
+                                QuickAccessCard(
+                                    title = item.title,
+                                    icon = item.icon,
+                                    previewContent = item.preview,
+                                    onArrowClick = item.onNavigate
+                                )
+                            }
+                        }
+
+                        // 页面指示器
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            repeat(quickAccessItems.size) { index ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (index == pagerState.currentPage) 10.dp else 8.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (index == pagerState.currentPage)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                        )
+                                )
+                            }
                         }
                     }
                 }
@@ -319,35 +436,6 @@ fun MainScreen(
             },
             onDownloadClick = onDownloadClick?.let { dl -> { dl(song) } }
         )
-    }
-}
-
-@Composable
-fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (androidx.compose.foundation.isSystemInDarkTheme())
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        else MaterialTheme.colorScheme.surfaceContainerLowest,
-        modifier = Modifier.height(48.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(28.dp)) {
-                icon()
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
     }
 }
 

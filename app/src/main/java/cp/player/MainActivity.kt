@@ -366,6 +366,10 @@ fun AppMainContent(
                                 if (userViewModel.recommendedSongs.isEmpty()) userViewModel.fetchUserData() else {
                                     socialViewModel.fetchUnreadCount(); socialViewModel.fetchContacts()
                                 }
+                                // 加载发现页数据用于快速访问预览
+                                if (discoveryViewModel.toplists.isEmpty()) {
+                                    discoveryViewModel.fetchToplist()
+                                }
                             }
                             // 登录状态变化时刷新用户数据（登录成功后自动加载）
                             LaunchedEffect(loginViewModel.isLogged) {
@@ -384,6 +388,7 @@ fun AppMainContent(
                                 userPlaylists = userViewModel.userPlaylists,
                                 userProfile = userViewModel.userProfile,
                                 loginViewModel = loginViewModel,
+                                discoveryViewModel = discoveryViewModel,
                                 onSongClick = { s ->
                                     playbackViewModel.playSong(
                                         s,
