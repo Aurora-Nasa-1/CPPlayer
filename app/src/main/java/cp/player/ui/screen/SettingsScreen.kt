@@ -137,7 +137,8 @@ fun SettingsScreen(
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
-    isPlayerExpanded: Boolean = false
+    isPlayerExpanded: Boolean = false,
+    useSideNav: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -188,7 +189,61 @@ fun SettingsScreen(
         scrollBehavior = scrollBehavior,
         containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) { innerPadding ->
-        AnimatedContent(
+        Row(modifier = Modifier.fillMaxSize()) {
+            // 横屏：左侧分类导航列表
+            if (useSideNav) {
+                Column(
+                    modifier = Modifier
+                        .width(280.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 16.dp, end = 8.dp, top = innerPadding.calculateTopPadding(), bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    val navCategories = listOf(
+                        R.string.appearance to SettingsPage.Appearance,
+                        R.string.playback_quality_cat to SettingsPage.Audio,
+                        R.string.settings_ui_logic to SettingsPage.UiLogic,
+                        R.string.storage_cache to SettingsPage.StorageDownload,
+                        R.string.debug to SettingsPage.Debug,
+                        R.string.provider_management to SettingsPage.Provider,
+                        R.string.about to SettingsPage.About,
+                        R.string.sponsor to SettingsPage.Sponsor
+                    )
+                    navCategories.forEachIndexed { index, (titleRes, page) ->
+                        ListItem(
+                            headlineContent = { Text(stringResource(titleRes)) },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = when (page) {
+                                        SettingsPage.Appearance -> Icons.Default.Palette
+                                        SettingsPage.Audio -> Icons.Default.Audiotrack
+                                        SettingsPage.UiLogic -> Icons.Default.TouchApp
+                                        SettingsPage.StorageDownload -> Icons.Default.Storage
+                                        SettingsPage.Debug -> Icons.Default.BugReport
+                                        SettingsPage.Provider -> Icons.Default.Extension
+                                        SettingsPage.About -> Icons.Default.HelpOutline
+                                        SettingsPage.Sponsor -> Icons.Default.Favorite
+                                        else -> Icons.Default.Settings
+                                    },
+                                    contentDescription = null
+                                )
+                            },
+                            colors = ListItemDefaults.colors(
+                                containerColor = if (currentScreen == page)
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                else Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { currentScreenId = page.id }
+                        )
+                    }
+                }
+            }
+            // 右侧/全屏：详情内容（原有 AnimatedContent）
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            AnimatedContent(
             targetState = currentScreen,
             contentKey = { it.id },
             transitionSpec = {
@@ -966,8 +1021,10 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
             }
         }
-    }
-}
+            } // Box (AnimatedContent 容器)
+        } // Row
+    } // AppScaffold
+} // SettingsScreen
 
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {

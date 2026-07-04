@@ -4,6 +4,8 @@ import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -71,7 +73,8 @@ fun PlaylistDetailScreen(
     onSubscribeClick: (() -> Unit)? = null,
     onUnsubscribeClick: (() -> Unit)? = null,
     onBackPressed: () -> Unit,
-    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp),
+    useSideNav: Boolean = false
 ) {
     val scrollState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(scrollState)
@@ -270,11 +273,72 @@ fun PlaylistDetailScreen(
             },
             scrollBehavior = scrollBehavior
         ) { innerPadding ->
-            PlaylistDetailContent(
-                innerPadding = innerPadding,
-                bottomContentPadding = bottomContentPadding,
-                isLoading = isLoading,
-                songs = sortedSongs,
+            if (useSideNav) {
+                // 横屏多面板：左侧歌单信息 + 右侧歌曲列表
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // 左侧：歌单信息面板
+                    Column(
+                        modifier = Modifier
+                            .width(360.dp)
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState())
+                            .padding(top = innerPadding.calculateTopPadding(), bottom = 16.dp, start = 16.dp, end = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(Modifier.height(16.dp))
+                        Surface(
+                            modifier = Modifier.size(200.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shadowElevation = 8.dp
+                        ) {
+                            if (playlist.coverImgUrl != null) {
+                                AsyncImage(
+                                    model = playlist.coverImgUrl.resized(600),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        val displayCount = if (playlist.trackCount > 0) playlist.trackCount else sortedSongs.size
+                        Text(
+                            text = "${stringResource(R.string.song_count_simple, displayCount)} • $durationStr",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        PlaylistHeader(
+                            playlist = playlist,
+                            songs = sortedSongs,
+                            durationStr = durationStr,
+                            onPlayAllClick = { onPlayAllClick(sortedSongs) },
+                            onShuffleClick = { onPlayAllClick(sortedSongs.shuffled()) },
+                            onAddClick = { showImportSourceOptions = true },
+                            onReorderClick = { isSelectionMode = true }
+                        )
+                    }
+                    // 右侧：歌曲列表
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    PlaylistDetailContent(
+                        innerPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+                        bottomContentPadding = bottomContentPadding,
+                        isLoading = isLoading,
+                        songs = sortedSongs,
                 hasMoreSongs = hasMoreSongs,
                 isFetchingMore = isFetchingMore,
                 onLoadMore = onLoadMore,
@@ -298,6 +362,39 @@ fun PlaylistDetailScreen(
                 onAddToPlaylistClick = { showImportSourceOptions = true },
                 onBatchDownload = onBatchDownload
             )
+                    } // Box
+                } // Row
+            } else {
+                // 竖屏：原有全屏布局
+                PlaylistDetailContent(
+                    innerPadding = innerPadding,
+                    bottomContentPadding = bottomContentPadding,
+                    isLoading = isLoading,
+                    songs = sortedSongs,
+                    hasMoreSongs = hasMoreSongs,
+                    isFetchingMore = isFetchingMore,
+                    onLoadMore = onLoadMore,
+                    playlist = playlist,
+                    isSelectionMode = isSelectionMode,
+                    selectedSongs = selectedSongs,
+                    favoriteSongs = favoriteSongsSet,
+                    completedSongs = completedSongs,
+                    currentSongId = currentSongId,
+                    durationStr = durationStr,
+                    onPlayAllClick = onPlayAllClick,
+                    onLikeClick = onLikeClick,
+                    onSongClick = onSongClick,
+                    onSelectionChange = { id, selected ->
+                        selectedSongs = if (selected) selectedSongs + id else selectedSongs - id
+                    },
+                    onToggleSelectionMode = {
+                        isSelectionMode = it
+                        if (!it) selectedSongs = emptySet()
+                    },
+                    onAddToPlaylistClick = { showImportSourceOptions = true },
+                    onBatchDownload = onBatchDownload
+                )
+            }
         }
     }
 
