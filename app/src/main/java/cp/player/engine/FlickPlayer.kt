@@ -300,6 +300,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 playbackState = Player.STATE_READY
                 positionUpdateTimeMs.set(System.currentTimeMillis())
                 invalidateState()
+                startPositionPolling()
 
                 // 流媒体 Seek 看门狗：检测解码器是否卡在未下载位置
                 if (seekDuringStreaming && isDownloading && !downloadComplete) {
@@ -322,6 +323,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 pauseRequested = false
                 isPlaying = false
                 playbackState = Player.STATE_READY
+                stopPositionPolling()
                 invalidateState()
             }
             "stopped", "idle" -> {
@@ -333,6 +335,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
                 bufferingActive = false
                 isPlaying = false
                 playbackState = Player.STATE_IDLE
+                stopPositionPolling()
                 invalidateState()
             }
             "buffering" -> {
@@ -588,6 +591,34 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     // Position / Progress
     // ═══════════════════════════════════════════════
 
+    /** 位置更新协程，每50ms从Rust引擎轮询进度 */
+    private var positionPollJob: Job? = null
+
+    private fun startPositionPolling() {
+        positionPollJob?.cancel()
+        positionPollJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                if (isPlaying && playbackState == Player.STATE_READY) {
+                    val progress = RustEngine.getProgress()
+                    if (progress != null) {
+                        val newPos = (progress.positionSecs * 1000).toLong()
+                        if (newPos >= 0) {
+                            currentPositionMs.set(newPos)
+                            positionUpdateTimeMs.set(System.currentTimeMillis())
+                            withContext(Dispatchers.Main) { invalidateState() }
+                        }
+                    }
+                }
+                delay(50)
+            }
+        }
+    }
+
+    private fun stopPositionPolling() {
+        positionPollJob?.cancel()
+        positionPollJob = null
+    }
+
     private fun updatePosition(newPos: Long) {
         currentPositionMs.set(newPos)
         positionUpdateTimeMs.set(System.currentTimeMillis())
@@ -693,15 +724,8 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             stateBuilder.setPlaylist(mediaItemDataList)
             stateBuilder.setCurrentMediaItemIndex(currentMediaItemIndex)
             stateBuilder.setContentPositionMs {
-                if (isPlaying && playbackState == Player.STATE_READY) {
-                    val elapsed = System.currentTimeMillis() - positionUpdateTimeMs.get()
-                    // 限制插值上限为 300ms，避免位置领先于实际音频输出
-                    // 同时保持足够的插值使进度条平滑更新
-                    val cappedElapsed = elapsed.coerceAtMost(300L)
-                    currentPositionMs.get() + cappedElapsed
-                } else {
-                    currentPositionMs.get()
-                }
+                // 位置由 positionPollJob 每50ms从Rust引擎轮询更新，不再插值
+                currentPositionMs.get()
             }
         } else {
             stateBuilder.setPlaylist(emptyList())
@@ -748,6 +772,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             underrunWatchJob?.cancel()
             seekWatchdogJob?.cancel()
             pauseRequested = true
+            stopPositionPolling()
             scope.launch(Dispatchers.IO) { RustEngine.pause() }
         }
         invalidateState()
@@ -888,6 +913,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         playbackState = Player.STATE_IDLE
         isPlaying = false
         cancelPreCache()
+        stopPositionPolling()
         invalidateState()
         return Futures.immediateVoidFuture()
     }
@@ -901,6 +927,7 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         seekRecoveryJob?.cancel()
         stateReconcileJob?.cancel()
         preCacheJob?.cancel()
+        stopPositionPolling()
         scope.launch(Dispatchers.IO) { RustEngine.stopEngine() }
         return Futures.immediateVoidFuture()
     }
