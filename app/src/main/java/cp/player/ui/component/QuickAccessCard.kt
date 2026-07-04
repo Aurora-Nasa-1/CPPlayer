@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -49,22 +47,17 @@ fun QuickAccessCard(
     else MaterialTheme.colorScheme.surfaceContainerLow
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 180.dp, max = 220.dp),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
         color = cardColor
     ) {
-        // 预览内容（可滚动）
-        androidx.compose.foundation.rememberScrollState().let { scrollState ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(vertical = 16.dp)
-            ) {
-                previewContent()
-            }
+        // 预览内容
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+        ) {
+            previewContent()
         }
     }
 }

@@ -35,6 +35,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import coil3.compose.AsyncImage
 import cp.player.R
 import cp.player.util.resized
@@ -253,38 +254,44 @@ fun MainScreen(
                 }
 
                 if (quickAccessItems.isNotEmpty()) {
-                    // HorizontalPager 实现分页滑动
                     val pagerState = androidx.compose.foundation.pager.rememberPagerState { quickAccessItems.size }
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // 卡片区域（HorizontalPager 实现滑动）
                         androidx.compose.foundation.pager.HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            pageSpacing = 12.dp
+                            contentPadding = PaddingValues(horizontal = 48.dp),
+                            pageSpacing = 24.dp
                         ) { page ->
                             val item = quickAccessItems[page]
-                            var isVisible by remember { mutableStateOf(false) }
+                            val isCurrentPage = page == pagerState.currentPage
 
-                            LaunchedEffect(page) {
-                                kotlinx.coroutines.delay(50L * page)
-                                isVisible = true
-                            }
-
-                            AnimatedVisibility(
-                                visible = isVisible,
-                                enter = slideInVertically(
-                                    initialOffsetY = { it / 2 },
-                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
-                                ) + fadeIn(
-                                    animationSpec = tween(durationMillis = 400)
-                                ) + scaleIn(
-                                    initialScale = 0.9f,
-                                    animationSpec = tween(durationMillis = 400, easing = EaseOutCubic)
+                            // 卡片动画：当前页放大，其他页缩小
+                            val scale by animateFloatAsState(
+                                targetValue = if (isCurrentPage) 1f else 0.85f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
                                 )
+                            )
+
+                            // 卡片透明度动画
+                            val alpha by animateFloatAsState(
+                                targetValue = if (isCurrentPage) 1f else 0.5f,
+                                animationSpec = tween(durationMillis = 300)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        this.alpha = alpha
+                                    }
                             ) {
                                 QuickAccessCard(
                                     previewContent = item.preview,
@@ -293,24 +300,46 @@ fun MainScreen(
                             }
                         }
 
-                        // 页面指示器（显示图标）
-                        Spacer(modifier = Modifier.height(12.dp))
+                        // 底部状态指示器动画
+                        Spacer(modifier = Modifier.height(16.dp))
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             quickAccessItems.forEachIndexed { index, item ->
                                 val isSelected = index == pagerState.currentPage
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isSelected)
-                                        MaterialTheme.colorScheme.primaryContainer
+
+                                // 指示器动画
+                                val indicatorSize by animateDpAsState(
+                                    targetValue = if (isSelected) 32.dp else 8.dp,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )
+
+                                val indicatorColor by animateColorAsState(
+                                    targetValue = if (isSelected)
+                                        MaterialTheme.colorScheme.primary
                                     else
-                                        MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier.size(if (isSelected) 44.dp else 36.dp)
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                    animationSpec = tween(durationMillis = 300)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(indicatorSize)
+                                        .clip(CircleShape)
+                                        .background(indicatorColor)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        item.selectedIcon()
+                                    // 选中时显示图标
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            item.selectedIcon()
+                                        }
                                     }
                                 }
                             }
