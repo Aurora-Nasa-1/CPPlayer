@@ -34,10 +34,7 @@ fun BoxScope.AppPlayerOverlay(
     useSideNav: Boolean,
     hasBottomBar: Boolean,
     bottomBarOffsetHeightPx: MutableState<Float>,
-    sharedTransitionScope: SharedTransitionScope,
-    navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>> = emptyList(),
-    currentRoute: String? = null,
-    onNavigate: (String) -> Unit = {}
+    sharedTransitionScope: SharedTransitionScope
 ) {
     val s = playbackViewModel.currentSong
     val completedSongs by downloadViewModel.completedSongs.collectAsState()
@@ -211,53 +208,22 @@ fun BoxScope.AppPlayerOverlay(
                     .padding(bottom = animatedBottomPadding)
             ) {
                 val progress = if (uiState.duration > 0) uiState.currentPosition.toFloat() / uiState.duration.toFloat() else 0f
-                if (useSideNav) {
-                    // 横屏：mini 播放器 + 导航胶囊水平排列
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        BottomPlaybackBar(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = this@AnimatedContent,
-                            song = uiState.song,
-                            isPlaying = uiState.isPlaying,
-                            isBuffering = uiState.isBuffering,
-                            progress = progress,
-                            useWavyProgress = settingsViewModel.wavyProgress,
-                            onPlayPause = callbacks.onPlayPause,
-                            onSkipNext = callbacks.onSkipNext,
-                            onSkipPrevious = callbacks.onSkipPrevious,
-                            onClick = { onSetPlayerExpanded(true) },
-                            useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                            coverColor = uiState.coverColor,
-                            modifier = Modifier.widthIn(max = 500.dp).weight(1f, fill = false)
-                        )
-                        NavigationCapsule(
-                            navItems = navItems,
-                            currentRoute = currentRoute,
-                            onNavigate = onNavigate
-                        )
-                    }
-                } else {
-                    // 竖屏：仅 mini 播放器
-                    BottomPlaybackBar(
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = this@AnimatedContent,
-                        song = uiState.song,
-                        isPlaying = uiState.isPlaying,
-                        isBuffering = uiState.isBuffering,
-                        progress = progress,
-                        useWavyProgress = settingsViewModel.wavyProgress,
-                        onPlayPause = callbacks.onPlayPause,
-                        onSkipNext = callbacks.onSkipNext,
-                        onSkipPrevious = callbacks.onSkipPrevious,
-                        onClick = { onSetPlayerExpanded(true) },
-                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                        coverColor = uiState.coverColor
-                    )
-                }
+                BottomPlaybackBar(
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this@AnimatedContent,
+                    song = uiState.song,
+                    isPlaying = uiState.isPlaying,
+                    isBuffering = uiState.isBuffering,
+                    progress = progress,
+                    useWavyProgress = settingsViewModel.wavyProgress,
+                    onPlayPause = callbacks.onPlayPause,
+                    onSkipNext = callbacks.onSkipNext,
+                    onSkipPrevious = callbacks.onSkipPrevious,
+                    onClick = { onSetPlayerExpanded(true) },
+                    useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                    coverColor = uiState.coverColor,
+                    modifier = if (useSideNav) Modifier.widthIn(max = 500.dp) else Modifier
+                )
             }
         }
     }
@@ -265,7 +231,7 @@ fun BoxScope.AppPlayerOverlay(
 
 /** 横屏时替代 NavigationRail 的紧凑导航胶囊 */
 @Composable
-private fun NavigationCapsule(
+fun NavigationCapsule(
     navItems: List<Triple<String, String, ImageVector>>,
     currentRoute: String?,
     onNavigate: (String) -> Unit,
@@ -275,26 +241,31 @@ private fun NavigationCapsule(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shadowElevation = 4.dp,
-        modifier = modifier.padding(start = 8.dp)
+        modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            navItems.forEach { (route, _, icon) ->
+            navItems.forEach { (route, label, icon) ->
                 val isSelected = currentRoute == route
-                IconButton(
+                Surface(
                     onClick = { onNavigate(route) },
-                    modifier = Modifier.size(40.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                            else Color.Transparent,
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = route,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary
-                               else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                   else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
         }

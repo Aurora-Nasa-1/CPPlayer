@@ -978,7 +978,13 @@ fun AppMainContent(
                     useSideNav = useSideNav,
                     hasBottomBar = hasBottomBar,
                     bottomBarOffsetHeightPx = bottomBarOffsetHeightPx,
-                    sharedTransitionScope = this@SharedTransitionLayout,
+                    sharedTransitionScope = this@SharedTransitionLayout
+                )
+            }
+
+            // 横屏导航胶囊 — 始终可见，不依赖 mini 播放器
+            if (useSideNav && !isPlayerExpanded) {
+                NavigationCapsule(
                     navItems = navItems,
                     currentRoute = currentDestination?.route,
                     onNavigate = { route ->
@@ -987,7 +993,10 @@ fun AppMainContent(
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp)
                 )
             }
 
