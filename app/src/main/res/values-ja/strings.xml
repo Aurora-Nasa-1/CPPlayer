@@ -584,4 +584,12 @@
     <string name="player_style">プレーヤースタイル</string>
     <string name="wavy_progress">ウェーブ進捗バー</string>
     <string name="wavy_progress_desc">ウェーブアニメーションの進捗バーを使用します。オフにするとフラットなバーになります</string>
+
+    <!-- 発見ページ -->
+    <string name="discover">発見</string>
+    <string name="toplists">ランキング</string>
+    <string name="recommended_new_songs">おすすめ新曲</string>
+    <string name="new_songs_express">新曲速報</string>
+    <string name="quality_playlists">プレミアムプレイリスト</string>
+    <string name="view_more">もっと見る</string>
 </resources>

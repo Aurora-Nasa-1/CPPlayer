@@ -583,4 +583,12 @@
     <string name="wavy_progress">波浪进度条</string>
     <string name="wavy_progress_desc">使用波浪形动画进度条，关闭则显示平直进度条</string>
 
+    <!-- 发现页 -->
+    <string name="discover">发现</string>
+    <string name="toplists">排行榜</string>
+    <string name="recommended_new_songs">推荐新歌</string>
+    <string name="new_songs_express">新歌速递</string>
+    <string name="quality_playlists">精品歌单</string>
+    <string name="view_more">查看更多</string>
+
 </resources>

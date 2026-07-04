@@ -15,10 +15,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import cp.player.R
 import cp.player.model.Playlist
 import cp.player.model.Song
 import cp.player.ui.component.AppScaffold
@@ -45,7 +47,7 @@ fun DiscoveryScreen(
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     AppScaffold(
-        title = "发现",
+        title = stringResource(R.string.discover),
         onBackPressed = onBackPressed,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         isLoading = isDiscoveryLoading && toplists.isEmpty() && personalizedPlaylists.isEmpty()
@@ -54,18 +56,18 @@ fun DiscoveryScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = 8.dp,
-                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp,
+                start = 16.dp,
+                end = 16.dp
+            )
         ) {
             // ==================== 排行榜 ====================
             if (toplists.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "🏆 排行榜")
+                    SectionHeader(title = stringResource(R.string.toplists))
                 }
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(toplists) { entry ->
@@ -78,11 +80,12 @@ fun DiscoveryScreen(
             // ==================== 推荐歌单 ====================
             if (personalizedPlaylists.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "🎵 推荐歌单")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeader(title = stringResource(R.string.recommended_playlists))
                 }
                 item {
+                    Spacer(modifier = Modifier.height(4.dp))
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(items = personalizedPlaylists, key = { "rec_pl_${it.id}" }) { playlist ->
@@ -98,14 +101,16 @@ fun DiscoveryScreen(
             // ==================== 推荐新歌 ====================
             if (personalizedNewSongs.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "🆕 推荐新歌")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeader(title = stringResource(R.string.recommended_new_songs))
                 }
                 itemsIndexed(personalizedNewSongs) { index, song ->
                     SongItem(
                         song = song,
                         index = index,
                         total = personalizedNewSongs.size,
-                        onClick = { onSongClick(song) }
+                        onClick = { onSongClick(song) },
+                        modifier = Modifier.padding(vertical = 1.dp)
                     )
                 }
             }
@@ -113,9 +118,10 @@ fun DiscoveryScreen(
             // ==================== 新歌速递 ====================
             if (topSongs.isNotEmpty()) {
                 item {
+                    Spacer(modifier = Modifier.height(24.dp))
                     SectionHeader(
-                        title = "🔥 新歌速递",
-                        actionText = "查看更多",
+                        title = stringResource(R.string.new_songs_express),
+                        actionText = stringResource(R.string.view_more),
                         onAction = onViewAllTopSongs
                     )
                 }
@@ -124,7 +130,8 @@ fun DiscoveryScreen(
                         song = song,
                         index = index,
                         total = topSongs.take(10).size,
-                        onClick = { onSongClick(song) }
+                        onClick = { onSongClick(song) },
+                        modifier = Modifier.padding(vertical = 1.dp)
                     )
                 }
             }
@@ -132,11 +139,12 @@ fun DiscoveryScreen(
             // ==================== 精品歌单 ====================
             if (highqualityPlaylists.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "✨ 精品歌单")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeader(title = stringResource(R.string.quality_playlists))
                 }
                 item {
+                    Spacer(modifier = Modifier.height(4.dp))
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(items = highqualityPlaylists, key = { "hq_pl_${it.id}" }) { playlist ->
@@ -161,9 +169,7 @@ private fun SectionHeader(
     onAction: (() -> Unit)? = null
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 0.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
