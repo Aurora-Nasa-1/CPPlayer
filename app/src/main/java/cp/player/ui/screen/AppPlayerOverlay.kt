@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -147,12 +149,36 @@ fun BoxScope.AppPlayerOverlay(
         )
     }
 
+    // 驱动全屏展开/收起的连续进度值，用于 scrim 和下沉效果
+    val expandProgress by animateFloatAsState(
+        targetValue = if (isPlayerExpanded) 1f else 0f,
+        animationSpec = tween(400, easing = EaseOutCubic),
+        label = "expandProgress"
+    )
+
+    // 背景变暗 scrim — 位于 AnimatedContent 之下，覆盖主内容
+    if (expandProgress > 0.01f) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = expandProgress * 0.3f))
+        )
+    }
+
     AnimatedContent(
         targetState = isPlayerExpanded,
         transitionSpec = {
             fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
         },
-        modifier = Modifier.align(if (useSideNav) Alignment.BottomCenter else Alignment.BottomEnd),
+        modifier = Modifier
+            .align(if (useSideNav) Alignment.BottomCenter else Alignment.BottomEnd)
+            .graphicsLayer {
+                // 微量下沉：展开时内容略微缩小并下移
+                val scale = 1f - expandProgress * 0.03f
+                scaleX = scale
+                scaleY = scale
+                translationY = expandProgress * 8f
+            },
         label = "PlayerTransition"
     ) { expanded ->
         if (expanded) {
