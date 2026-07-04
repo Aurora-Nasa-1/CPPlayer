@@ -135,6 +135,13 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         actions = {
             actions()
+            // 发现按钮
+            Surface(onClick = onNavigateToDiscover, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(48.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.TrendingUp, contentDescription = "发现")
+                }
+            }
+            Spacer(Modifier.width(4.dp))
             Surface(onClick = onNavigateToMessages, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Email, contentDescription = stringResource(R.string.messages))
@@ -175,7 +182,7 @@ fun MainScreen(
                 // 准备快速访问项数据
                 val quickAccessItems = mutableListOf<QuickAccessItem>()
 
-                // 每日推荐
+                // FM入口
                 if (recommendedSongs.isNotEmpty()) {
                     quickAccessItems.add(
                         QuickAccessItem(
@@ -184,7 +191,8 @@ fun MainScreen(
                                 SongPreviewList(
                                     songs = recommendedSongs.take(3),
                                     onSongClick = onSongClick,
-                                    onArrowClick = onPersonalFmClick
+                                    onArrowClick = onPersonalFmClick,
+                                    onHeartbeatClick = onHeartbeatClick
                                 )
                             },
                             onNavigate = onPersonalFmClick
@@ -192,44 +200,8 @@ fun MainScreen(
                     )
                 }
 
-                // 为你推荐
-                if (recommendedSongs.isNotEmpty()) {
-                    quickAccessItems.add(
-                        QuickAccessItem(
-                            selectedIcon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
-                            preview = {
-                                SongPreviewList(
-                                    songs = recommendedSongs.take(3),
-                                    onSongClick = onSongClick,
-                                    onArrowClick = onHeartbeatClick
-                                )
-                            },
-                            onNavigate = onHeartbeatClick
-                        )
-                    )
-                }
-
-                // 发现
-                if (discoveryViewModel.toplists.isNotEmpty()) {
-                    quickAccessItems.add(
-                        QuickAccessItem(
-                            selectedIcon = { Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.tertiary) },
-                            preview = {
-                                DiscoveryPreview(
-                                    toplists = discoveryViewModel.toplists.take(3),
-                                    onToplistClick = { playlistId ->
-                                        // 这里可以导航到榜单详情
-                                    },
-                                    onArrowClick = onNavigateToDiscover
-                                )
-                            },
-                            onNavigate = onNavigateToDiscover
-                        )
-                    )
-                }
-
                 // 用户歌单
-                val displayPlaylists = userPlaylists.take(3)
+                val displayPlaylists = userPlaylists.take(5)
                 displayPlaylists.forEach { p ->
                     quickAccessItems.add(
                         QuickAccessItem(
@@ -264,80 +236,61 @@ fun MainScreen(
                         androidx.compose.foundation.pager.HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 48.dp),
-                            pageSpacing = 24.dp
+                            contentPadding = PaddingValues(horizontal = 32.dp),
+                            pageSpacing = 16.dp
                         ) { page ->
                             val item = quickAccessItems[page]
                             val isCurrentPage = page == pagerState.currentPage
 
-                            // 卡片动画：当前页放大，其他页缩小
-                            val scale by animateFloatAsState(
-                                targetValue = if (isCurrentPage) 1f else 0.85f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                )
-                            )
-
                             // 卡片透明度动画
                             val alpha by animateFloatAsState(
-                                targetValue = if (isCurrentPage) 1f else 0.5f,
+                                targetValue = if (isCurrentPage) 1f else 0.7f,
                                 animationSpec = tween(durationMillis = 300)
                             )
 
                             Box(
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        scaleX = scale
-                                        scaleY = scale
-                                        this.alpha = alpha
-                                    }
+                                modifier = Modifier.graphicsLayer { this.alpha = alpha }
                             ) {
                                 QuickAccessCard(
                                     previewContent = item.preview,
-                                    onArrowClick = item.onNavigate
+                                    onArrowClick = item.onNavigate,
+                                    onHeartbeatClick = onHeartbeatClick
                                 )
                             }
                         }
 
-                        // 底部状态指示器动画
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // 底部状态指示器（固定高度，避免颠簸）
+                        Box(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            quickAccessItems.forEachIndexed { index, item ->
-                                val isSelected = index == pagerState.currentPage
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                quickAccessItems.forEachIndexed { index, item ->
+                                    val isSelected = index == pagerState.currentPage
 
-                                // 指示器动画
-                                val indicatorSize by animateDpAsState(
-                                    targetValue = if (isSelected) 32.dp else 8.dp,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                    // 指示器颜色动画
+                                    val indicatorColor by animateColorAsState(
+                                        targetValue = if (isSelected)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                        animationSpec = tween(durationMillis = 300)
                                     )
-                                )
 
-                                val indicatorColor by animateColorAsState(
-                                    targetValue = if (isSelected)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                    animationSpec = tween(durationMillis = 300)
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(indicatorSize)
-                                        .clip(CircleShape)
-                                        .background(indicatorColor)
-                                ) {
-                                    // 选中时显示图标
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (isSelected) 36.dp else 8.dp)
+                                            .clip(CircleShape)
+                                            .background(indicatorColor),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        // 选中时显示图标
+                                        if (isSelected) {
                                             item.selectedIcon()
                                         }
                                     }
