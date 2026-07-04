@@ -626,24 +626,36 @@ fun DailyMixCard(
                     }
                 }
 
-                // ═══ 专辑墙：不规则马赛克布局，统一间隙 ═══
-                // 使用 6 列网格，Tile(colSpan, rowSpan, urlIndex)
-                data class Tile(val colSpan: Int, val rowSpan: Int, val urlIndex: Int)
+                // ═══ 专辑墙：不规则马赛克布局（仅 1×1 和 2×2），统一间隙 ═══
+                data class MosaicTile(val col: Int, val row: Int, val span: Int, val urlIndex: Int)
 
-                val rows = listOf(
-                    listOf(Tile(2, 2, 0), Tile(2, 1, 1), Tile(2, 1, 2)),
-                    listOf(Tile(2, 1, 5), Tile(2, 1, 6), Tile(2, 2, 3)),
-                    listOf(Tile(2, 1, 7), Tile(2, 1, 8), Tile(2, 1, 4)),
-                    listOf(Tile(2, 2, 9), Tile(2, 1, 10), Tile(2, 1, 11)),
-                    listOf(Tile(2, 1, 13), Tile(2, 1, 14), Tile(2, 2, 12)),
-                    listOf(Tile(2, 1, 15), Tile(2, 1, 16), Tile(2, 1, 17)),
+                val gridCols = 6
+                val gridRows = 6
+                val tiles = listOf(
+                    // 2×2 大封面散布各处，其余填 1×1
+                    MosaicTile(0, 0, 2, 0),  MosaicTile(2, 0, 1, 1),  MosaicTile(3, 0, 1, 2),
+                    MosaicTile(4, 0, 1, 3),  MosaicTile(5, 0, 1, 4),
+                    /* row1 */                MosaicTile(2, 1, 1, 5),  MosaicTile(3, 1, 1, 6),
+                    MosaicTile(4, 1, 2, 7),  // 2×2
+                    MosaicTile(0, 2, 1, 8),  MosaicTile(1, 2, 1, 9),  MosaicTile(2, 2, 2, 10), // 2×2
+                    /* row3 */                MosaicTile(4, 2, 1, 12), MosaicTile(5, 2, 1, 13),
+                    MosaicTile(0, 3, 2, 14), // 2×2
+                    /* row3 */                MosaicTile(2, 3, 1, 16), MosaicTile(3, 3, 1, 17),
+                    MosaicTile(4, 3, 1, 18), MosaicTile(5, 3, 1, 19),
+                    MosaicTile(0, 4, 1, 20), MosaicTile(1, 4, 1, 21), MosaicTile(2, 4, 1, 22),
+                    MosaicTile(3, 4, 2, 23), // 2×2
+                    /* row5 */                MosaicTile(5, 4, 1, 25),
+                    MosaicTile(0, 5, 1, 26), MosaicTile(1, 5, 2, 27), // 2×2
+                    /* row5 */                MosaicTile(3, 5, 1, 29), MosaicTile(4, 5, 1, 30),
+                    MosaicTile(5, 5, 1, 31),
                 )
 
+                val cellSize = 62.dp
                 val gapPx: Float
-                val tileHeightPx: Float
+                val cellPx: Float
                 LocalDensity.current.run {
                     gapPx = gap.toPx()
-                    tileHeightPx = 62.dp.toPx()
+                    cellPx = cellSize.toPx()
                 }
 
                 val cornerRadius = 6.dp
@@ -654,43 +666,36 @@ fun DailyMixCard(
                         .padding(horizontal = 16.dp)
                 ) {
                     val totalWidthPx = constraints.maxWidth.toFloat()
-                    val colWidthPx = totalWidthPx / 6f
-
-                    // 计算总高度
-                    val rowHeightPx = rows.map { row -> row.maxOf { it.rowSpan } * tileHeightPx }
-                    val totalHeightPx = rowHeightPx.sum() + (rows.size - 1) * gapPx
+                    // 6 列，列间 5 个间隙：cellW = (total - 5*gap) / 6
+                    val cellW = (totalWidthPx - (gridCols - 1) * gapPx) / gridCols
+                    val totalHeightPx = gridRows * cellPx + (gridRows - 1) * gapPx
                     val totalHeightDp = with(LocalDensity.current) { totalHeightPx.toDp() }
 
-                    // 预计算每行 Y 偏移
-                    val rowYOffsets = mutableListOf<Float>()
-                    var cumY = 0f
-                    for (rh in rowHeightPx) {
-                        rowYOffsets.add(cumY)
-                        cumY += rh + gapPx
-                    }
-
                     Box(modifier = Modifier.fillMaxWidth().height(totalHeightDp)) {
-                        for ((rowIdx, row) in rows.withIndex()) {
-                            var colAccum = 0
+                        for (tile in tiles) {
+                            val s = tile.span
+                            // tile 尺寸 = s 个 cell + (s-1) 个间隙
+                            val wPx = s * cellW + (s - 1) * gapPx
+                            val hPx = s * cellPx + (s - 1) * gapPx
+                            // tile 位置 = col * (cellW + gap)
+                            val xPx = tile.col * (cellW + gapPx)
+                            val yPx = tile.row * (cellPx + gapPx)
 
-                            for (tile in row) {
-                                val wDp = with(LocalDensity.current) { (tile.colSpan * colWidthPx).toDp() }
-                                val hDp = with(LocalDensity.current) { (tile.rowSpan * tileHeightPx).toDp() }
-                                val xDp = with(LocalDensity.current) { (colAccum * colWidthPx).toDp() }
-                                val yDp = with(LocalDensity.current) { rowYOffsets[rowIdx].toDp() }
-
-                                AsyncImage(
-                                    model = urlAt(tile.urlIndex).resized(300),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .offset(x = xDp, y = yDp)
-                                        .size(wDp, hDp)
-                                        .clip(RoundedCornerShape(cornerRadius)),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                colAccum += tile.colSpan
-                            }
+                            AsyncImage(
+                                model = urlAt(tile.urlIndex).resized(300),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .offset(
+                                        x = with(LocalDensity.current) { xPx.toDp() },
+                                        y = with(LocalDensity.current) { yPx.toDp() }
+                                    )
+                                    .size(
+                                        width = with(LocalDensity.current) { wPx.toDp() },
+                                        height = with(LocalDensity.current) { hPx.toDp() }
+                                    )
+                                    .clip(RoundedCornerShape(cornerRadius)),
+                                contentScale = ContentScale.Crop
+                            )
                         }
                     }
                 }
