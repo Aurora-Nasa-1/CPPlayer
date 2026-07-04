@@ -42,15 +42,18 @@ object YrcToTtmlConverter {
                 line.words.forEach { word ->
                     val wordBegin = formatTtmlTime(word.beginTime)
                     val wordEnd = formatTtmlTime(word.endTime)
-                    // XML 转义
                     val escapedText = escapeXml(word.text)
                     sb.append("""<span begin="$wordBegin" end="$wordEnd">$escapedText</span>""")
                 }
+                appendTranslationAndRomanization(sb, line, lineBegin, lineEnd)
                 sb.appendLine("</p>")
             } else {
                 // 普通行
                 val escapedText = escapeXml(line.text)
-                sb.appendLine("""<p begin="$lineBegin" end="$lineEnd" ttm:agent="v1" itunes:key="L${index + 1}"><span begin="$lineBegin" end="$lineEnd">$escapedText</span></p>""")
+                sb.append("""<p begin="$lineBegin" end="$lineEnd" ttm:agent="v1" itunes:key="L${index + 1}">""")
+                sb.append("""<span begin="$lineBegin" end="$lineEnd">$escapedText</span>""")
+                appendTranslationAndRomanization(sb, line, lineBegin, lineEnd)
+                sb.appendLine("</p>")
             }
         }
 
@@ -59,6 +62,27 @@ object YrcToTtmlConverter {
         sb.appendLine("</tt>")
 
         return sb.toString()
+    }
+
+    /**
+     * 在 `<p>` 内追加翻译和音译 span（如果存在）。
+     * TTMLParser 通过 `ttm:role="x-translation"` 和 `ttm:role="x-roman"` 识别，
+     * 并在 extractAllText 时自动跳过这些 span，不会影响主歌词文本。
+     */
+    private fun appendTranslationAndRomanization(
+        sb: StringBuilder,
+        line: LyricLine,
+        lineBegin: String,
+        lineEnd: String
+    ) {
+        if (!line.translation.isNullOrEmpty()) {
+            val escaped = escapeXml(line.translation)
+            sb.append("""<span begin="$lineBegin" end="$lineEnd" ttm:role="x-translation">$escaped</span>""")
+        }
+        if (!line.romanization.isNullOrEmpty()) {
+            val escaped = escapeXml(line.romanization)
+            sb.append("""<span begin="$lineBegin" end="$lineEnd" ttm:role="x-roman">$escaped</span>""")
+        }
     }
 
     /**
