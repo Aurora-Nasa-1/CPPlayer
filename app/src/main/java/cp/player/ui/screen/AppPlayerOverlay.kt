@@ -148,10 +148,10 @@ fun BoxScope.AppPlayerOverlay(
         )
     }
 
-    // 驱动全屏展开/收起的连续进度值，用于 scrim 和下沉效果
+    // 驱动 scrim 明暗的连续进度值 — 线性过渡
     val expandProgress by animateFloatAsState(
         targetValue = if (isPlayerExpanded) 1f else 0f,
-        animationSpec = tween(400, easing = EaseOutCubic),
+        animationSpec = tween(400, easing = LinearEasing),
         label = "expandProgress"
     )
 
