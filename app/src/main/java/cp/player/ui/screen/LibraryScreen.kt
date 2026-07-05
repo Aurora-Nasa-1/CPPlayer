@@ -340,6 +340,7 @@ fun PlaylistItem(
             playlist = playlist,
             onDismissRequest = { showMenu = false },
             isOwner = isOwner,
+            isFavorite = !isOwner && onUnsubscribe != null,
             onPlayClick = { onClick() },
             onAddToQueueClick = { onAddToQueue() },
             onShareClick = { onShare() },
