@@ -16,5 +16,6 @@ import java.util.Locale
         val totalSeconds = this / 1000
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
-        return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+        val secondsStr = if (seconds < 10) "0$seconds" else seconds.toString()
+        return "$minutes:$secondsStr"
     }

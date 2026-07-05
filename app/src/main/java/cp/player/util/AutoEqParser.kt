@@ -14,6 +14,7 @@ data class PeqBand(
 
 object AutoEqParser {
     private const val TAG = "AutoEqParser"
+    private val SPACE_REGEX = "\\s+".toRegex()
 
     // 解析标准的 AutoEQ txt 文件。
     // 支持 GraphicEQ 和 ParametricEQ 格式。
@@ -47,7 +48,7 @@ object AutoEqParser {
         val dataStr = line.substringAfter("GraphicEQ:").trim()
         val pairs = dataStr.split(";")
         for (pair in pairs) {
-            val parts = pair.trim().split("\\s+".toRegex())
+            val parts = pair.trim().split(SPACE_REGEX)
             if (parts.size >= 2) {
                 try {
                     val freq = parts[0].toFloat()
@@ -66,7 +67,7 @@ object AutoEqParser {
     private fun parseParametricEqLine(line: String): PeqBand? {
         // 示例：Filter 1: ON PK Fc 32 Hz Gain 1.5 dB Q 0.8
         try {
-            val parts = line.split("\\s+".toRegex())
+            val parts = line.split(SPACE_REGEX)
             val fcIndex = parts.indexOf("Fc")
             val gainIndex = parts.indexOf("Gain")
             val qIndex = parts.indexOf("Q")

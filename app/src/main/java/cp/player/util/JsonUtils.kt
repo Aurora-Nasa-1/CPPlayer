@@ -11,6 +11,8 @@ import cp.player.model.Comment
 import cp.player.model.Playlist
 
 object JsonUtils {
+    private val PRIORITY_KEYS = listOf("al", "album", "data", "result", "songs", "urlInfo")
+
     fun parseSong(it: JsonElement): Song? {
         return try {
             val item = it.asJsonObject
@@ -217,7 +219,7 @@ object JsonUtils {
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
-            listOf("al", "album", "data", "result", "songs", "urlInfo").firstNotNullOfOrNull { key ->
+            PRIORITY_KEYS.firstNotNullOfOrNull { key ->
                 obj.get(key)?.let { findUrl(it) }
             }?.let { return it }
 
