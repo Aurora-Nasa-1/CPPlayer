@@ -479,6 +479,9 @@ fun RecommendedPlaylistCard(playlist: Playlist, onClick: () -> Unit) {
     }
 }
 
+/** 马赛克瓦片：col/row 为网格坐标，span 为 1 或 2，urlIndex 对应歌曲索引 */
+private data class MosaicTile(val col: Int, val row: Int, val span: Int, val urlIndex: Int)
+
 @Composable
 fun DailyMixCard(
     songs: List<Song>,
@@ -628,8 +631,6 @@ fun DailyMixCard(
                 }
 
                 // ═══ 专辑墙：随机马赛克布局（仅 1×1 和 2×2），最多 12 块 ═══
-                data class MosaicTile(val col: Int, val row: Int, val span: Int, val urlIndex: Int)
-
                 val gridCols = 6
                 val gridRows = 4
                 val maxBigTiles = 4
@@ -681,23 +682,23 @@ fun DailyMixCard(
                     result.take(maxTiles)
                 }
 
-                val cellSize = 62.dp
                 val gapPx: Float
-                val cellPx: Float
                 LocalDensity.current.run {
                     gapPx = gap.toPx()
-                    cellPx = cellSize.toPx()
                 }
 
                 val cornerRadius = 6.dp
 
+                // 底部 padding 避免被外层 Surface 圆角裁切
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     val totalWidthPx = constraints.maxWidth.toFloat()
                     val cellW = (totalWidthPx - (gridCols - 1) * gapPx) / gridCols
+                    // cellPx = cellW，保证每个格子为 1:1 正方形
+                    val cellPx = cellW
                     val totalHeightPx = gridRows * cellPx + (gridRows - 1) * gapPx
                     val totalHeightDp = with(LocalDensity.current) { totalHeightPx.toDp() }
 
@@ -709,9 +710,12 @@ fun DailyMixCard(
                             val xPx = tile.col * (cellW + gapPx)
                             val yPx = tile.row * (cellPx + gapPx)
 
+                            // 点击封面播放对应歌曲
+                            val song = songs.getOrElse(tile.urlIndex) { songs.firstOrNull() }
+
                             AsyncImage(
                                 model = urlAt(tile.urlIndex).resized(300),
-                                contentDescription = null,
+                                contentDescription = song?.name,
                                 modifier = Modifier
                                     .offset(
                                         x = with(LocalDensity.current) { xPx.toDp() },
@@ -721,7 +725,8 @@ fun DailyMixCard(
                                         width = with(LocalDensity.current) { wPx.toDp() },
                                         height = with(LocalDensity.current) { hPx.toDp() }
                                     )
-                                    .clip(RoundedCornerShape(cornerRadius)),
+                                    .clip(RoundedCornerShape(cornerRadius))
+                                    .clickable(enabled = song != null) { song?.let { onSongClick(it) } },
                                 contentScale = ContentScale.Crop
                             )
                         }
