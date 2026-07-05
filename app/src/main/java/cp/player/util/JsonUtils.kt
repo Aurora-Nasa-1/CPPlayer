@@ -10,12 +10,12 @@ import cp.player.model.Message
 import cp.player.model.Comment
 import cp.player.model.Playlist
 
-val JsonElement?.obj: JsonObject? get() = if (this?.isJsonObject == true) this.asJsonObject else null
-val JsonElement?.arr: JsonArray? get() = if (this?.isJsonArray == true) this.asJsonArray else null
-val JsonElement?.str: String? get() = if (this?.isJsonPrimitive == true) this.asString else null
-val JsonElement?.long: Long? get() = try { if (this?.isJsonPrimitive == true) this.asLong else null } catch (e: Exception) { null }
-val JsonElement?.int: Int? get() = try { if (this?.isJsonPrimitive == true) this.asInt else null } catch (e: Exception) { null }
-val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive == true) this.asBoolean else null } catch (e: Exception) { null }
+private val JsonElement?.obj: JsonObject? get() = if (this?.isJsonObject == true) this.asJsonObject else null
+private val JsonElement?.arr: JsonArray? get() = if (this?.isJsonArray == true) this.asJsonArray else null
+private val JsonElement?.str: String? get() = if (this?.isJsonPrimitive == true) this.asString else null
+private val JsonElement?.long: Long? get() = try { if (this?.isJsonPrimitive == true) this.asLong else null } catch (e: Exception) { null }
+private val JsonElement?.int: Int? get() = try { if (this?.isJsonPrimitive == true) this.asInt else null } catch (e: Exception) { null }
+private val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive == true) this.asBoolean else null } catch (e: Exception) { null }
 
 object JsonUtils {
     fun parseSong(it: JsonElement): Song? {
@@ -146,11 +146,16 @@ object JsonUtils {
 
     fun parsePlaylist(element: JsonElement): Playlist? {
         val obj = element?.obj ?: return null
+        val idEl = obj.get("id")
+        val id = idEl?.long
+        if (idEl != null && id == null) return null
+        if (id == null || id <= 0) return null
+
         val creatorObj = obj.get("creator")?.obj
         val creatorUserId = creatorObj?.get("userId")?.long ?: 0L
         val subscribed = obj.get("subscribed")?.bool ?: false
         return Playlist(
-            id = obj.get("id")?.long ?: 0L,
+            id = id,
             name = getString(obj, "name") ?: "",
             coverImgUrl = getString(obj, "coverImgUrl") ?: getString(obj, "picUrl"),
             trackCount = obj.get("trackCount")?.int ?: 0,
