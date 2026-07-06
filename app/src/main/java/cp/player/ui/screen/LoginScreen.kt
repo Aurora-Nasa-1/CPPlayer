@@ -93,15 +93,13 @@ fun LoginDialog(
     val currentProviderAccounts = allSavedAccounts.filter { it.providerId == viewModel.currentProviderId }
     val otherProviderAccounts = allSavedAccounts.filter { it.providerId != viewModel.currentProviderId }
 
-    Dialog(
+    StyledModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .fillMaxHeight(0.85f)
+                .fillMaxWidth()
+                .fillMaxHeight(0.90f)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
