@@ -18,6 +18,8 @@ private val JsonElement?.int: Int? get() = try { if (this?.isJsonPrimitive == tr
 private val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive == true) this.asBoolean else null } catch (e: Exception) { null }
 
 object JsonUtils {
+    private val PRIORITY_KEYS = listOf("al", "album", "data", "result", "songs", "urlInfo")
+
     fun parseSong(it: JsonElement): Song? {
         val item = it.obj ?: return null
 
@@ -203,7 +205,7 @@ object JsonUtils {
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
-            listOf("al", "album", "data", "result", "songs", "urlInfo").firstNotNullOfOrNull { key ->
+            PRIORITY_KEYS.firstNotNullOfOrNull { key ->
                 obj.get(key)?.let { findUrl(it) }
             }?.let { return it }
 

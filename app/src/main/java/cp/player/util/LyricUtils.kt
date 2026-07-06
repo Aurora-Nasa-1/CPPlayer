@@ -9,11 +9,14 @@ import io.github.proify.lyricon.lyric.model.RichLyricLine
 import java.util.regex.Pattern
 
 object LyricUtils {
+    private val LRC_PATTERN = Pattern.compile("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})](.*)")
+    private val YRC_LINE_PATTERN = Pattern.compile("\\[(\\d+),(\\d+)](.*)")
+    private val YRC_WORD_REGEX = Regex("\\((\\d+),(\\d+),(\\d+)\\)")
+
     fun parseLrc(lrc: String, duration: Long = 0L): List<LyricLine> {
         val lines = mutableListOf<LyricLine>()
-        val pattern = Pattern.compile("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})](.*)")
         lrc.lines().forEach { line ->
-            val matcher = pattern.matcher(line)
+            val matcher = LRC_PATTERN.matcher(line)
             if (matcher.find()) {
                 val min = matcher.group(1)?.toLong() ?: 0L
                 val sec = matcher.group(2)?.toLong() ?: 0L
@@ -40,21 +43,19 @@ object LyricUtils {
     fun parseYrc(yrc: String): List<LyricLine> {
         val lines = mutableListOf<LyricLine>()
         // YRC format: [time,duration]text(time,duration,type)word...
-        val linePattern = Pattern.compile("\\[(\\d+),(\\d+)](.*)")
-        val wordRegex = Regex("\\((\\d+),(\\d+),(\\d+)\\)")
 
         var parsedLineCount = 0
         var totalWordCount = 0
 
         yrc.lines().forEach { line ->
-            val lineMatcher = linePattern.matcher(line)
+            val lineMatcher = YRC_LINE_PATTERN.matcher(line)
             if (lineMatcher.find()) {
                 val lineBegin = lineMatcher.group(1)?.toLong() ?: 0L
                 val lineDur = lineMatcher.group(2)?.toLong() ?: 0L
                 val content = lineMatcher.group(3) ?: ""
 
                 // 使用 findAll 顺序扫描 word markers
-                val markers = wordRegex.findAll(content).toList()
+                val markers = YRC_WORD_REGEX.findAll(content).toList()
 
                 if (markers.isNotEmpty()) {
                     val words = mutableListOf<LyricLine.Word>()

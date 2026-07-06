@@ -1,5 +1,6 @@
 package cp.player.util
 
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 /**
@@ -9,12 +10,21 @@ import java.util.Locale
 
     /**
      * 将毫秒格式化为 "m:ss" 的时间字符串。
+     * 针对使用 '0' 的常见 Locale 进行了快速路径优化。
      *
+     * @param locale 用于格式化的 Locale，默认为系统默认
      * @return 格式化的时间字符串
      */
-    fun Long.formatAsTime(): String {
+    fun Long.formatAsTime(locale: Locale = Locale.getDefault()): String {
         val totalSeconds = this / 1000
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
-        return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+
+        val zeroDigit = DecimalFormatSymbols.getInstance(locale).zeroDigit
+        if (zeroDigit == '0') {
+            val secondsStr = if (seconds < 10) "0$seconds" else seconds.toString()
+            return "$minutes:$secondsStr"
+        } else {
+            return String.format(locale, "%d:%02d", minutes, seconds)
+        }
     }
