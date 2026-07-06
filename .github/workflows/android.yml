@@ -39,8 +39,12 @@ jobs:
     - name: Install cargo-ndk
       run: cargo install cargo-ndk
 
-    - name: Set up Android SDK
+
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+
+    - name: Accept Licenses
+      run: yes | sdkmanager --licenses || true
 
     - name: Install NDK
       run: sdkmanager "ndk;28.0.13004108"
