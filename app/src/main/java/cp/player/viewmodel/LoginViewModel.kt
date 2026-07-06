@@ -100,7 +100,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
     /**
      * 刷新 Provider 相关状态。
      */
-    private fun refreshProviderState() {
+    fun refreshProviderState() {
         currentProviderName = ProviderManager.getCurrentProviderName()
         currentProviderId = ProviderManager.getCurrentProviderId()
         currentProviderVersion = ProviderManager.currentProvider?.version ?: ""
