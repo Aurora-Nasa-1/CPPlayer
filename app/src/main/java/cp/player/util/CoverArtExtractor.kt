@@ -23,6 +23,8 @@ object CoverArtExtractor {
     // 内存 LRU 缓存：songId → file path（NO_ART 表示无封面）
     private val memoryCache = LruCache<String, String>(80)
 
+    private val INVALID_ID_CHARS_REGEX = Regex("[^a-zA-Z0-9_-]")
+
     /**
      * 获取本地歌曲封面路径。
      *
@@ -34,7 +36,7 @@ object CoverArtExtractor {
         if (filePath.isNullOrBlank()) return@withContext null
         if (songId.isBlank()) return@withContext null
 
-        val normalizedId = songId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        val normalizedId = songId.replace(INVALID_ID_CHARS_REGEX, "_")
         if (normalizedId.isBlank()) return@withContext null
 
         // 1. 内存缓存
@@ -88,7 +90,7 @@ object CoverArtExtractor {
      * 清除指定歌曲的封面缓存。
      */
     fun clearCache(context: Context, songId: String) {
-        val normalizedId = songId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        val normalizedId = songId.replace(INVALID_ID_CHARS_REGEX, "_")
         memoryCache.remove(normalizedId)
         File(context.cacheDir, "$COVER_DIR/$normalizedId.jpg").delete()
     }
