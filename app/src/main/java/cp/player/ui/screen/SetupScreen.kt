@@ -202,7 +202,7 @@ fun SetupScreen(
                         shape = MaterialTheme.shapes.extraLarge
                     ) {
                         Text(
-                            text = "开始使用",
+                            text = stringResource(R.string.start_using),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

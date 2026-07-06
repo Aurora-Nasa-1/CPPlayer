@@ -34,7 +34,17 @@ class MusicApiServiceImpl(
         params: Map<String, String>,
         cookie: String?
     ): JsonObject {
-        val effectiveCookie = cookie ?: UserPreferences.getCookie(context)
+        // 对于认证相关的接口（如获取二维码、登录等），不要自动注入已经保存的 cookie
+        // 否则在“添加新账号”流程中，如果 UserPreferences 中还留有之前账号的 cookie，
+        // 接口调用会自动带上老 cookie，导致新登录流程出现问题或状态不一致。
+        val isAuthEndpoint = method.startsWith("login") || method.startsWith("register") || method.startsWith("captcha")
+
+        val effectiveCookie = if (isAuthEndpoint && cookie == null) {
+            null // 明确不自动注入
+        } else {
+            cookie ?: UserPreferences.getCookie(context)
+        }
+
         val finalParams = if (!effectiveCookie.isNullOrEmpty() && !params.containsKey("cookie")) {
             params + ("cookie" to effectiveCookie)
         } else {
