@@ -290,8 +290,10 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
-        SuperLyricHelper.registerPublisher()
-        SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+        if (SuperLyricHelper.isAvailable()) {
+            SuperLyricHelper.registerPublisher()
+            SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+        }
 
         usbAudioManager = UsbAudioManager(this)
         usbAudioManager?.start()
@@ -328,7 +330,9 @@ class MusicService : MediaSessionService() {
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
                     if (!isPlaying) {
-                        SuperLyricHelper.sendStop(SuperLyricData())
+                        if (SuperLyricHelper.isAvailable()) {
+                            SuperLyricHelper.sendStop(SuperLyricData())
+                        }
                     }
                 }
 
@@ -555,7 +559,9 @@ class MusicService : MediaSessionService() {
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
                     if (!isPlaying) {
-                        SuperLyricHelper.sendStop(SuperLyricData())
+                        if (SuperLyricHelper.isAvailable()) {
+                            SuperLyricHelper.sendStop(SuperLyricData())
+                        }
                     }
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -734,7 +740,9 @@ class MusicService : MediaSessionService() {
                 data.translation = SuperLyricLine(richLine.translation!!, richLine.begin, richLine.end)
             }
 
-            SuperLyricHelper.sendLyric(data)
+            if (SuperLyricHelper.isAvailable()) {
+                SuperLyricHelper.sendLyric(data)
+            }
         }
     }
 
@@ -954,7 +962,9 @@ class MusicService : MediaSessionService() {
     override fun onDestroy() {
         // 保存当前播放队列以便下次恢复
         saveQueueOnExit()
-        SuperLyricHelper.unregisterPublisher()
+        if (SuperLyricHelper.isAvailable()) {
+            SuperLyricHelper.unregisterPublisher()
+        }
         serviceScope.cancel()
         UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)
         crossfadeManager.release()
