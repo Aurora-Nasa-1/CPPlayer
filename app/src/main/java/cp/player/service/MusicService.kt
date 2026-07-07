@@ -291,7 +291,11 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
-        initSuperLyric()
+        try {
+            initSuperLyric()
+        } catch (e: Throwable) {
+            DebugLog.w("MusicService: initSuperLyric outer catch: ${e.message}")
+        }
 
         usbAudioManager = UsbAudioManager(this)
         usbAudioManager?.start()
@@ -635,8 +639,9 @@ class MusicService : MediaSessionService() {
 
     /**
      * 初始化 SuperLyric 发布者。
-     * 独立方法防止 R8 内联优化掉 try-catch。
+     * 独立方法 + @Keep 防止 R8 内联优化掉 try-catch。
      */
+    @androidx.annotation.Keep
     private fun initSuperLyric() {
         try {
             SuperLyricHelper.registerPublisher()

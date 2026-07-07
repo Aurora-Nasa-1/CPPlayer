@@ -38,7 +38,8 @@
 -keep class com.hchen.superlyricapi.** {*;}
 
 # 防止 R8 内联 MusicService 中的异常处理方法
--keepclassmembers class cp.player.service.MusicService {
+# -keepclassmembers 不能阻止内联，必须用 -neverinline
+-neverinline class cp.player.service.MusicService {
     private void initSuperLyric();
 }
 
