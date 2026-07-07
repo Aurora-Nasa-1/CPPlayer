@@ -34,6 +34,10 @@ import cp.player.util.DebugLog
 import io.github.proify.lyricon.provider.LyriconFactory
 import io.github.proify.lyricon.provider.LyriconProvider
 import io.github.proify.lyricon.lyric.model.Song
+import com.hchen.superlyricapi.SuperLyricData
+import com.hchen.superlyricapi.SuperLyricHelper
+import com.hchen.superlyricapi.SuperLyricLine
+import com.hchen.superlyricapi.SuperLyricWord
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -127,6 +131,13 @@ class MusicService : MediaSessionService() {
     private var lyriconProvider: LyriconProvider? = null
     private var lyricJob: Job? = null
     private var playbackInfoJob: Job? = null
+
+    // SuperLyric state
+    private var currentSuperLyricLines: List<io.github.proify.lyricon.lyric.model.RichLyricLine>? = null
+    private var currentSuperLyricIndex: Int = -1
+    private var currentSuperLyricTitle: String = ""
+    private var currentSuperLyricArtist: String = ""
+    private var currentSuperLyricAlbum: String = ""
     private val likedSongIds = mutableSetOf<String>()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -279,6 +290,9 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
+        SuperLyricHelper.registerPublisher()
+        SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+
         usbAudioManager = UsbAudioManager(this)
         usbAudioManager?.start()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -313,6 +327,9 @@ class MusicService : MediaSessionService() {
                     updateMediaSessionLayout()
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
+                    if (!isPlaying) {
+                        SuperLyricHelper.sendStop(SuperLyricData())
+                    }
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -537,6 +554,9 @@ class MusicService : MediaSessionService() {
                     updateMediaSessionLayout()
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
+                    if (!isPlaying) {
+                        SuperLyricHelper.sendStop(SuperLyricData())
+                    }
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
@@ -629,6 +649,7 @@ class MusicService : MediaSessionService() {
                 val p = activePlayer
                 if (p != null && p.isPlaying) {
                     lyriconProvider?.player?.setPosition(p.currentPosition)
+                    syncSuperLyric(p.currentPosition)
                     
                     if (!crossfadeManager.isCrossfading) {
                         val dur = p.duration
@@ -661,6 +682,59 @@ class MusicService : MediaSessionService() {
                 }
                 delay(100)
             }
+        }
+    }
+
+    private fun syncSuperLyric(position: Long) {
+        val lines = currentSuperLyricLines ?: return
+        var newIndex = -1
+        for (i in lines.indices) {
+            val line = lines[i]
+            if (position >= line.begin && (line.end == 0L || position < line.end)) {
+                newIndex = i
+                break
+            } else if (position < line.begin) {
+                // Since lyrics are usually sorted, if we passed the position, the current line is likely the previous one
+                newIndex = if (i > 0) i - 1 else 0
+                break
+            }
+        }
+
+        // If we didn't break, we might be past the last line
+        if (newIndex == -1 && lines.isNotEmpty() && position >= lines.last().begin) {
+            newIndex = lines.size - 1
+        }
+
+        if (newIndex != -1 && newIndex != currentSuperLyricIndex) {
+            currentSuperLyricIndex = newIndex
+            val richLine = lines[newIndex]
+
+            val superLyricWords = richLine.words?.map { w ->
+                SuperLyricWord(w.text ?: "", w.begin, w.end)
+            }?.toTypedArray()
+
+            val mainLine = SuperLyricLine(
+                richLine.text ?: "",
+                superLyricWords,
+                richLine.begin,
+                richLine.end
+            )
+
+            val data = SuperLyricData()
+                .setTitle(currentSuperLyricTitle)
+                .setArtist(currentSuperLyricArtist)
+                .setAlbum(currentSuperLyricAlbum)
+                .setLyric(mainLine)
+
+            if (!richLine.secondary.isNullOrEmpty()) {
+                data.secondary = SuperLyricLine(richLine.secondary!!, richLine.begin, richLine.end)
+            }
+
+            if (!richLine.translation.isNullOrEmpty()) {
+                data.translation = SuperLyricLine(richLine.translation!!, richLine.begin, richLine.end)
+            }
+
+            SuperLyricHelper.sendLyric(data)
         }
     }
 
@@ -751,6 +825,13 @@ class MusicService : MediaSessionService() {
         val metadata = mediaItem.mediaMetadata
         val title = metadata.title?.toString() ?: "Unknown"
         val artist = metadata.artist?.toString() ?: "Unknown"
+        val album = metadata.albumTitle?.toString() ?: ""
+
+        currentSuperLyricTitle = title
+        currentSuperLyricArtist = artist
+        currentSuperLyricAlbum = album
+        currentSuperLyricLines = null
+        currentSuperLyricIndex = -1
 
         // 先设置歌曲基本信息
         lyriconProvider?.player?.setPlaybackState(activePlayer?.isPlaying ?: false)
@@ -764,6 +845,9 @@ class MusicService : MediaSessionService() {
         lyricJob = serviceScope.launch {
             cp.player.lyrics.LyricsManager.state.collect { state ->
                 if (state is cp.player.lyrics.LyricsState.Success && state.songId == songId) {
+                    currentSuperLyricLines = state.richLyricLines
+                    currentSuperLyricIndex = -1 // Force resync
+
                     lyriconProvider?.player?.setSong(
                         Song(
                             id = songId,
@@ -837,6 +921,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        SuperLyricHelper.unregisterPublisher()
         serviceScope.cancel()
         UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)
         crossfadeManager.release()

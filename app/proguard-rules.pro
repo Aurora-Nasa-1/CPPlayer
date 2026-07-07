@@ -33,3 +33,8 @@
 
 # Compose FontVariation inner classes (used via reflection for custom ROND axis)
 -keep class androidx.compose.ui.text.font.FontVariation$** { *; }
+
+# SuperLyricApi
+-keep class com.hchen.superlyricapi.** {*;}
+
+-dontwarn android.os.ServiceManager
