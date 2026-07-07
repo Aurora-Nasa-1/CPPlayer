@@ -134,6 +134,8 @@ fun SettingsScreen(
     onHideNavbarOnScrollChange: (Boolean) -> Unit,
     wavyProgress: Boolean,
     onWavyProgressChange: (Boolean) -> Unit,
+    restoreLastQueue: Boolean,
+    onRestoreLastQueueChange: (Boolean) -> Unit,
     onClearCache: () -> Unit,
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
@@ -602,14 +604,21 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.play_immediately_desc),
                                 checked = playImmediately,
                                 onCheckedChange = onPlayImmediatelyChange,
-                                shapes = ListItemDefaults.segmentedShapes(0, 2)
+                                shapes = ListItemDefaults.segmentedShapes(0, 3)
                             )
                             ExpressiveSwitchItem(
                                 title = stringResource(R.string.usb_audio_auto_resume),
                                 subtitle = stringResource(R.string.usb_audio_auto_resume_desc),
                                 checked = autoResumeUsbAudio,
                                 onCheckedChange = onAutoResumeUsbAudioChange,
-                                shapes = ListItemDefaults.segmentedShapes(1, 2)
+                                shapes = ListItemDefaults.segmentedShapes(1, 3)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.restore_last_queue),
+                                subtitle = stringResource(R.string.restore_last_queue_desc),
+                                checked = restoreLastQueue,
+                                onCheckedChange = onRestoreLastQueueChange,
+                                shapes = ListItemDefaults.segmentedShapes(2, 3)
                             )
                         }
 

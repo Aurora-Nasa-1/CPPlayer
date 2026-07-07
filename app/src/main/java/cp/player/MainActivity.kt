@@ -883,6 +883,8 @@ fun AppMainContent(
                                 onHideNavbarOnScrollChange = { settingsViewModel.updateHideNavbarOnScroll(it) },
                                 wavyProgress = settingsViewModel.wavyProgress,
                                 onWavyProgressChange = { settingsViewModel.updateWavyProgress(it) },
+                                restoreLastQueue = settingsViewModel.restoreLastQueue,
+                                onRestoreLastQueueChange = { settingsViewModel.updateRestoreLastQueue(it) },
                                 onClearCache = { settingsViewModel.clearCache() },
                                 onBackPressed = { navController.popBackStack() },
                                 bottomContentPadding = PaddingValues(

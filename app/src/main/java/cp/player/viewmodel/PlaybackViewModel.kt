@@ -25,6 +25,7 @@ import cp.player.repository.PlaybackRepository
 import cp.player.usecase.MediaMetadataUseCase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import com.google.gson.Gson
 
 class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     private val playbackRepository = PlaybackRepository()
@@ -101,11 +102,65 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
 
         refreshLocalSongs()
+
+        // 启动时恢复上次播放队列
+        restoreLastQueue()
     }
 
     fun refreshLocalSongs() {
         viewModelScope.launch(Dispatchers.IO) {
             mediaMetadataUseCase.refreshLocalSongs()
+        }
+    }
+
+    /**
+     * 启动时恢复上次保存的播放队列。
+     * 仅在设置开启且有缓存数据时执行。
+     */
+    private fun restoreLastQueue() {
+        val context = getApplication<Application>()
+        if (!UserPreferences.getRestoreLastQueue(context)) return
+        val json = UserPreferences.getLastQueueJson(context) ?: return
+        try {
+            val type = object : com.google.gson.reflect.TypeToken<List<Song>>() {}.type
+            val songs: List<Song> = Gson().fromJson(json, type)
+            if (songs.isEmpty()) return
+            val index = UserPreferences.getLastQueueIndex(context).coerceIn(0, songs.size - 1)
+            val position = UserPreferences.getLastQueuePosition(context)
+            DebugLog.i("PlaybackVM: Restoring last queue: ${songs.size} songs, index=$index, pos=$position")
+
+            runWithController { controller ->
+                controller.stop()
+                controller.clearMediaItems()
+                val items = songs.mapNotNull { createMediaItem(it) }
+                if (items.isNotEmpty()) {
+                    controller.setMediaItems(items, index.coerceAtMost(items.size - 1), position)
+                    controller.prepare()
+                    // 恢复后不自动播放，等待用户点击
+                }
+            }
+        } catch (e: Exception) {
+            DebugLog.e("PlaybackVM: Failed to restore last queue: ${e.message}")
+        }
+    }
+
+    /**
+     * 保存当前播放队列到 SharedPreferences。
+     * 在歌曲切换和队列变化时调用。
+     */
+    fun saveCurrentQueue() {
+        val context = getApplication<Application>()
+        if (!UserPreferences.getRestoreLastQueue(context)) return
+        val queue = currentQueue
+        if (queue.isEmpty()) return
+        try {
+            val json = Gson().toJson(queue)
+            val index = mediaController?.currentMediaItemIndex ?: 0
+            val position = currentPosition
+            UserPreferences.saveLastQueue(context, json, index, position)
+            DebugLog.i("PlaybackVM: Saved queue: ${queue.size} songs, index=$index, pos=$position")
+        } catch (e: Exception) {
+            DebugLog.e("PlaybackVM: Failed to save queue: ${e.message}")
         }
     }
 
@@ -188,6 +243,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                                 currentSong = song
                                 // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，轮询只更新歌曲信息
                                 extractColorFromUrl(song.albumArtUrl)
+                                saveCurrentQueue()
                             }
                         }
                         delay(100L)
@@ -246,6 +302,14 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    /**
+     * 更新队列并保存到本地（用于队列变更后持久化）。
+     */
+    private fun updateQueueAndSave() {
+        updateQueue()
+        saveCurrentQueue()
+    }
+
     fun playSong(song: Song?, playlist: List<Song?> = emptyList(), resetFmMode: Boolean = true) {
         if (song == null) return
         if (resetFmMode) isFmMode = false
@@ -260,6 +324,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             controller.prepare()
             controller.play()
         }
+        // 新播放列表设置后，队列由 listener 回调自动保存
     }
 
     private fun createMediaItem(song: Song?): MediaItem? {
@@ -294,10 +359,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     fun addToQueue(song: Song?) = runWithController { controller ->
         if (song != null) {
-            createMediaItem(song)?.let { 
+            createMediaItem(song)?.let {
                 val wasEmpty = controller.mediaItemCount == 0
                 controller.addMediaItem(it)
-                updateQueue()
+                updateQueueAndSave()
                 if (wasEmpty) {
                     controller.prepare()
                     controller.play()
@@ -312,7 +377,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 val wasEmpty = controller.mediaItemCount == 0
                 val nextIndex = if (wasEmpty) 0 else controller.currentMediaItemIndex + 1
                 controller.addMediaItem(nextIndex, it)
-                updateQueue()
+                updateQueueAndSave()
                 if (wasEmpty) {
                     controller.prepare()
                     controller.play()
@@ -326,7 +391,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             val wasEmpty = controller.mediaItemCount == 0
             val items = songs.mapNotNull { createMediaItem(it) }
             controller.addMediaItems(items)
-            updateQueue()
+            updateQueueAndSave()
             if (wasEmpty) {
                 controller.prepare()
                 controller.play()
@@ -340,9 +405,12 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueue() }
-    fun removeQueueItem(i: Int) = runWithController { it.removeMediaItem(i); updateQueue() }
-    fun clearQueue() = runWithController { it.clearMediaItems(); updateQueue() }
+    fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueueAndSave() }
+    fun removeQueueItem(i: Int) = runWithController { it.removeMediaItem(i); updateQueueAndSave() }
+    fun clearQueue() = runWithController {
+        it.clearMediaItems(); updateQueue()
+        UserPreferences.clearLastQueue(getApplication())
+    }
 
     private fun runWithController(action: (MediaController) -> Unit) {
         mediaController?.let(action) ?: mediaControllerFuture?.addListener({ mediaController?.let(action) }, MoreExecutors.directExecutor())

@@ -920,7 +920,40 @@ class MusicService : MediaSessionService() {
         }
     }
 
+    /**
+     * 保存当前播放队列到 SharedPreferences，供下次启动恢复。
+     */
+    private fun saveQueueOnExit() {
+        if (!UserPreferences.getRestoreLastQueue(this)) return
+        val player = activePlayer ?: return
+        val count = player.mediaItemCount
+        if (count == 0) return
+        try {
+            val songs = (0 until count).map { i ->
+                val item = player.getMediaItemAt(i)
+                val meta = item.mediaMetadata
+                cp.player.model.Song(
+                    id = item.mediaId,
+                    name = meta.title?.toString() ?: "Unknown",
+                    artist = meta.artist?.toString() ?: "Unknown",
+                    artistId = meta.extras?.getString("artistId"),
+                    album = meta.albumTitle?.toString() ?: "",
+                    albumArtUrl = meta.artworkUri?.toString()
+                )
+            }
+            val json = com.google.gson.Gson().toJson(songs)
+            val index = player.currentMediaItemIndex
+            val position = player.currentPosition
+            UserPreferences.saveLastQueue(this, json, index, position)
+            DebugLog.i("MusicService: Saved queue on exit: ${songs.size} songs, index=$index, pos=$position")
+        } catch (e: Exception) {
+            DebugLog.e("MusicService: Failed to save queue on exit: ${e.message}")
+        }
+    }
+
     override fun onDestroy() {
+        // 保存当前播放队列以便下次恢复
+        saveQueueOnExit()
         SuperLyricHelper.unregisterPublisher()
         serviceScope.cancel()
         UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)

@@ -67,6 +67,8 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var wavyProgress by mutableStateOf(UserPreferences.getWavyProgress(application))
         private set
+    var restoreLastQueue by mutableStateOf(UserPreferences.getRestoreLastQueue(application))
+        private set
 
     fun updateQualityWifi(q: String) {
         qualityWifi = q
@@ -214,6 +216,14 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateWavyProgress(enabled: Boolean) {
         wavyProgress = enabled
         UserPreferences.saveWavyProgress(getApplication(), enabled)
+    }
+
+    fun updateRestoreLastQueue(enabled: Boolean) {
+        restoreLastQueue = enabled
+        UserPreferences.saveRestoreLastQueue(getApplication(), enabled)
+        if (!enabled) {
+            UserPreferences.clearLastQueue(getApplication())
+        }
     }
 
     fun clearCache() {

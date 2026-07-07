@@ -268,6 +268,8 @@
     <string name="dap_bit_perfect_desc">対応デバイスでAndroid SRCをバイパス</string>
     <string name="usb_audio_auto_resume">USB オーディオ自動再開</string>
     <string name="usb_audio_auto_resume_desc">USB オーディオが2秒以内に再接続された場合、自動的に再生を再開します</string>
+    <string name="restore_last_queue">前回の再生キューを復元</string>
+    <string name="restore_last_queue_desc">次回起動時に前回の再生キューを自動復元し、ミニプレーヤーを表示します</string>
     <string name="copy_rust_debug_state">Rust デバッグ状態をコピー</string>
     <string name="copy_rust_debug_state_desc">USB排他モードのトラブルシューティングに役立ちます</string>
     <string name="copied_to_clipboard">クリップボードにコピーしました</string>

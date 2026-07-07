@@ -269,6 +269,8 @@
     <string name="dap_bit_perfect_desc">在支持的设备上绕过 Android SRC</string>
     <string name="usb_audio_auto_resume">USB 音频自动恢复</string>
     <string name="usb_audio_auto_resume_desc">USB 音频在 2 秒内重新连接时自动恢复播放</string>
+    <string name="restore_last_queue">恢复上次播放列表</string>
+    <string name="restore_last_queue_desc">下次启动时自动恢复上次的播放队列，并显示迷你播放器</string>
     <string name="copy_rust_debug_state">复制 Rust 调试状态</string>
     <string name="copy_rust_debug_state_desc">用于排查 USB 独占模式问题</string>
     <string name="copied_to_clipboard">已复制到剪贴板</string>

@@ -262,6 +262,8 @@
     <string name="dap_bit_perfect_desc">Bypass Android SRC on supported devices</string>
     <string name="usb_audio_auto_resume">USB Audio Auto-resume</string>
     <string name="usb_audio_auto_resume_desc">Auto-resume playback if USB audio is reconnected within 2 seconds</string>
+    <string name="restore_last_queue">Restore Last Queue</string>
+    <string name="restore_last_queue_desc">Automatically restore the last playback queue and show mini player on next launch</string>
     <string name="copy_rust_debug_state">Copy Rust Debug State</string>
     <string name="copy_rust_debug_state_desc">Useful for troubleshooting USB Exclusive mode</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>

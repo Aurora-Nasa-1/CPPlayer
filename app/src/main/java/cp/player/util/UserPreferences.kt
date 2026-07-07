@@ -39,6 +39,10 @@ object UserPreferences {
     private const val KEY_AMLL_PLATFORM = "amll_platform" // "auto", "ncm", "qq", "am", "spotify"
     private const val KEY_HIDE_NAVBAR_ON_SCROLL = "hide_navbar_on_scroll"
     private const val KEY_WAVY_PROGRESS = "wavy_progress"
+    private const val KEY_RESTORE_LAST_QUEUE = "restore_last_queue"
+    private const val KEY_LAST_QUEUE = "last_queue"
+    private const val KEY_LAST_QUEUE_INDEX = "last_queue_index"
+    private const val KEY_LAST_QUEUE_POSITION = "last_queue_position"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -434,5 +438,53 @@ object UserPreferences {
 
     fun getWavyProgress(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_WAVY_PROGRESS, false) // 默认平直
+    }
+
+    fun saveRestoreLastQueue(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_RESTORE_LAST_QUEUE, enabled).apply()
+    }
+
+    fun getRestoreLastQueue(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_RESTORE_LAST_QUEUE, true) // 默认开启
+    }
+
+    /**
+     * 保存上次播放队列到 SharedPreferences。
+     * @param songs 歌曲列表 JSON
+     * @param index 当前播放索引
+     * @param position 当前播放位置（毫秒）
+     */
+    fun saveLastQueue(context: Context, songs: String, index: Int, position: Long) {
+        getPrefs(context).edit()
+            .putString(KEY_LAST_QUEUE, songs)
+            .putInt(KEY_LAST_QUEUE_INDEX, index)
+            .putLong(KEY_LAST_QUEUE_POSITION, position)
+            .apply()
+    }
+
+    /**
+     * 获取上次保存的播放队列 JSON。返回 null 表示无缓存。
+     */
+    fun getLastQueueJson(context: Context): String? {
+        return getPrefs(context).getString(KEY_LAST_QUEUE, null)
+    }
+
+    fun getLastQueueIndex(context: Context): Int {
+        return getPrefs(context).getInt(KEY_LAST_QUEUE_INDEX, 0)
+    }
+
+    fun getLastQueuePosition(context: Context): Long {
+        return getPrefs(context).getLong(KEY_LAST_QUEUE_POSITION, 0L)
+    }
+
+    /**
+     * 清除保存的播放队列。
+     */
+    fun clearLastQueue(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_LAST_QUEUE)
+            .remove(KEY_LAST_QUEUE_INDEX)
+            .remove(KEY_LAST_QUEUE_POSITION)
+            .apply()
     }
 }
