@@ -1,10 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Outer Orbiting Track -->
     <path
-        android:fillColor="#381E72"
-        android:pathData="M54,22 L54,58.8 C51.3,57.1 48.3,56 45,56 C36.7,56 30,62.7 30,71 C30,79.3 36.7,86 45,86 C53.3,86 60,79.3 60,71 L60,34 L78,34 L78,22 L54,22 Z" />
+        android:strokeColor="#88FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M 54,20 A 34,34 0 1,1 53.9,20 Z" />
+
+    <!-- Orbiting Element / Glowing Particle 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 88,54 A 3,3 0 1,1 87.9,54 Z" />
+
+    <!-- Glowing Particle 2 -->
+    <path
+        android:fillColor="#E0FFFFFF"
+        android:pathData="M 30,30 A 2,2 0 1,1 29.9,30 Z" />
+
+    <!-- Glowing Particle 3 -->
+    <path
+        android:fillColor="#E0FFFFFF"
+        android:pathData="M 70,80 A 2.5,2.5 0 1,1 69.9,80 Z" />
+
+    <!-- Soundwave shaping a Play button -->
+    <!-- Base solid play button to give it body, then overlapping soundwaves -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,36 L43,72 L72,54 Z" />
+
+    <!-- Soundwave Bars (Overlaying the play button or integrated with it)
+         We'll use vertical bars of varying heights that form the triangle. -->
+    <path
+        android:fillColor="#2D0060"
+        android:pathData="M44,40 L46,40 L46,68 L44,68 Z" />
+    <path
+        android:fillColor="#2D0060"
+        android:pathData="M50,42 L52,42 L52,66 L50,66 Z" />
+    <path
+        android:fillColor="#2D0060"
+        android:pathData="M56,44 L58,44 L58,64 L56,64 Z" />
+    <path
+        android:fillColor="#2D0060"
+        android:pathData="M62,48 L64,48 L64,60 L62,60 Z" />
+    <path
+        android:fillColor="#2D0060"
+        android:pathData="M68,52 L70,52 L70,56 L68,56 Z" />
 </vector>
