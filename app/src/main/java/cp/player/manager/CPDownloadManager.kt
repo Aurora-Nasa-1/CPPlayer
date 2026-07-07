@@ -116,8 +116,8 @@ class CPDownloadManager(private val application: Application) {
 
     private fun getStorageStreamAndPath(song: Song): Pair<OutputStream, String>? {
         val userDownloadDir = UserPreferences.getDownloadDir(application)
-        val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val sanitizedName = song.name.replace(INVALID_FILE_CHARS_REGEX, "_")
+        val sanitizedArtist = song.artist.replace(INVALID_FILE_CHARS_REGEX, "_")
         val fileName = "$sanitizedName - $sanitizedArtist [${song.id}].mp3"
 
         if (userDownloadDir != null) {
@@ -215,7 +215,7 @@ class CPDownloadManager(private val application: Application) {
                             // 复制到 filesDir 以持久化
                             val persistentDir = java.io.File(application.filesDir, "downloaded_covers")
                             persistentDir.mkdirs()
-                            val normalizedId = song.id.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                            val normalizedId = song.id.replace(INVALID_ID_CHARS_REGEX, "_")
                             val persistentFile = java.io.File(persistentDir, "$normalizedId.jpg")
                             val cacheFile = java.io.File(application.cacheDir, "cover_art/$normalizedId.jpg")
                             if (cacheFile.exists() && (!persistentFile.exists() || persistentFile.length() == 0L)) {
@@ -276,5 +276,10 @@ class CPDownloadManager(private val application: Application) {
         downloadJobs[songId]?.cancel()
         downloadJobs.remove(songId)
         _tasks.update { it - songId }
+    }
+
+    companion object {
+        private val INVALID_FILE_CHARS_REGEX = Regex("[\\\\/:*?\"<>|]")
+        private val INVALID_ID_CHARS_REGEX = Regex("[^a-zA-Z0-9_-]")
     }
 }
