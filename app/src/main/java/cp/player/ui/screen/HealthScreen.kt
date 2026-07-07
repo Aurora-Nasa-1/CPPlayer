@@ -176,7 +176,7 @@ private fun HealthTabContent(currentTab: Int, scrollable: Boolean) {
 private fun HealthOverviewTab(scrollable: Boolean) {
     val records by HealthMonitor.recordsFlow.collectAsState()
     val allStats = remember(records) { HealthMonitor.getAllStats() }
-    val providers = remember { ModuleManager.getAvailableProviders() }
+    val providers by ModuleManager.providersFlow.collectAsState()
 
     val columnModifier = if (scrollable) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp)
@@ -909,7 +909,7 @@ private fun ApiMapTab(scrollable: Boolean) {
 
 @Composable
 private fun ProviderStatusTab(scrollable: Boolean) {
-    val providers = ModuleManager.getAvailableProviders()
+    val providers by ModuleManager.providersFlow.collectAsState()
     val currentProvider = ProviderManager.currentProvider
 
     val columnModifier = if (scrollable) {

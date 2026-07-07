@@ -44,7 +44,7 @@ fun SetupScreen(
     val coroutineScope = rememberCoroutineScope()
     var isImporting by remember { mutableStateOf(false) }
     var importedSuccessfully by remember { mutableStateOf(false) }
-    var availableProviders by remember { mutableStateOf(ModuleManager.getAvailableProviders()) }
+    val availableProviders by ModuleManager.providersFlow.collectAsState()
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -67,7 +67,6 @@ fun SetupScreen(
                 }
                 isImporting = false
                 if (success) {
-                    availableProviders = ModuleManager.getAvailableProviders()
                     importedSuccessfully = true
                     Toast.makeText(context, context.getString(R.string.module_import_success), Toast.LENGTH_SHORT).show()
                 } else {
