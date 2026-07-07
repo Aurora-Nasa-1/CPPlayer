@@ -291,13 +291,7 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
-        try {
-            SuperLyricHelper.registerPublisher()
-            SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
-            superLyricReady = true
-        } catch (e: Exception) {
-            DebugLog.w("MusicService: SuperLyricHelper init failed: ${e.message}")
-        }
+        initSuperLyric()
 
         usbAudioManager = UsbAudioManager(this)
         usbAudioManager?.start()
@@ -636,6 +630,21 @@ class MusicService : MediaSessionService() {
                 usbAudioManager?.stop()
                 usbAudioManager = null
             }
+        }
+    }
+
+    /**
+     * 初始化 SuperLyric 发布者。
+     * 独立方法防止 R8 内联优化掉 try-catch。
+     */
+    private fun initSuperLyric() {
+        try {
+            SuperLyricHelper.registerPublisher()
+            SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+            superLyricReady = true
+            DebugLog.i("MusicService: SuperLyricHelper initialized")
+        } catch (e: Throwable) {
+            DebugLog.w("MusicService: SuperLyricHelper init failed: ${e.message}")
         }
     }
 
