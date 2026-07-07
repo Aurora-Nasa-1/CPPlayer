@@ -71,17 +71,17 @@ fun LoginDialog(
         }
     }
 
-    // 弹窗打开时自动获取二维码
+    // 弹窗打开时自动获取二维码（如果未登录且没有已恢复的 QR 会话）
     LaunchedEffect(Unit) {
-        if (!viewModel.isLogged) {
+        if (!viewModel.isLogged && viewModel.qrUrl == null) {
             viewModel.fetchQrCode()
         }
     }
 
-    // Provider 切换后刷新账号列表和 QR 码
+    // Provider 切换后刷新账号列表和 QR 码（跳过已恢复的会话）
     LaunchedEffect(viewModel.currentProviderId) {
         allSavedAccounts = viewModel.getAllSavedAccounts()
-        if (!viewModel.isLogged) {
+        if (!viewModel.isLogged && viewModel.qrUrl == null) {
             viewModel.fetchQrCode()
         }
     }

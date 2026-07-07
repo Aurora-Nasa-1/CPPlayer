@@ -22,6 +22,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
+ * QR 会话持久化辅助。
+ *
+ * 用于在进程被系统回收后恢复 QR 登录状态，
+ * 避免用户切到其他 App 扫码后返回时 QR 码丢失。
+ */
+private const val QR_PREFS = "qr_session_prefs"
+private const val KEY_QR_KEY = "qr_key"
+private const val KEY_QR_URL = "qr_url"
+private const val KEY_QR_TIMESTAMP = "qr_timestamp"
+private const val QR_SESSION_TIMEOUT_MS = 300_000L // 5 分钟
+
+/**
  * 登录 ViewModel。
  *
  * 管理登录流程（扫码/邮箱/手机/游客）以及账号切换。
@@ -58,6 +70,12 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
 
     private var checkJob: Job? = null
     private var fetchJob: Job? = null
+    /** 当前 QR 会话的 key，用于恢复轮询 */
+    private var savedQrKey: String? = null
+    /** SharedPreferences for QR session persistence */
+    private val qrPrefs by lazy {
+        getApplication<Application>().getSharedPreferences(QR_PREFS, Application.MODE_PRIVATE)
+    }
 
     init {
         loginCookie = UserPreferences.getCookie(application)
@@ -66,6 +84,8 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
             loginStatus = "Already logged in"
         }
         refreshProviderState()
+        // 尝试恢复被进程回收前的 QR 会话
+        restoreQrSession()
     }
 
     // ======================== Provider 管理 ========================
@@ -95,6 +115,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
         qrUrl = null
         checkJob?.cancel()
         fetchJob?.cancel()
+        clearQrSession()
     }
 
     /**
@@ -150,6 +171,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
                     if (bitmap != null) {
                         qrCodeBitmap = bitmap
                         loginStatus = "Waiting for scan..."
+                        saveQrSession(key)
                         startChecking(key)
                         return@launch
                     }
@@ -158,6 +180,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
                 if (qrUrl != null) {
                     Log.d("LoginVM", "Using fallback QR URL: $qrUrl")
                     loginStatus = "Waiting for scan..."
+                    saveQrSession(key)
                     startChecking(key)
                 } else {
                     Log.e("LoginVM", "No QR image or URL available")
@@ -335,6 +358,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
         qrUrl = null
         checkJob?.cancel()
         fetchJob?.cancel()
+        clearQrSession()
         loginStatus = "请登录 $currentProviderName"
         // 自动获取新 QR 码
         fetchQrCode()
@@ -359,6 +383,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
     private fun onLoginSuccess(newCookie: String) {
         loginCookie = newCookie
         UserPreferences.saveCookie(getApplication(), newCookie)
+        clearQrSession()
 
         viewModelScope.launch {
             try {
@@ -432,6 +457,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
                     when (code) {
                         800 -> {
                             loginStatus = "QR Code expired"
+                            clearQrSession()
                             break
                         }
                         801 -> loginStatus = "Waiting for scan..."
@@ -452,5 +478,78 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
                 }
             }
         }
+    }
+
+    // ======================== QR 会话持久化 ========================
+
+    /**
+     * 保存当前 QR 会话到 SharedPreferences。
+     * 在 QR 码成功生成后调用，用于进程恢复。
+     */
+    private fun saveQrSession(key: String) {
+        savedQrKey = key
+        qrPrefs.edit()
+            .putString(KEY_QR_KEY, key)
+            .putString(KEY_QR_URL, qrUrl)
+            .putLong(KEY_QR_TIMESTAMP, System.currentTimeMillis())
+            .apply()
+        Log.d("LoginVM", "QR session saved: key=$key")
+    }
+
+    /**
+     * 清除已保存的 QR 会话。
+     * 在登录成功、QR 过期、切换 Provider 时调用。
+     */
+    private fun clearQrSession() {
+        savedQrKey = null
+        qrPrefs.edit().clear().apply()
+        Log.d("LoginVM", "QR session cleared")
+    }
+
+    /**
+     * 尝试恢复被进程回收前的 QR 会话。
+     *
+     * 如果 SharedPreferences 中有有效的（未过期的）QR 会话，
+     * 重新生成 QR 位图并恢复状态轮询，使用户切回 App 时
+     * 无需手动刷新即可继续扫码登录。
+     */
+    private fun restoreQrSession() {
+        val key = qrPrefs.getString(KEY_QR_KEY, null)
+        val url = qrPrefs.getString(KEY_QR_URL, null)
+        val timestamp = qrPrefs.getLong(KEY_QR_TIMESTAMP, 0L)
+
+        if (key.isNullOrEmpty()) return
+        if (System.currentTimeMillis() - timestamp > QR_SESSION_TIMEOUT_MS) {
+            Log.d("LoginVM", "Saved QR session expired, clearing")
+            clearQrSession()
+            return
+        }
+
+        Log.d("LoginVM", "Restoring QR session: key=$key")
+        savedQrKey = key
+        loginStatus = "Waiting for scan..."
+
+        // 从保存的 URL 重新生成 QR 位图
+        if (!url.isNullOrEmpty()) {
+            qrUrl = url
+            viewModelScope.launch {
+                try {
+                    val bitmap = withContext(Dispatchers.IO) {
+                        val connection = java.net.URL(url).openConnection()
+                        connection.connect()
+                        val input = connection.getInputStream()
+                        BitmapFactory.decodeStream(input).also { input.close() }
+                    }
+                    if (bitmap != null) {
+                        qrCodeBitmap = bitmap
+                    }
+                } catch (e: Exception) {
+                    Log.w("LoginVM", "Failed to restore QR bitmap from URL", e)
+                }
+            }
+        }
+
+        // 恢复扫码状态轮询
+        startChecking(key)
     }
 }
