@@ -100,7 +100,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
     /**
      * 刷新 Provider 相关状态。
      */
-    private fun refreshProviderState() {
+    fun refreshProviderState() {
         currentProviderName = ProviderManager.getCurrentProviderName()
         currentProviderId = ProviderManager.getCurrentProviderId()
         currentProviderVersion = ProviderManager.currentProvider?.version ?: ""
@@ -325,8 +325,12 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
      */
     fun prepareForNewAccount() {
         isLogged = false
+        // We should NOT clear the cookie from UserPreferences here,
+        // because that overrides the current account's cookie with empty!
+        // Instead, just clear the VM's state so we can log in anew.
+        // The new login will overwrite the cookie and save the new account.
         loginCookie = null
-        UserPreferences.saveCookie(getApplication(), "")
+        // UserPreferences.saveCookie(getApplication(), "") -> Removed to prevent current account cookie loss
         qrCodeBitmap = null
         qrUrl = null
         checkJob?.cancel()

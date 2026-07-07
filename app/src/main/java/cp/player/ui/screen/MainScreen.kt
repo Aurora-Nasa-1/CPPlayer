@@ -119,6 +119,14 @@ fun MainScreen(
     var showAccountDialog by remember { mutableStateOf(false) }
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
+    // 如果首次进入或者未登录状态，且有可用的 Provider，自动弹出登录框
+    LaunchedEffect(Unit) {
+        if (!loginViewModel.isLogged && cp.player.provider.ModuleManager.getAvailableProviders().isNotEmpty()) {
+            loginViewModel.refreshProviderState()
+            showAccountDialog = true
+        }
+    }
+
     if (showAccountDialog) {
         UserAccountDialog(
             loginViewModel = loginViewModel,

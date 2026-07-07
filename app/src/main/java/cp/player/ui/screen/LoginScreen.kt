@@ -93,15 +93,21 @@ fun LoginDialog(
     val currentProviderAccounts = allSavedAccounts.filter { it.providerId == viewModel.currentProviderId }
     val otherProviderAccounts = allSavedAccounts.filter { it.providerId != viewModel.currentProviderId }
 
-    Dialog(
+    var showLoginForm by remember { mutableStateOf(currentProviderAccounts.isEmpty() || !viewModel.isLogged) } // Initialize properly
+
+    LaunchedEffect(currentProviderAccounts.size, viewModel.isLogged) {
+        if (currentProviderAccounts.isEmpty() && !viewModel.isLogged) {
+            showLoginForm = true
+        }
+    }
+
+    StyledModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .fillMaxHeight(0.85f)
+                .fillMaxWidth()
+                .heightIn(max = 700.dp)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -176,7 +182,7 @@ fun LoginDialog(
                     // 添加新账号按钮
                     OutlinedButton(
                         onClick = {
-                            selectedTab = 0
+                            showLoginForm = true; selectedTab = 0
                             viewModel.prepareForNewAccount()
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -227,6 +233,7 @@ fun LoginDialog(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
+                if (showLoginForm) {
                 // ======================== 登录方式 Tab ========================
                 @OptIn(ExperimentalMaterial3Api::class)
                 PrimaryTabRow(selectedTabIndex = selectedTab) {
@@ -282,6 +289,7 @@ fun LoginDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
+                }
                 }
             }
         }

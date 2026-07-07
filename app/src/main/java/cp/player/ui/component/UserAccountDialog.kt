@@ -90,8 +90,8 @@ fun UserAccountDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    StyledModalBottomSheet(onDismissRequest = onDismiss) {
+        Surface(
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {

@@ -4,21 +4,25 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cp.player.provider.ModuleManager
 import cp.player.provider.ProviderManager
 import androidx.compose.ui.res.stringResource
 import cp.player.R
-import cp.player.ui.component.AppScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,105 +77,166 @@ fun SetupScreen(
         }
     }
 
-    AppScaffold(
-        title = stringResource(R.string.setup_title),
-        onBackPressed = null
-    ) { padding ->
+    Scaffold { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
+                .padding(horizontal = 32.dp, vertical = 48.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Filled.FolderZip,
-                contentDescription = null,
-                modifier = Modifier.size(120.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = stringResource(R.string.setup_welcome),
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.setup_desc),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(48.dp))
-
-            if (isImporting) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(stringResource(R.string.importing_module))
-            } else if (importedSuccessfully && availableProviders.isNotEmpty()) {
-                // ======================== 导入成功：显示 Provider 列表 ========================
-                Text(
-                    stringResource(R.string.provider_management),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                availableProviders.forEach { provider ->
-                    val isActive = provider.id == ProviderManager.getCurrentProviderId()
-                    cp.player.ui.component.UnifiedListItem(
-                        onClick = {
-                            ProviderManager.switchProvider(provider, context)
-                        },
-                        headlineContent = { Text(provider.name) },
-                        supportingContent = {
-                            Text(String.format(stringResource(R.string.provider_info), provider.type.name, provider.version))
-                        },
-                        trailingContent = {
-                            if (isActive) {
-                                Icon(
-                                    Icons.Default.FolderZip,
-                                    contentDescription = "Active",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = if (isActive)
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                            else MaterialTheme.colorScheme.surfaceContainer
-                        )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Spacer(modifier = Modifier.height(48.dp))
+                // Top Icon Background
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FolderZip,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { launcher.launch("application/zip") },
-                        modifier = Modifier.weight(1f)
+                Text(
+                    text = stringResource(R.string.setup_welcome),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(R.string.setup_desc),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                if (isImporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.importing_module),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (importedSuccessfully && availableProviders.isNotEmpty()) {
+                    // ======================== 导入成功：显示 Provider 列表 ========================
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
-                        Text(stringResource(R.string.import_new_module))
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                stringResource(R.string.provider_management),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            availableProviders.forEach { provider ->
+                                val isActive = provider.id == ProviderManager.getCurrentProviderId()
+                                cp.player.ui.component.UnifiedListItem(
+                                    onClick = {
+                                        ProviderManager.switchProvider(provider, context)
+                                    },
+                                    headlineContent = { Text(provider.name, fontWeight = FontWeight.Medium) },
+                                    supportingContent = {
+                                        Text(String.format(stringResource(R.string.provider_info), provider.type.name, provider.version))
+                                    },
+                                    trailingContent = {
+                                        if (isActive) {
+                                            Icon(
+                                                Icons.Default.FolderZip,
+                                                contentDescription = "Active",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = if (isActive)
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        else MaterialTheme.colorScheme.surface
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
                     }
+                }
+            }
+
+            // Bottom Actions
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (importedSuccessfully && availableProviders.isNotEmpty()) {
                     Button(
                         onClick = onSetupComplete,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        Text(stringResource(R.string.go_back))
+                        Text(
+                            text = stringResource(R.string.start_using),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Filled.ArrowForward, contentDescription = null)
                     }
-                }
-            } else {
-                Button(
-                    onClick = { launcher.launch("application/zip") },
-                    modifier = Modifier.fillMaxWidth().height(56.dp)
-                ) {
-                    Text(stringResource(R.string.import_new_module))
+                    OutlinedButton(
+                        onClick = { launcher.launch("application/zip") },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Text(
+                            text = stringResource(R.string.import_new_module),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = { launcher.launch("application/zip") },
+                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(
+                            Icons.Filled.FolderZip,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.import_new_module),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
