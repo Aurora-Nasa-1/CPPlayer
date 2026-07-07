@@ -133,6 +133,7 @@ class MusicService : MediaSessionService() {
     private var playbackInfoJob: Job? = null
 
     // SuperLyric state
+    private var superLyricReady = false
     private var currentSuperLyricLines: List<io.github.proify.lyricon.lyric.model.RichLyricLine>? = null
     private var currentSuperLyricIndex: Int = -1
     private var currentSuperLyricTitle: String = ""
@@ -290,8 +291,13 @@ class MusicService : MediaSessionService() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
-        SuperLyricHelper.registerPublisher()
-        SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+        try {
+            SuperLyricHelper.registerPublisher()
+            SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+            superLyricReady = true
+        } catch (e: Exception) {
+            DebugLog.w("MusicService: SuperLyricHelper init failed: ${e.message}")
+        }
 
         usbAudioManager = UsbAudioManager(this)
         usbAudioManager?.start()
@@ -327,7 +333,7 @@ class MusicService : MediaSessionService() {
                     updateMediaSessionLayout()
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
-                    if (!isPlaying) {
+                    if (!isPlaying && superLyricReady) {
                         SuperLyricHelper.sendStop(SuperLyricData())
                     }
                 }
@@ -554,7 +560,7 @@ class MusicService : MediaSessionService() {
                     updateMediaSessionLayout()
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
-                    if (!isPlaying) {
+                    if (!isPlaying && superLyricReady) {
                         SuperLyricHelper.sendStop(SuperLyricData())
                     }
                 }
@@ -705,7 +711,7 @@ class MusicService : MediaSessionService() {
             newIndex = lines.size - 1
         }
 
-        if (newIndex != -1 && newIndex != currentSuperLyricIndex) {
+        if (superLyricReady && newIndex != -1 && newIndex != currentSuperLyricIndex) {
             currentSuperLyricIndex = newIndex
             val richLine = lines[newIndex]
 
@@ -954,7 +960,9 @@ class MusicService : MediaSessionService() {
     override fun onDestroy() {
         // 保存当前播放队列以便下次恢复
         saveQueueOnExit()
-        SuperLyricHelper.unregisterPublisher()
+        try {
+            SuperLyricHelper.unregisterPublisher()
+        } catch (_: Exception) {}
         serviceScope.cancel()
         UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)
         crossfadeManager.release()
