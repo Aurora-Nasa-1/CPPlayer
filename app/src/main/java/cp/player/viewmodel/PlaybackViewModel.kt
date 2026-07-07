@@ -216,6 +216,8 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                     }
                     override fun onTimelineChanged(timeline: Timeline, reason: Int) {
                         updateQueue()
+                        // 队列变化后保存，确保恢复队列后立即持久化
+                        saveCurrentQueue()
                     }
                     override fun onPlaybackStateChanged(state: Int) {
                         isBuffering = state == Player.STATE_BUFFERING
@@ -230,6 +232,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
                 viewModelScope.launch {
                     var lastMediaId: String? = null
+                    var lastSaveTime = System.currentTimeMillis()
                     while (isActive) {
                         currentPosition = controller.currentPosition
                         // 轮询检测歌曲切换（MediaController 的 onMediaItemTransition 可能不触发）
@@ -244,7 +247,14 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                                 // 歌词由 MusicService 通过 ACTION_SONG_CHANGED 触发，轮询只更新歌曲信息
                                 extractColorFromUrl(song.albumArtUrl)
                                 saveCurrentQueue()
+                                lastSaveTime = System.currentTimeMillis()
                             }
+                        }
+                        // 定期保存队列（每30秒），防止 onTimelineChanged 未触发导致队列丢失
+                        val now = System.currentTimeMillis()
+                        if (now - lastSaveTime > 30_000L) {
+                            saveCurrentQueue()
+                            lastSaveTime = now
                         }
                         delay(100L)
                     }

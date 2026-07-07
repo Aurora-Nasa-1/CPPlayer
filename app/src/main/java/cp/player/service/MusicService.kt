@@ -934,6 +934,8 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // 无论播放状态，任务移除时先保存队列，防止进程被杀后数据丢失
+        saveQueueOnExit()
         val p = activePlayer ?: return
         if ((!p.isPlaying && p.playbackState != Player.STATE_BUFFERING) || p.mediaItemCount == 0) {
             stopSelf()
