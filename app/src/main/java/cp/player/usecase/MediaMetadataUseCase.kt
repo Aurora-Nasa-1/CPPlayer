@@ -23,6 +23,7 @@ class MediaMetadataUseCase(private val application: Application) {
 
     companion object {
         private val LOCAL_SONG_ID_REGEX = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
+        private val DSD_EXTENSIONS = setOf("dsf", "dff")
     }
 
     suspend fun extractColorFromUrl(url: String?): Int? = withContext(Dispatchers.IO) {
@@ -68,7 +69,9 @@ class MediaMetadataUseCase(private val application: Application) {
         val cpMusicDir = File(musicDir, "CPPlayer")
 
         if (cpMusicDir.exists()) {
-            cpMusicDir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
+            cpMusicDir.listFiles { _, name ->
+                name.endsWith(".mp3") || name.endsWith(".flac") || DSD_EXTENSIONS.any { name.endsWith(".$it", ignoreCase = true) }
+            }?.forEach { file ->
                 val match = LOCAL_SONG_ID_REGEX.find(file.name)
                 val songId = match?.groupValues?.get(1)
 

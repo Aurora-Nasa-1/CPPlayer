@@ -324,7 +324,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         if (song == null) return
         if (resetFmMode) isFmMode = false
         val target = (if (playlist.isNotEmpty()) playlist else listOf(song)).filterNotNull()
-        val startIndex = target.indexOf(song).coerceAtLeast(0)
+        val startIndex = target.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
 
         runWithController { controller ->
             controller.stop()

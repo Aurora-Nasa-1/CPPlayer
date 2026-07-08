@@ -53,7 +53,7 @@ object CoverArtExtractor {
 
         // 3. 从音频文件提取
         return@withContext try {
-            val artBytes = extractEmbeddedArt(filePath)
+            val artBytes = extractEmbeddedArt(context, filePath)
             if (artBytes != null) {
                 coverFile.parentFile?.mkdirs()
                 FileOutputStream(coverFile).use { it.write(artBytes) }
@@ -73,11 +73,25 @@ object CoverArtExtractor {
 
     /**
      * 从音频文件提取嵌入的封面图片字节数据。
+     * 支持文件路径、content:// URI 以及 DSF/DFF 格式。
      */
-    private fun extractEmbeddedArt(filePath: String): ByteArray? {
+    private fun extractEmbeddedArt(context: Context, filePath: String): ByteArray? {
+        // 优先尝试 DSF/DFF 格式解析
+        if (DsdMetadataParser.isDsdFile(filePath)) {
+            val metadata = DsdMetadataParser.parse(filePath)
+            if (metadata?.coverArt != null) {
+                return metadata.coverArt
+            }
+        }
+
+        // 使用 MediaMetadataRetriever 解析其他格式
         return try {
             val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(filePath)
+            if (filePath.startsWith("content://")) {
+                retriever.setDataSource(context, Uri.parse(filePath))
+            } else {
+                retriever.setDataSource(filePath)
+            }
             val art = retriever.embeddedPicture
             retriever.release()
             art

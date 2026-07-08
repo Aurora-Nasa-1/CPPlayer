@@ -63,11 +63,15 @@ import cp.player.model.Song
     }
 
     /**
-     * 为 local_ 前缀的歌曲 ID 构建 content URI。
+     * 为 local_ 或 dsd_ 前缀的歌曲 ID 构建 content URI。
      */
     fun Song.buildLocalContentUri(): Uri? {
         if (this.id.startsWith("local_")) {
             return Uri.parse("content://media/external/audio/media/${this.id.removePrefix("local_")}")
+        }
+        // DSD 文件使用 file:// URI
+        if (this.id.startsWith("dsd_") && this.albumArtUrl?.startsWith("file://") == true) {
+            return Uri.parse(this.albumArtUrl)
         }
         return null
     }

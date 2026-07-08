@@ -530,7 +530,7 @@ fun AppMainContent(
                                 // Downloads Data
                                 onPlayLocalSong = { s, u ->
                                     libraryCoroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                        val playlist = if (s.id.startsWith("local_")) {
+                                        val playlist = if (s.id.startsWith("local_") || s.id.startsWith("dsd_")) {
                                             downloadViewModel.localSongs.value.map {
                                                 cp.player.model.Song(
                                                     id = it.songId,

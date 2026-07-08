@@ -63,6 +63,9 @@ fun DownloadsContent(
     var isSyncing by remember { mutableStateOf(false) }
     var syncProgress by remember { mutableStateOf("") }
 
+    // 本地歌曲排序状态：0=默认, 1=按名称, 2=按歌手
+    var localSortMode by remember { mutableIntStateOf(0) }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -187,6 +190,8 @@ fun DownloadsContent(
                     isLocalSelectionMode = it
                     if (!it) selectedLocalSongs = emptySet()
                 },
+                localSortMode = localSortMode,
+                onLocalSortModeChange = { localSortMode = it },
                 bottomContentPadding = bottomContentPadding,
                 bindings = bindings
             )
@@ -217,6 +222,8 @@ fun DownloadsContent(
                 isLocalSelectionMode = it
                 if (!it) selectedLocalSongs = emptySet()
             },
+            localSortMode = localSortMode,
+            onLocalSortModeChange = { localSortMode = it },
             bottomContentPadding = bottomContentPadding,
             bindings = bindings
         )
@@ -261,6 +268,8 @@ private fun DownloadsMainContent(
     selectedLocalSongs: Set<String>,
     onLocalSelectionChange: (String, Boolean) -> Unit,
     onToggleLocalSelectionMode: (Boolean) -> Unit,
+    localSortMode: Int = 0,
+    onLocalSortModeChange: (Int) -> Unit = {},
     bottomContentPadding: PaddingValues,
     bindings: Map<String, cp.player.manager.LocalMusicManager.CloudBinding> = emptyMap()
 ) {
@@ -418,7 +427,110 @@ private fun DownloadsMainContent(
                 }
             } else {
                 if (localSongs.isNotEmpty()) {
-                    itemsIndexed(localSongs, key = { _, it -> it.songId }) { index, localSong ->
+                    // 本地歌曲控制栏：全部播放 + 排序
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 全部播放按钮
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                onClick = {
+                                    val sortedSongs = when (localSortMode) {
+                                        1 -> localSongs.sortedBy { it.songName.lowercase() }
+                                        2 -> localSongs.sortedBy { it.artist.lowercase() }
+                                        else -> localSongs
+                                    }
+                                    val songs = sortedSongs.map {
+                                        Song(id = it.songId, name = it.songName, artist = it.artist, album = it.album)
+                                    }
+                                    if (songs.isNotEmpty()) {
+                                        playbackViewModel?.playSong(songs.first(), songs)
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        stringResource(R.string.play_it),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // 排序按钮
+                            var showSortMenu by remember { mutableStateOf(false) }
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                onClick = { showSortMenu = true }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Sort,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        when (localSortMode) {
+                                            1 -> stringResource(R.string.sort_by_name_cn)
+                                            2 -> stringResource(R.string.sort_by_artist_cn)
+                                            else -> stringResource(R.string.sort_by_name)
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.sort_by_name)) },
+                                    onClick = { onLocalSortModeChange(1); showSortMenu = false },
+                                    leadingIcon = { Icon(Icons.Rounded.SortByAlpha, contentDescription = null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.sort_by_artist)) },
+                                    onClick = { onLocalSortModeChange(2); showSortMenu = false },
+                                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) }
+                                )
+                            }
+                        }
+                    }
+
+                    val sortedLocalSongs = remember(localSongs, localSortMode) {
+                        when (localSortMode) {
+                            1 -> localSongs.sortedBy { it.songName.lowercase() }
+                            2 -> localSongs.sortedBy { it.artist.lowercase() }
+                            else -> localSongs
+                        }
+                    }
+
+                    itemsIndexed(sortedLocalSongs, key = { _, it -> it.songId }) { index, localSong ->
                         val uri = android.net.Uri.parse(localSong.albumArtUrl)
 
                         // 获取封面：云端绑定封面 > 内嵌封面 > null
@@ -462,7 +574,7 @@ private fun DownloadsMainContent(
                             },
                             onOptionsClick = if (!isLocalSelectionMode) { { selectedSongForOptions = convertedSong } } else null,
                             index = index,
-                            total = localSongs.size,
+                            total = sortedLocalSongs.size,
                             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else if (androidx.compose.foundation.isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
                             modifier = Modifier.padding(horizontal = 16.dp),
                             leadingContent = if (isLocalSelectionMode) {

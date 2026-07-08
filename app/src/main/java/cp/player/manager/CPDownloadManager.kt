@@ -55,6 +55,9 @@ class CPDownloadManager(private val application: Application) {
     fun scanLocalMusic() {
         scope.launch {
             val localList = mutableListOf<LocalSongMetadata>()
+            val existingPaths = mutableSetOf<String>() // 用于去重
+
+            // 1. 从 MediaStore 查询音频文件
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.TITLE,
@@ -87,7 +90,7 @@ class CPDownloadManager(private val application: Application) {
                         val artist = cursor.getString(artistColumn) ?: "Unknown"
                         val album = cursor.getString(albumColumn) ?: "Unknown"
                         val fileName = cursor.getString(nameColumn) ?: "Unknown"
-                        val path = cursor.getString(dataColumn)
+                        val path = cursor.getString(dataColumn) ?: continue
 
                         val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                         val localId = "local_$id"
@@ -105,12 +108,87 @@ class CPDownloadManager(private val application: Application) {
                             filePath = path, // 实际文件路径，用于封面提取
                             cloudSongId = cloudSongId
                         ))
+                        existingPaths.add(path)
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("CPDownloadManager", "Failed to scan local music", e)
+                android.util.Log.e("CPDownloadManager", "Failed to scan local music from MediaStore", e)
             }
+
+            // 2. 手动扫描 DSF/DFF 文件（MediaStore 可能不索引这些格式）
+            scanDsdFiles(localList, existingPaths)
+
             _localSongs.value = localList
+        }
+    }
+
+    /**
+     * 手动扫描常见音乐目录中的 DSF/DFF 文件。
+     * 使用 MediaStore 查询可能无法索引 DSD 格式文件。
+     */
+    private suspend fun scanDsdFiles(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) = withContext(Dispatchers.IO) {
+        try {
+            val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
+            val directories = listOf(
+                musicDir,
+                File(musicDir, "CPPlayer"),
+                android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            )
+
+            for (dir in directories) {
+                if (dir.exists() && dir.isDirectory) {
+                    scanDirectoryForDsd(dir, localList, existingPaths, depth = 0, maxDepth = 3)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CPDownloadManager", "Failed to scan DSD files", e)
+        }
+    }
+
+    /**
+     * 递归扫描目录中的 DSF/DFF 文件。
+     */
+    private fun scanDirectoryForDsd(
+        dir: File,
+        localList: MutableList<LocalSongMetadata>,
+        existingPaths: MutableSet<String>,
+        depth: Int,
+        maxDepth: Int
+    ) {
+        if (depth > maxDepth) return
+
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isDirectory) {
+                scanDirectoryForDsd(file, localList, existingPaths, depth + 1, maxDepth)
+            } else if (file.isFile && (file.extension.equals("dsf", ignoreCase = true) || file.extension.equals("dff", ignoreCase = true))) {
+                val path = file.absolutePath
+                if (existingPaths.contains(path)) continue
+
+                // 解析 DSD 文件元数据
+                val metadata = cp.player.util.DsdMetadataParser.parse(path)
+                val title = metadata?.title ?: file.nameWithoutExtension
+                val artist = metadata?.artist ?: "Unknown"
+                val album = metadata?.album ?: "DSD"
+
+                // 生成唯一 ID（基于文件路径哈希）
+                val localId = "dsd_${path.hashCode().toUInt()}"
+
+                // 尝试从 LocalMusicManager 获取已绑定的云端歌曲 ID
+                val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
+
+                localList.add(LocalSongMetadata(
+                    songId = localId,
+                    fileName = file.name,
+                    songName = title,
+                    artist = artist,
+                    album = album,
+                    albumArtUrl = "file://$path", // DSD 文件路径
+                    filePath = path,
+                    cloudSongId = cloudSongId
+                ))
+                existingPaths.add(path)
+            }
         }
     }
 
