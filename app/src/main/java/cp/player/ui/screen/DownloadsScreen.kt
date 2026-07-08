@@ -3,6 +3,7 @@ package cp.player.ui.screen
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -93,8 +94,19 @@ fun DownloadsContent(
         }
     }
 
+    // 检查权限是否已授予
+    fun hasPermission(): Boolean {
+        return androidx.core.content.ContextCompat.checkSelfPermission(
+            context, permissionToRequest
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(permissionToRequest)
+        if (hasPermission()) {
+            onRefreshLocalMusic()
+        } else {
+            permissionLauncher.launch(permissionToRequest)
+        }
     }
 
     // 选择模式下的顶部栏
@@ -170,7 +182,9 @@ fun DownloadsContent(
                 selectedTabIndex = selectedTabIndex,
                 onTabChange = { selectedTabIndex = it },
                 tabs = tabs,
-                onRefreshClick = { permissionLauncher.launch(permissionToRequest) },
+                onRefreshClick = {
+                    if (hasPermission()) onRefreshLocalMusic() else permissionLauncher.launch(permissionToRequest)
+                },
                 // 下载相关
                 tasks = tasks,
                 onCancelDownload = onCancelDownload,
@@ -202,7 +216,9 @@ fun DownloadsContent(
             selectedTabIndex = selectedTabIndex,
             onTabChange = { selectedTabIndex = it },
             tabs = tabs,
-            onRefreshClick = { permissionLauncher.launch(permissionToRequest) },
+            onRefreshClick = {
+                if (hasPermission()) onRefreshLocalMusic() else permissionLauncher.launch(permissionToRequest)
+            },
             // 下载相关
             tasks = tasks,
             onCancelDownload = onCancelDownload,
@@ -539,7 +555,11 @@ private fun DownloadsMainContent(
                         val coverArtUrl by produceState<String?>(initialValue = binding?.cloudCoverUrl) {
                             if (binding?.cloudCoverUrl != null) return@produceState
                             value = withContext(Dispatchers.IO) {
-                                cp.player.util.CoverArtExtractor.getOrExtract(context, localSong.songId, localSong.filePath)
+                                cp.player.util.CoverArtExtractor.getOrExtract(
+                                    context, localSong.songId, localSong.filePath,
+                                    // content:// URI 作为回退（Scoped Storage 下 DATA 列可能无效）
+                                    contentUri = if (localSong.albumArtUrl?.startsWith("content://") == true) localSong.albumArtUrl else null
+                                )
                             }
                         }
 

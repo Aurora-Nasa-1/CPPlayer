@@ -57,6 +57,9 @@ class CPDownloadManager(private val application: Application) {
             val localList = mutableListOf<LocalSongMetadata>()
             val existingPaths = mutableSetOf<String>() // 用于去重
 
+            // 0. 触发 Android 媒体库扫描（确保新文件被索引）
+            triggerMediaScan()
+
             // 1. 从 MediaStore 查询音频文件
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
@@ -90,7 +93,7 @@ class CPDownloadManager(private val application: Application) {
                         val artist = cursor.getString(artistColumn) ?: "Unknown"
                         val album = cursor.getString(albumColumn) ?: "Unknown"
                         val fileName = cursor.getString(nameColumn) ?: "Unknown"
-                        val path = cursor.getString(dataColumn) ?: continue
+                        val path = cursor.getString(dataColumn) // DATA 列在 Android 10+ 已弃用，可能返回 null
 
                         val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                         val localId = "local_$id"
@@ -104,11 +107,11 @@ class CPDownloadManager(private val application: Application) {
                             songName = title,
                             artist = artist,
                             album = album,
-                            albumArtUrl = uri.toString(), // 音频 content URI，用于播放
-                            filePath = path, // 实际文件路径，用于封面提取
+                            albumArtUrl = uri.toString(), // 音频 content URI，用于播放和封面提取回退
+                            filePath = path, // 实际文件路径（可能为 null），用于封面提取
                             cloudSongId = cloudSongId
                         ))
-                        existingPaths.add(path)
+                        if (path != null) existingPaths.add(path)
                     }
                 }
             } catch (e: Exception) {
@@ -120,6 +123,66 @@ class CPDownloadManager(private val application: Application) {
 
             _localSongs.value = localList
         }
+    }
+
+    /**
+     * 触发 Android 媒体库扫描常见音乐目录。
+     * 确保新添加的文件（包括 DSF/DFF）被 MediaStore 索引。
+     */
+    private suspend fun triggerMediaScan() = withContext(Dispatchers.IO) {
+        try {
+            val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
+            val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            val directories = listOf(
+                musicDir,
+                File(musicDir, "CPPlayer"),
+                downloadDir
+            )
+            val pathsToScan = mutableListOf<String>()
+            for (dir in directories) {
+                if (dir.exists() && dir.isDirectory) {
+                    collectAudioFiles(dir, pathsToScan, depth = 0, maxDepth = 3)
+                }
+            }
+            if (pathsToScan.isNotEmpty()) {
+                android.media.MediaScannerConnection.scanFile(
+                    application,
+                    pathsToScan.toTypedArray(),
+                    null,
+                    null
+                )
+                // 等待扫描完成
+                kotlinx.coroutines.delay(1000)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CPDownloadManager", "Failed to trigger media scan", e)
+        }
+    }
+
+    /**
+     * 递归收集目录中的音频文件路径（用于媒体扫描）。
+     */
+    private fun collectAudioFiles(dir: File, result: MutableList<String>, depth: Int, maxDepth: Int) {
+        if (depth > maxDepth) return
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isDirectory) {
+                collectAudioFiles(file, result, depth + 1, maxDepth)
+            } else if (file.isFile && isAudioFile(file.extension)) {
+                result.add(file.absolutePath)
+            }
+        }
+    }
+
+    /**
+     * 判断文件扩展名是否为支持的音频格式。
+     */
+    private fun isAudioFile(extension: String): Boolean {
+        val ext = extension.lowercase()
+        return ext in setOf(
+            "mp3", "flac", "ogg", "oga", "opus", "m4a", "wav",
+            "aac", "wma", "aif", "aiff", "dsf", "dff", "wv"
+        )
     }
 
     /**

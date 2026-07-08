@@ -30,10 +30,14 @@ object CoverArtExtractor {
      *
      * 优先级：内存缓存 → 磁盘缓存 → 从音频文件提取。
      *
+     * @param context 上下文
+     * @param songId 歌曲 ID（用作缓存 key）
+     * @param filePath 音频文件路径（file:// URI 或普通路径）
+     * @param contentUri 可选的 content:// URI，作为 filePath 提取失败时的回退
      * @return 封面文件的 `file://` URI 字符串，无封面时返回 null
      */
-    suspend fun getOrExtract(context: Context, songId: String, filePath: String?): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        if (filePath.isNullOrBlank()) return@withContext null
+    suspend fun getOrExtract(context: Context, songId: String, filePath: String?, contentUri: String? = null): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (filePath.isNullOrBlank() && contentUri.isNullOrBlank()) return@withContext null
         if (songId.isBlank()) return@withContext null
 
         val normalizedId = songId.replace(INVALID_ID_CHARS_REGEX, "_")
@@ -53,7 +57,11 @@ object CoverArtExtractor {
 
         // 3. 从音频文件提取
         return@withContext try {
-            val artBytes = extractEmbeddedArt(context, filePath)
+            var artBytes = if (!filePath.isNullOrBlank()) extractEmbeddedArt(context, filePath) else null
+            // 如果 filePath 提取失败，尝试 contentUri（Scoped Storage 下 DATA 列已弃用）
+            if (artBytes == null && !contentUri.isNullOrBlank() && contentUri.startsWith("content://")) {
+                artBytes = extractEmbeddedArt(context, contentUri)
+            }
             if (artBytes != null) {
                 coverFile.parentFile?.mkdirs()
                 FileOutputStream(coverFile).use { it.write(artBytes) }
