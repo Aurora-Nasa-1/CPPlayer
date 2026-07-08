@@ -280,6 +280,8 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
             if (fetchingPlaylistId == playlistId) return
             fetchingPlaylistId = playlistId
 
+            // 立即清空旧歌单数据，防止切换歌单时短暂显示上一个歌单的歌曲
+            playlistSongs = emptyList()
             currentPlaylistMetadata = null
             playlistSongsOffset = 0
             hasMorePlaylistSongs = true
@@ -317,7 +319,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     if (!isLoadMore && detailDef != null) {
                         val detailBody = detailDef.await()
                         val plObj = detailBody.get("playlist")?.asJsonObject
-                        if (plObj != null) {
+                        if (plObj != null && (fetchingPlaylistId == playlistId)) {
                             currentPlaylistMetadata = JsonUtils.parsePlaylist(plObj)
                         }
                     }
@@ -325,14 +327,19 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     val tracksBody = tracksDef.await()
                     val songs = tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
 
-                    if (songs.size < limit) {
+                    if (songs.size < limit && fetchingPlaylistId == playlistId) {
                         hasMorePlaylistSongs = false
                     }
                     if (songs.isNotEmpty()) {
                         playlistSongsOffset += songs.size
-                        playlistSongs = if (isLoadMore) playlistSongs + songs else songs
+                        // 防止用户已切换歌单时覆盖新歌单数据
+                        if (fetchingPlaylistId == playlistId) {
+                            playlistSongs = if (isLoadMore) playlistSongs + songs else songs
+                        }
                     } else if (!isLoadMore) {
-                        playlistSongs = emptyList()
+                        if (fetchingPlaylistId == playlistId) {
+                            playlistSongs = emptyList()
+                        }
                     }
 
                     // 缓存歌单元数据和歌曲（仅首次加载且有数据时）
@@ -371,7 +378,10 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     val plObj = detailBody.get("playlist")?.asJsonObject
                     if (plObj != null) {
                         withContext(Dispatchers.Main) {
-                            currentPlaylistMetadata = JsonUtils.parsePlaylist(plObj)
+                            // 仅在用户仍在此歌单时更新元数据
+                            if (fetchingPlaylistId == playlistId || fetchingPlaylistId == null) {
+                                currentPlaylistMetadata = JsonUtils.parsePlaylist(plObj)
+                            }
                         }
                     }
 
@@ -389,9 +399,12 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
 
                     if (allSongs.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
-                            playlistSongs = allSongs
-                            playlistSongsOffset = allSongs.size
-                            hasMorePlaylistSongs = false
+                            // 仅在用户仍在此歌单时更新歌曲列表
+                            if (fetchingPlaylistId == playlistId || fetchingPlaylistId == null) {
+                                playlistSongs = allSongs
+                                playlistSongsOffset = allSongs.size
+                                hasMorePlaylistSongs = false
+                            }
                         }
                         CacheManager.save(
                             getApplication(),
