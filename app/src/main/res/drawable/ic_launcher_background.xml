@@ -5,6 +5,23 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Base Gradient -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="108"
+                android:startY="108"
+                android:endX="0"
+                android:endY="0"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF416C" />
+                <item android:offset="1.0" android:color="#FF4B2B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Translucent Overlay 1 -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
@@ -13,9 +30,20 @@
                 android:endX="108"
                 android:endY="108"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#EADDFF" />
-                <item android:offset="1.0" android:color="#D0BCFF" />
+                <item android:offset="0.0" android:color="#002B193D" />
+                <item android:offset="0.5" android:color="#448E2DE2" />
+                <item android:offset="1.0" android:color="#994A00E0" />
             </gradient>
         </aapt:attr>
     </path>
+
+    <!-- Fluid translucent shape 1 -->
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M -10,120 C 30,80 50,110 80,95 C 110,80 115,50 120,60 L 120,120 Z" />
+
+    <!-- Fluid translucent shape 2 -->
+    <path
+        android:fillColor="#22FFFFFF"
+        android:pathData="M -10,-10 C 40,30 60,0 80,10 C 100,20 110,40 120,50 L 120,-10 Z" />
 </vector>
