@@ -304,10 +304,12 @@ fun AppMainContent(
             ) {
                 // 横屏时不再显示 NavigationRail，改为在 mini 播放器右侧显示导航胶囊
 
+                val availableProviders by cp.player.provider.ModuleManager.providersFlow.collectAsState()
+
                 Box(modifier = Modifier.weight(1f).fillMaxHeight().padding(top = 0.dp)) {
                     NavHost(
                         navController = navController,
-                        startDestination = if (cp.player.provider.ModuleManager.getAvailableProviders().isEmpty()) "setup" else "main",
+                        startDestination = if (availableProviders.isEmpty()) "setup" else "main",
                         modifier = Modifier.fillMaxSize(),
                         enterTransition = {
                             slideIntoContainer(

@@ -65,7 +65,7 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
         private set
 
     /** 所有已加载的 Provider 列表 */
-    var availableProviders by mutableStateOf(ModuleManager.getAvailableProviders())
+    var availableProviders by mutableStateOf<List<BackendProvider>>(emptyList())
         private set
 
     private var checkJob: Job? = null
@@ -86,6 +86,12 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
         refreshProviderState()
         // 尝试恢复被进程回收前的 QR 会话
         restoreQrSession()
+
+        viewModelScope.launch {
+            ModuleManager.providersFlow.collect { providers ->
+                availableProviders = providers
+            }
+        }
     }
 
     // ======================== Provider 管理 ========================
@@ -125,7 +131,6 @@ class LoginViewModel(application: Application) : BaseViewModel(application) {
         currentProviderName = ProviderManager.getCurrentProviderName()
         currentProviderId = ProviderManager.getCurrentProviderId()
         currentProviderVersion = ProviderManager.currentProvider?.version ?: ""
-        availableProviders = ModuleManager.getAvailableProviders()
     }
 
     // ======================== 扫码登录 ========================

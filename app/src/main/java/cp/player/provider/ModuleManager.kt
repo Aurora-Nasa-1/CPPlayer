@@ -3,6 +3,9 @@ package cp.player.provider
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
@@ -11,6 +14,14 @@ object ModuleManager {
     private const val TAG = "ModuleManager"
     private val gson = Gson()
     private val providers = mutableMapOf<String, BackendProvider>()
+
+    private val _providersFlow = MutableStateFlow<List<BackendProvider>>(emptyList())
+    /** 响应式的可用 Provider 列表流，供 UI 监听刷新 */
+    val providersFlow: StateFlow<List<BackendProvider>> = _providersFlow.asStateFlow()
+
+    private fun updateProvidersFlow() {
+        _providersFlow.value = providers.values.toList()
+    }
 
     /** 最近一次导入/加载失败的错误信息（供 UI 展示） */
     var lastLoadError: String? = null
@@ -29,9 +40,13 @@ object ModuleManager {
             }
         }
 
-        // 尝试恢复上次用户选择的 Provider（优先于自动选择的第一个）
-        if (ProviderManager.currentProvider != null) {
-            ProviderManager.restoreLastProvider(context)
+        updateProvidersFlow()
+
+        // 尝试恢复上次用户选择的 Provider
+        val restored = ProviderManager.restoreLastProvider(context)
+        // 如果没有成功恢复（例如第一次启动或上次的模块被删了），且当前有模块可用，则自动切换到第一个
+        if (!restored && providers.isNotEmpty() && ProviderManager.currentProvider == null) {
+            ProviderManager.switchProvider(providers.values.first(), appContext, save = false)
         }
     }
 
@@ -84,6 +99,8 @@ object ModuleManager {
             if (!success) {
                 // 加载失败时清理已移动的目录，避免残留损坏模块
                 targetDir.deleteRecursively()
+            } else {
+                updateProvidersFlow()
             }
             return success
         } catch (e: SecurityException) {
@@ -131,11 +148,6 @@ object ModuleManager {
             providers[manifest.id] = provider
             Log.i(TAG, "Loaded module: ${manifest.name} (${manifest.id})")
 
-            // 如果没有活跃 Provider，临时选择第一个加载的模块（不保存偏好，由 restoreLastProvider 决定最终选择）
-            if (ProviderManager.currentProvider == null) {
-                ProviderManager.switchProvider(provider, appContext, save = false)
-            }
-
             return true
         } catch (e: Exception) {
             lastLoadError = "加载失败: ${e.message}"
@@ -167,6 +179,7 @@ object ModuleManager {
         return try {
             dir.deleteRecursively()
             providers.remove(id)
+            updateProvidersFlow()
             Log.i(TAG, "Deleted module: $id")
             true
         } catch (e: Exception) {
@@ -250,7 +263,11 @@ object ModuleManager {
             if (oldDir.exists()) oldDir.deleteRecursively()
             tempDir.renameTo(oldDir)
 
-            return loadModule(oldDir)
+            val loaded = loadModule(oldDir)
+            if (loaded) {
+                updateProvidersFlow()
+            }
+            return loaded
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update module: $id", e)
             return false

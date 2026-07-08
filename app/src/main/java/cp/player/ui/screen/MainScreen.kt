@@ -119,9 +119,11 @@ fun MainScreen(
     var showAccountDialog by remember { mutableStateOf(false) }
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
+    val availableProviders by cp.player.provider.ModuleManager.providersFlow.collectAsState()
+
     // 如果首次进入或者未登录状态，且有可用的 Provider，自动弹出登录框
     LaunchedEffect(Unit) {
-        if (!loginViewModel.isLogged && cp.player.provider.ModuleManager.getAvailableProviders().isNotEmpty()) {
+        if (!loginViewModel.isLogged && availableProviders.isNotEmpty()) {
             loginViewModel.refreshProviderState()
             showAccountDialog = true
         }

@@ -745,7 +745,7 @@ fun SettingsScreen(
                     }
                     SettingsPage.Provider -> {
                         SettingsSection(title = stringResource(R.string.provider_management)) {
-                            val providers = cp.player.provider.ModuleManager.getAvailableProviders()
+                            val providers by cp.player.provider.ModuleManager.providersFlow.collectAsState()
                             val coroutineScope = rememberCoroutineScope()
                             // 导入模块的 launcher
                             val importLauncher = rememberLauncherForActivityResult(
@@ -824,16 +824,12 @@ fun SettingsScreen(
 
                             // 提供者更多操作底部面板状态
                             var selectedProvider by remember { mutableStateOf<cp.player.provider.BackendProvider?>(null) }
-                            // 刷新列表用的计数器
-                            var refreshTrigger by remember { mutableIntStateOf(0) }
                             // 自动更新检查结果（provider id → UpdateInfo）
                             var updateResults by remember { mutableStateOf<Map<String, cp.player.provider.ProviderUpdateChecker.UpdateInfo>>(emptyMap()) }
 
                             val loginViewModel: LoginViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-                            // 强制刷新时重新读取列表
-                            val currentProviders = remember(refreshTrigger) {
-                                cp.player.provider.ModuleManager.getAvailableProviders()
-                            }
+
+                            val currentProviders by cp.player.provider.ModuleManager.providersFlow.collectAsState()
 
                             // 进入 provider 页面时自动后台检查所有有 updateUrl 的模块更新
                             LaunchedEffect(currentProviders) {
@@ -947,12 +943,10 @@ fun SettingsScreen(
                                     onDeleted = {
                                         selectedProvider = null
                                         updateResults = updateResults - provider.id
-                                        refreshTrigger++
                                     },
                                     onUpdated = {
                                         selectedProvider = null
                                         updateResults = updateResults - provider.id
-                                        refreshTrigger++
                                     },
                                     onUpdateZipSelected = {
                                         updatingProviderId = provider.id
