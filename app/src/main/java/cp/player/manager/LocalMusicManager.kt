@@ -33,6 +33,8 @@ object LocalMusicManager {
     private val _bindingsFlow = MutableStateFlow<Map<String, CloudBinding>>(emptyMap())
     val bindingsFlow = _bindingsFlow.asStateFlow()
 
+    private val WHITESPACE_REGEX = Regex("\\s+")
+
     /**
      * 云端歌曲绑定信息。
      */
@@ -237,7 +239,7 @@ object LocalMusicManager {
     }
 
     /** 字符串归一化：去空格、转小写 */
-    private fun normalize(s: String): String = s.trim().lowercase().replace(Regex("\\s+"), " ")
+    private fun normalize(s: String): String = s.trim().lowercase().replace(WHITESPACE_REGEX, " ")
 
     /** 简单相似度：基于公共子串比例 */
     private fun similarity(a: String, b: String): Float {

@@ -16,6 +16,7 @@ import java.io.File
  */
 object EmbeddedLyricsExtractor {
     private const val TAG = "EmbeddedLyricsExtractor"
+    private val LRC_REGEX = Regex("\\[\\d{2}:\\d{2}[.:]\\d{2,3}]")
 
     /**
      * 从本地音频文件提取内嵌歌词。
@@ -125,7 +126,7 @@ object EmbeddedLyricsExtractor {
      */
     private fun looksLikeLyrics(text: String): Boolean {
         // LRC 格式检测
-        if (text.contains(Regex("\\[\\d{2}:\\d{2}[.:]\\d{2,3}]"))) return true
+        if (text.contains(LRC_REGEX)) return true
         // 多行文本（至少 3 行，每行不太长）
         val lines = text.lines().filter { it.trim().isNotEmpty() }
         if (lines.size >= 3 && lines.all { it.length < 200 }) return true

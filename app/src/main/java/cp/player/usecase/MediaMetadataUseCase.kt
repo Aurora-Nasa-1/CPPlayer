@@ -21,6 +21,10 @@ import java.io.File
 
 class MediaMetadataUseCase(private val application: Application) {
 
+    companion object {
+        private val LOCAL_SONG_ID_REGEX = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
+    }
+
     suspend fun extractColorFromUrl(url: String?): Int? = withContext(Dispatchers.IO) {
         if (url.isNullOrEmpty()) return@withContext null
         try {
@@ -62,11 +66,10 @@ class MediaMetadataUseCase(private val application: Application) {
     suspend fun refreshLocalSongs() = withContext(Dispatchers.IO) {
         val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
         val cpMusicDir = File(musicDir, "CPPlayer")
-        val idRegex = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
 
         if (cpMusicDir.exists()) {
             cpMusicDir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
-                val match = idRegex.find(file.name)
+                val match = LOCAL_SONG_ID_REGEX.find(file.name)
                 val songId = match?.groupValues?.get(1)
 
                 if (songId != null) {
