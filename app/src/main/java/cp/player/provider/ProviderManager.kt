@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.net.ServerSocket
 
 /**
  * 提供商管理器。
@@ -29,8 +30,18 @@ object ProviderManager {
     private const val PREFS_NAME = "cp_player_prefs"
     private const val KEY_LAST_PROVIDER_ID = "last_active_provider_id"
 
+    /** 默认起始端口 */
+    private const val DEFAULT_PORT = 3000
+
+    /** 端口回退搜索范围（3000 ~ 3019） */
+    private const val MAX_PORT_ATTEMPTS = 20
+
     /** 当前活跃的 Provider（向后兼容） */
     var currentProvider: BackendProvider? = null
+        private set
+
+    /** 当前实际使用的端口（可能因端口占用回退到其他端口） */
+    var currentPort: Int = DEFAULT_PORT
         private set
 
     /** 当前活跃 Provider 的可观察状态 */
@@ -41,10 +52,49 @@ object ProviderManager {
     private val changeListeners = mutableListOf<(BackendProvider?) -> Unit>()
 
     /**
-     * 启动当前 Provider 的服务。
+     * 检查指定端口是否可用。
      */
-    fun startServer(context: Context, port: Int = 3000) {
-        currentProvider?.startServer(context, port)
+    private fun isPortAvailable(port: Int): Boolean {
+        return try {
+            ServerSocket(port).use { true }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 从 [startPort] 开始查找第一个可用端口。
+     * @return 可用端口号，或 null 如果范围内全部被占用
+     */
+    private fun findAvailablePort(startPort: Int = DEFAULT_PORT): Int? {
+        for (offset in 0 until MAX_PORT_ATTEMPTS) {
+            val port = startPort + offset
+            if (isPortAvailable(port)) return port
+        }
+        return null
+    }
+
+    /**
+     * 启动当前 Provider 的服务。
+     *
+     * 自动检测端口可用性，如果 [port] 被占用则依次尝试后续端口。
+     * 如果所有端口都被占用，记录错误但不崩溃。
+     */
+    fun startServer(context: Context, port: Int = DEFAULT_PORT) {
+        val provider = currentProvider ?: return
+
+        // 端口检测 + 自动回退
+        val actualPort = findAvailablePort(port)
+        if (actualPort == null) {
+            Log.e(TAG, "端口 $port ~ ${port + MAX_PORT_ATTEMPTS - 1} 全部被占用，无法启动 Provider: ${provider.id}")
+            return
+        }
+        if (actualPort != port) {
+            Log.w(TAG, "端口 $port 被占用，自动回退到端口 $actualPort (provider: ${provider.id})")
+        }
+
+        currentPort = actualPort
+        provider.startServer(context, actualPort)
     }
 
     /**
@@ -59,7 +109,7 @@ object ProviderManager {
      * @param save 是否持久化用户选择（默认 true）。自动选择第一个模块时应传 false，避免覆盖用户之前的偏好。
      * @return true 如果切换成功
      */
-    fun switchProvider(provider: BackendProvider?, context: Context? = null, port: Int = 3000, save: Boolean = true): Boolean {
+    fun switchProvider(provider: BackendProvider?, context: Context? = null, port: Int = DEFAULT_PORT, save: Boolean = true): Boolean {
         if (provider?.id == currentProvider?.id) return true // 无需切换
 
         // 检查 Provider 是否就绪（JNI 模块可能加载失败）
@@ -85,17 +135,26 @@ object ProviderManager {
             saveLastProviderId(context, provider.id)
         }
 
-        // 启动新 Provider
+        // 启动新 Provider（端口检测 + 自动回退）
         if (provider != null && context != null) {
-            try {
-                provider.startServer(context, port)
-                // 同步设置
-                CoroutineScope(Dispatchers.IO).launch {
-                    ProviderSettingsManager.syncLocalSettingsOnStart(context, provider)
+            val actualPort = findAvailablePort(port)
+            if (actualPort == null) {
+                Log.e(TAG, "端口 $port ~ ${port + MAX_PORT_ATTEMPTS - 1} 全部被占用，无法启动 Provider: ${provider.id}")
+            } else {
+                if (actualPort != port) {
+                    Log.w(TAG, "端口 $port 被占用，自动回退到端口 $actualPort (provider: ${provider.id})")
                 }
-            } catch (e: Throwable) {
-                // 捕获 Throwable 以处理 JNI 原生崩溃（如 UnsatisfiedLinkError、SIGSEGV 转换的 Error）
-                Log.e(TAG, "Error starting new provider", e)
+                currentPort = actualPort
+                try {
+                    provider.startServer(context, actualPort)
+                    // 同步设置
+                    CoroutineScope(Dispatchers.IO).launch {
+                        ProviderSettingsManager.syncLocalSettingsOnStart(context, provider)
+                    }
+                } catch (e: Throwable) {
+                    // 捕获 Throwable 以处理 JNI 原生崩溃（如 UnsatisfiedLinkError、SIGSEGV 转换的 Error）
+                    Log.e(TAG, "Error starting new provider", e)
+                }
             }
         }
 
@@ -116,7 +175,7 @@ object ProviderManager {
      *
      * @return true 如果找到并切换成功
      */
-    fun switchProviderById(providerId: String, context: Context? = null, port: Int = 3000): Boolean {
+    fun switchProviderById(providerId: String, context: Context? = null, port: Int = DEFAULT_PORT): Boolean {
         val provider = ModuleManager.getProvider(providerId)
             ?: ModuleManager.getAvailableProviders().find { it.id == providerId }
         if (provider == null) {
