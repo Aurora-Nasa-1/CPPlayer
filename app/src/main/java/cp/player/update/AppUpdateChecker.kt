@@ -36,6 +36,8 @@ object AppUpdateChecker {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    private val PRE_RELEASE_REGEX = Regex("^([a-zA-Z]*)(\\d*)$")
+
     /**
      * 更新检查结果。
      */
@@ -167,9 +169,8 @@ object AppUpdateChecker {
         // 比较 pre-release 后缀，支持数字部分按数值比较（如 beta2 < beta123）
         fun comparePreRelease(pre1: String, pre2: String): Int {
             // 提取共同字母前缀后的数字部分
-            val regex = Regex("^([a-zA-Z]*)(\\d*)$")
-            val match1 = regex.matchEntire(pre1)
-            val match2 = regex.matchEntire(pre2)
+            val match1 = PRE_RELEASE_REGEX.matchEntire(pre1)
+            val match2 = PRE_RELEASE_REGEX.matchEntire(pre2)
 
             if (match1 != null && match2 != null) {
                 val prefix1 = match1.groupValues[1]
