@@ -339,7 +339,7 @@ object DsdMetadataParser {
                 2 -> String(textBytes, Charsets.UTF_16BE) // UTF-16BE without BOM
                 3 -> String(textBytes, Charsets.UTF_8)
                 else -> String(textBytes, Charsets.UTF_8)
-            }.trim().trim(' ')
+            }?.trim()?.trim(' ')
         } catch (e: Exception) {
             null
         }
@@ -357,7 +357,7 @@ object DsdMetadataParser {
             offset++
 
             // 读取 MIME 类型（null 结尾）
-            val mimeEnd = data.indexOf(' '.code.toByte(), offset)
+            val mimeEnd = (offset until data.size).firstOrNull { data[it] == 0.toByte() } ?: -1
             if (mimeEnd < 0) return null
             offset = mimeEnd + 1
 
@@ -368,7 +368,7 @@ object DsdMetadataParser {
             // 跳过描述（null 结尾）
             when (encoding) {
                 0, 3 -> {
-                    val descEnd = data.indexOf(' '.code.toByte(), offset)
+                    val descEnd = (offset until data.size).firstOrNull { data[it] == 0.toByte() } ?: -1
                     if (descEnd >= 0) offset = descEnd + 1
                 }
                 1, 2 -> {

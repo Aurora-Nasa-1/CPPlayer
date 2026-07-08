@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -301,6 +302,14 @@ private fun DownloadsMainContent(
             }
         }
 
+        val sortedLocalSongs = remember(localSongs, localSortMode) {
+            when (localSortMode) {
+                1 -> localSongs.sortedBy { it.songName.lowercase() }
+                2 -> localSongs.sortedBy { it.artist.lowercase() }
+                else -> localSongs
+            }
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
@@ -519,14 +528,6 @@ private fun DownloadsMainContent(
                                     leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) }
                                 )
                             }
-                        }
-                    }
-
-                    val sortedLocalSongs = remember(localSongs, localSortMode) {
-                        when (localSortMode) {
-                            1 -> localSongs.sortedBy { it.songName.lowercase() }
-                            2 -> localSongs.sortedBy { it.artist.lowercase() }
-                            else -> localSongs
                         }
                     }
 
