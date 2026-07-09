@@ -21,7 +21,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.SharedPreferences
 import cp.player.util.DspPreferences
+import cp.player.util.UserPreferences
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -130,10 +132,37 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     /** DSP 设置是否已同步到引擎（首次播放后自动应用） */
     private var dspApplied = false
 
+    /** SharedPreferences 监听器，实时同步 DSD / DAP 设置到 Rust 引擎 */
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "dsd_output_mode" -> {
+                val mode = UserPreferences.getDsdOutputMode(context)
+                scope.launch(RustEngine.engineDispatcher) {
+                    RustEngine.setDsdOutputMode(mode)
+                    Log.i(TAG, "Synced DSD output mode to Rust: $mode")
+                }
+            }
+            "dap_bit_perfect" -> {
+                val enabled = UserPreferences.getDapBitPerfect(context)
+                scope.launch(RustEngine.engineDispatcher) {
+                    RustEngine.setDapBitPerfectEnabled(enabled)
+                    Log.i(TAG, "Synced DAP bit-perfect to Rust: $enabled")
+                }
+            }
+        }
+    }
+
     init {
         RustEngine.initEngine(context)
+        // 同步 DSD / DAP 设置到 Rust 引擎
+        scope.launch(RustEngine.engineDispatcher) {
+            RustEngine.setDsdOutputMode(UserPreferences.getDsdOutputMode(context))
+            RustEngine.setDapBitPerfectEnabled(UserPreferences.getDapBitPerfect(context))
+        }
         // setVolume 移到引擎线程
         scope.launch(RustEngine.engineDispatcher) { RustEngine.setVolume(1.0f) }
+        // 监听设置变化
+        UserPreferences.getPrefs(context).registerOnSharedPreferenceChangeListener(prefsListener)
         observeRustEvents()
         startStateReconcile()
     }
@@ -952,6 +981,10 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
         stateReconcileJob?.cancel()
         preCacheJob?.cancel()
         stopPositionPolling()
+        // 注销 SharedPreferences 监听器
+        try {
+            UserPreferences.getPrefs(context).unregisterOnSharedPreferenceChangeListener(prefsListener)
+        } catch (_: Exception) {}
         scope.launch(Dispatchers.IO) { RustEngine.stopEngine() }
         return Futures.immediateVoidFuture()
     }

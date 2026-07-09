@@ -774,6 +774,31 @@ pub fn audio_play(path: String) -> Result<(), String> {
                     output_channels = with_audio_engine(|handle| Ok(handle.channels()))?;
                 }
             }
+            // 配置 USB DSD 传输模式（仅 DoP 和 Native 需要，PCM Decimation 不需要）
+            #[cfg(all(feature = "uac2", target_os = "android"))]
+            {
+                if crate::uac2::is_usb_session_active() {
+                    match effective_mode {
+                        DsdOutputMode::Dop => {
+                            let carrier = dsd_rate_enum.map(|r| r.dop_carrier_rate()).unwrap_or(176_400);
+                            if let Err(e) = crate::uac2::set_android_usb_dop_mode(true, carrier, 24) {
+                                log::warn!("[AUDIO] Failed to set USB DoP mode: {}", e);
+                            } else {
+                                log::info!("[AUDIO] USB DoP mode enabled: carrier={} Hz", carrier);
+                            }
+                        }
+                        DsdOutputMode::Native => {
+                            let dsd_bit_rate = dsd_sample_rate;
+                            if let Err(e) = crate::uac2::set_android_usb_dsd_native_mode(dsd_bit_rate) {
+                                log::warn!("[AUDIO] Failed to set USB native DSD mode: {}", e);
+                            } else {
+                                log::info!("[AUDIO] USB native DSD mode enabled: rate={} Hz", dsd_bit_rate);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
             let (source, thread) = DsdDecoderThread::spawn(
                 path,
                 effective_mode,
@@ -892,6 +917,31 @@ pub fn audio_queue_next(path: String) -> Result<(), String> {
                         )?;
                         output_sample_rate = with_audio_engine(|handle| Ok(handle.sample_rate()))?;
                         output_channels = with_audio_engine(|handle| Ok(handle.channels()))?;
+                    }
+                }
+                // 配置 USB DSD 传输模式
+                #[cfg(all(feature = "uac2", target_os = "android"))]
+                {
+                    if crate::uac2::is_usb_session_active() {
+                        match effective_mode {
+                            DsdOutputMode::Dop => {
+                                let carrier = dsd_rate_enum.map(|r| r.dop_carrier_rate()).unwrap_or(176_400);
+                                if let Err(e) = crate::uac2::set_android_usb_dop_mode(true, carrier, 24) {
+                                    log::warn!("[AUDIO] queue_next: Failed to set USB DoP mode: {}", e);
+                                } else {
+                                    log::info!("[AUDIO] queue_next: USB DoP mode enabled: carrier={} Hz", carrier);
+                                }
+                            }
+                            DsdOutputMode::Native => {
+                                let dsd_bit_rate = dsd_sample_rate;
+                                if let Err(e) = crate::uac2::set_android_usb_dsd_native_mode(dsd_bit_rate) {
+                                    log::warn!("[AUDIO] queue_next: Failed to set USB native DSD mode: {}", e);
+                                } else {
+                                    log::info!("[AUDIO] queue_next: USB native DSD mode enabled: rate={} Hz", dsd_bit_rate);
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 let (source, thread) = DsdDecoderThread::spawn(

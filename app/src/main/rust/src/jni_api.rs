@@ -1,12 +1,13 @@
 #![cfg(target_os = "android")]
 
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jboolean, jbyte, jdouble, jfloat, jstring};
+use jni::sys::{jboolean, jdouble, jfloat, jint, jstring};
 use jni::JNIEnv;
 
 use crate::api::audio_api::{
     audio_init, audio_pause, audio_play, audio_resume, audio_seek, audio_set_volume, audio_stop,
     audio_get_state, audio_get_progress, audio_poll_event,
+    audio_set_dsd_output_mode, audio_set_dap_bit_perfect_enabled,
 };
 use crate::audio::equalizer::PeqBand;
 
@@ -286,4 +287,24 @@ pub extern "system" fn Java_cp_player_engine_RustEngine_nativePollEvent(
             std::ptr::null_mut()
         }
     }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_cp_player_engine_RustEngine_nativeSetDsdOutputMode(
+    _env: JNIEnv,
+    _class: JClass,
+    mode: jint,
+) -> jboolean {
+    audio_set_dsd_output_mode(mode.clamp(0, 3) as u8);
+    1
+}
+
+#[no_mangle]
+pub extern "system" fn Java_cp_player_engine_RustEngine_nativeSetDapBitPerfectEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+) -> jboolean {
+    audio_set_dap_bit_perfect_enabled(enabled != 0);
+    1
 }

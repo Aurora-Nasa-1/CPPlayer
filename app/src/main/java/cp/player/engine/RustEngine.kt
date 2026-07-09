@@ -395,4 +395,23 @@ object RustEngine {
         if (!isInitialized) return true
         return nativeWaitRustDirectUsbSessionStopped(timeoutMs)
     }
+
+    // ═══════════════════════════════════════════════
+    // DSD / DAP 设置 JNI
+    // ═══════════════════════════════════════════════
+
+    /** 设置 DSD 输出模式: 0=PCM, 1=DoP, 2=Native, 3=Auto */
+    fun setDsdOutputMode(mode: Int): Boolean {
+        if (!isInitialized) return false
+        return nativeSetDsdOutputMode(mode)
+    }
+
+    /** 设置 DAP Bit-Perfect 模式 */
+    fun setDapBitPerfectEnabled(enabled: Boolean): Boolean {
+        if (!isInitialized) return false
+        return nativeSetDapBitPerfectEnabled(enabled)
+    }
+
+    private external fun nativeSetDsdOutputMode(mode: Int): Boolean
+    private external fun nativeSetDapBitPerfectEnabled(enabled: Boolean): Boolean
 }
