@@ -49,6 +49,7 @@ fun DownloadsContent(
     onCancelDownload: (String) -> Unit = {},
     onDeleteLocalSong: (android.net.Uri) -> Unit = {},
     onRefreshLocalMusic: () -> Unit = {},
+    isScanning: Boolean = false,
     favoriteSongs: List<String> = emptyList(),
     onLikeClick: (Song) -> Unit = {},
     playbackViewModel: PlaybackViewModel? = null,
@@ -185,6 +186,7 @@ fun DownloadsContent(
                 onRefreshClick = {
                     if (hasPermission()) onRefreshLocalMusic() else permissionLauncher.launch(permissionToRequest)
                 },
+                isScanning = isScanning,
                 // 下载相关
                 tasks = tasks,
                 onCancelDownload = onCancelDownload,
@@ -219,6 +221,7 @@ fun DownloadsContent(
             onRefreshClick = {
                 if (hasPermission()) onRefreshLocalMusic() else permissionLauncher.launch(permissionToRequest)
             },
+            isScanning = isScanning,
             // 下载相关
             tasks = tasks,
             onCancelDownload = onCancelDownload,
@@ -270,6 +273,7 @@ private fun DownloadsMainContent(
     onTabChange: (Int) -> Unit,
     tabs: List<String>,
     onRefreshClick: () -> Unit,
+    isScanning: Boolean = false,
     // 下载相关
     tasks: Map<String, DownloadTask>,
     onCancelDownload: (String) -> Unit,
@@ -312,8 +316,15 @@ private fun DownloadsMainContent(
                 }
             }
             if (selectedTabIndex == 1 && !isLocalSelectionMode) {
-                IconButton(onClick = onRefreshClick) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                if (isScanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp).padding(4.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    IconButton(onClick = onRefreshClick) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
             }
         }

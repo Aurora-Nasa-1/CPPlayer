@@ -35,6 +35,8 @@ object ProviderUpdateChecker {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    private val PRE_RELEASE_REGEX = Regex("^([a-zA-Z]*)(\\d*)$")
+
     /**
      * 远程更新信息。
      */

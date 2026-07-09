@@ -37,6 +37,8 @@ object AppUpdateChecker {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    private val PRE_RELEASE_REGEX = Regex("^([a-zA-Z]*)(\\d*)$")
+
     /**
      * 更新检查结果。
      */

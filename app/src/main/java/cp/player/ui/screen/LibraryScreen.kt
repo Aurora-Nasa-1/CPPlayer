@@ -60,6 +60,7 @@ fun LibraryScreen(
     onCancelDownload: (String) -> Unit = {},
     onDeleteLocalSong: (android.net.Uri) -> Unit = {},
     onRefreshLocalMusic: () -> Unit = {},
+    isScanning: Boolean = false,
     // Cloud Data
     cloudSongs: List<Song> = emptyList(),
     favoriteSongs: List<String> = emptyList(),
@@ -183,6 +184,7 @@ fun LibraryScreen(
                                     onCancelDownload = onCancelDownload,
                                     onDeleteLocalSong = onDeleteLocalSong,
                                     onRefreshLocalMusic = onRefreshLocalMusic,
+                                    isScanning = isScanning,
                                     favoriteSongs = favoriteSongs,
                                     onLikeClick = { song ->
                                         userViewModel.toggleLike(song.id, !favoriteSongs.contains(song.id))

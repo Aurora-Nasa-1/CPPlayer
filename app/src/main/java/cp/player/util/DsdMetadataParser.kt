@@ -449,10 +449,12 @@ object DsdMetadataParser {
     }
 
     /**
-     * 检查文件是否为 DSF/DFF 格式。
+     * 检查文件是否为 DSF/DFF 格式（基于扩展名）。
+     * 支持 file:// URI 和普通路径。
      */
     fun isDsdFile(filePath: String): Boolean {
-        val ext = filePath.substringAfterLast('.', "").lowercase()
+        val cleanPath = if (filePath.startsWith("file://")) filePath.removePrefix("file://") else filePath
+        val ext = cleanPath.substringAfterLast('.', "").lowercase()
         return ext == "dsf" || ext == "dff"
     }
 
