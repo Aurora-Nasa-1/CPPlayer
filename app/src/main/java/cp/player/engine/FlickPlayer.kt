@@ -968,6 +968,25 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
     private fun getRealPathFromUri(uriStr: String): String? {
         val uri = Uri.parse(uriStr)
         if ("content".equals(uri.scheme, ignoreCase = true)) {
+            // FileProvider URI：从路径段解析真实文件路径
+            if (uri.authority?.endsWith(".fileprovider") == true) {
+                val pathSegments = uri.pathSegments
+                if (pathSegments.size >= 2) {
+                    val storageType = pathSegments[0] // "external", "root"
+                    val relativePath = pathSegments.drop(1).joinToString("/")
+                    val basePath = when (storageType) {
+                        "external" -> android.os.Environment.getExternalStorageDirectory().absolutePath
+                        "root" -> "/"
+                        else -> null
+                    }
+                    if (basePath != null) {
+                        val fullPath = "$basePath/$relativePath"
+                        if (java.io.File(fullPath).exists()) return fullPath
+                    }
+                }
+            }
+
+            // MediaStore content:// URI：查询 DATA 列获取真实路径
             val projection = arrayOf(MediaStore.Audio.Media.DATA)
             try {
                 context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -978,6 +997,16 @@ class FlickPlayer(private val context: Context) : SimpleBasePlayer(Looper.getMai
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resolve path for $uriStr", e)
             }
+
+            // 最后回退：通过 /proc/self/fd 解析
+            try {
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    val fdPath = "/proc/self/fd/${pfd.fd}"
+                    val link = java.io.File(fdPath).canonicalPath
+                    if (link != fdPath && java.io.File(link).exists()) return link
+                }
+            } catch (_: Exception) {}
+
         } else if ("file".equals(uri.scheme, ignoreCase = true)) {
             return uri.path
         }
