@@ -197,29 +197,12 @@ class CPDownloadManager(private val application: Application) {
     /**
      * 手动扫描常见音乐目录中的 DSF/DFF 文件。
      *
-     * 策略：
-     * 1. 先检查 MediaStore 是否已索引 DSD 文件（支持 DSD 的设备上 MediaStore 会返回 content:// URI）
-     * 2. 如果 MediaStore 已找到 DSD 文件，跳过手动扫描（避免用 dsd_ 条目覆盖正常的 local_ 条目）
-     * 3. 如果 MediaStore 未找到 DSD 文件，进行文件系统扫描（需要 MANAGE_EXTERNAL_STORAGE 权限）
+     * MediaStore 不一定索引 DSD 格式文件，因此需要文件系统直接扫描。
+     * dedup 逻辑确保已通过 MediaStore 索引的 DSD 文件不会被重复添加。
      *
-     * 重要：在支持 DSD 的设备上，MediaStore 返回的 content:// URI 可以直接由 ExoPlayer + 系统解码器播放，
-     * 不应被手动扫描的 dsd_ 条目覆盖。
+     * 需要 MANAGE_EXTERNAL_STORAGE 权限（Android 11+）才能访问公共目录。
      */
     private suspend fun scanDsdFiles(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) = withContext(Dispatchers.IO) {
-        // 检查 MediaStore 是否已索引了 DSD 文件
-        val dsfInMediaStore = localList.any {
-            it.fileName.endsWith(".dsf", ignoreCase = true) || it.fileName.endsWith(".dff", ignoreCase = true)
-        }
-
-        if (dsfInMediaStore) {
-            // MediaStore 已索引 DSD 文件 → 设备支持 DSD，使用 MediaStore 的 content:// URI 播放
-            // 不进行手动扫描，避免创建 dsd_ 条目覆盖正常的 local_ 条目
-            android.util.Log.d("CPDownloadManager", "DSD files found in MediaStore, skipping manual scan (device supports DSD)")
-            return@withContext
-        }
-
-        // MediaStore 未索引 DSD 文件 → 设备可能不支持 DSD，尝试文件系统扫描
-        android.util.Log.d("CPDownloadManager", "No DSD files in MediaStore, attempting filesystem scan")
         try {
             val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
             val directories = mutableListOf(
@@ -256,7 +239,7 @@ class CPDownloadManager(private val application: Application) {
                 if (dir.exists() && dir.isDirectory) {
                     scanDirectoryForDsd(dir, localList, existingPaths, depth = 0, maxDepth = 5)
                 } else {
-                    android.util.Log.d("CPDownloadManager", "DSD scan: skipping inaccessible dir: ${dir.absolutePath}")
+                    android.util.Log.d("CPDownloadManager", "DSD scan: dir not accessible: ${dir.absolutePath}")
                 }
             }
         } catch (e: Exception) {
@@ -280,9 +263,13 @@ class CPDownloadManager(private val application: Application) {
 
         val files = dir.listFiles()
         if (files == null) {
-            if (depth == 0) android.util.Log.w("CPDownloadManager", "DSD scan: listFiles() returned null for ${dir.absolutePath} (scoped storage restriction?)")
+            if (depth == 0) {
+                val hasManage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) android.os.Environment.isExternalStorageManager() else true
+                android.util.Log.w("CPDownloadManager", "DSD scan: listFiles() returned null for ${dir.absolutePath}, MANAGE_EXTERNAL_STORAGE=$hasManage")
+            }
             return
         }
+        if (depth == 0) android.util.Log.d("CPDownloadManager", "DSD scan: scanning ${dir.absolutePath}, ${files.size} entries")
         for (file in files) {
             if (file.isDirectory) {
                 scanDirectoryForDsd(file, localList, existingPaths, depth + 1, maxDepth)
