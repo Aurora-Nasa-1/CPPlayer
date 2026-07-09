@@ -95,7 +95,27 @@ fun DownloadsContent(
         }
     }
 
-    // 检查权限是否已授予
+    // MANAGE_EXTERNAL_STORAGE 权限请求（Android 11+，用于扫描 DSF/DFF 等 MediaStore 不索引的格式）
+    val manageStorageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && android.os.Environment.isExternalStorageManager()) {
+            onRefreshLocalMusic()
+        }
+    }
+
+    // 检查是否拥有足够的存储权限（用于 DSD 文件扫描）
+    fun hasStoragePermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
+        } else {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, permissionToRequest
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    // 检查基本音频读取权限（MediaStore 查询）
     fun hasPermission(): Boolean {
         return androidx.core.content.ContextCompat.checkSelfPermission(
             context, permissionToRequest
@@ -105,6 +125,17 @@ fun DownloadsContent(
     LaunchedEffect(Unit) {
         if (hasPermission()) {
             onRefreshLocalMusic()
+            // 如果没有 MANAGE_EXTERNAL_STORAGE，提示用户授予以扫描 DSD 文件
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+                try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.data = android.net.Uri.parse("package:${context.packageName}")
+                    manageStorageLauncher.launch(intent)
+                } catch (_: Exception) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    manageStorageLauncher.launch(intent)
+                }
+            }
         } else {
             permissionLauncher.launch(permissionToRequest)
         }
