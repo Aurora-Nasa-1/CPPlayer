@@ -342,7 +342,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         val localUri = localSongs.find { (s, _) ->
             @Suppress("SENSELESS_COMPARISON")
             s != null && s.id == song.id
-        }?.second ?: song.buildLocalContentUri()
+        }?.second ?: song.buildLocalContentUri(getApplication())
         val quality = UserPreferences.getQualityWifi(getApplication())
         return song.toMediaItem(localUri, quality, cookie)
     }

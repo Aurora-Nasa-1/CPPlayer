@@ -1,10 +1,13 @@
 package cp.player.util
 
+import android.content.Context
 import android.os.Bundle
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import cp.player.model.Song
+import java.io.File
 
 
 
@@ -63,15 +66,27 @@ import cp.player.model.Song
     }
 
     /**
-     * 为 local_ 或 dsd_ 前缀的歌曲 ID 构建 content URI。
+     * 为 local_ 或 dsd_ 前缀的歌曲 ID 构建 content:// URI。
+     * DSD 文件通过 FileProvider 提供 content:// URI（Android 10+ 禁止 file:// URI）。
      */
-    fun Song.buildLocalContentUri(): Uri? {
+    fun Song.buildLocalContentUri(context: Context? = null): Uri? {
         if (this.id.startsWith("local_")) {
             return Uri.parse("content://media/external/audio/media/${this.id.removePrefix("local_")}")
         }
-        // DSD 文件使用 file:// URI
-        if (this.id.startsWith("dsd_") && this.albumArtUrl?.startsWith("file://") == true) {
-            return Uri.parse(this.albumArtUrl)
+        // DSD 文件通过 FileProvider 获取 content:// URI
+        if (this.id.startsWith("dsd_")) {
+            val path = this.albumArtUrl?.removePrefix("file://")
+            if (!path.isNullOrBlank() && context != null) {
+                val file = File(path)
+                if (file.exists()) {
+                    return try {
+                        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                    } catch (e: Exception) {
+                        android.util.Log.w("MediaItemMapper", "FileProvider failed for DSD file: $path", e)
+                        null
+                    }
+                }
+            }
         }
         return null
     }

@@ -328,10 +328,11 @@ object DsdMetadataParser {
                 1 -> {
                     // UTF-16 with BOM
                     if (textBytes.size >= 2) {
-                        val bom = (textBytes[0].toInt() and 0xFF) or ((textBytes[1].toInt() and 0xFF) shl 8)
-                        when (bom) {
-                            0xFEFF -> String(textBytes, 2, textBytes.size - 2, Charsets.UTF_16BE)
-                            0xFFFE -> String(textBytes, 2, textBytes.size - 2, Charsets.UTF_16LE)
+                        val b0 = textBytes[0].toInt() and 0xFF
+                        val b1 = textBytes[1].toInt() and 0xFF
+                        when {
+                            b0 == 0xFE && b1 == 0xFF -> String(textBytes, 2, textBytes.size - 2, Charsets.UTF_16BE)
+                            b0 == 0xFF && b1 == 0xFE -> String(textBytes, 2, textBytes.size - 2, Charsets.UTF_16LE)
                             else -> String(textBytes, Charsets.UTF_16BE)
                         }
                     } else null

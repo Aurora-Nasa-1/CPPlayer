@@ -605,12 +605,14 @@ private fun DownloadsMainContent(
                             }
                         }
 
+                        // DSD 文件：albumArtUrl 必须保留原始文件路径（用于 FileProvider 播放），
+                        // 封面显示由 UI 层的 coverArtUrl 变量处理
                         val convertedSong = Song(
                             id = localSong.songId,
                             name = localSong.songName,
                             artist = localSong.artist,
                             album = localSong.album,
-                            albumArtUrl = coverArtUrl
+                            albumArtUrl = if (localSong.songId.startsWith("dsd_")) localSong.albumArtUrl else coverArtUrl
                         )
 
                         val isSelected = selectedLocalSongs.contains(localSong.songId)
@@ -618,8 +620,15 @@ private fun DownloadsMainContent(
                         var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
                         var showBindSheet by remember { mutableStateOf(false) }
 
+                        // DSD 文件：用 coverArtUrl 显示封面，但 convertedSong 保留文件路径用于播放
+                        val displaySong = if (localSong.songId.startsWith("dsd_") && coverArtUrl != null) {
+                            convertedSong.copy(albumArtUrl = coverArtUrl)
+                        } else {
+                            convertedSong
+                        }
+
                         SongItem(
-                            song = convertedSong,
+                            song = displaySong,
                             isFavorite = false,
                             isCurrentlyPlaying = convertedSong.id == playbackViewModel?.currentSong?.id,
                             onClick = {
@@ -666,20 +675,21 @@ private fun DownloadsMainContent(
 
                         selectedSongForOptions?.let { song ->
                             cp.player.ui.component.SongOptionsBottomSheet(
-                                song = song,
+                                song = displaySong,
                                 isFavorite = false,
                                 onDismissRequest = { selectedSongForOptions = null },
                                 onPlayClick = {
-                                    onPlayLocalSong(song, uri)
+                                    // DSD 文件需要 convertedSong（含文件路径）用于播放
+                                    onPlayLocalSong(convertedSong, uri)
                                     selectedSongForOptions = null
                                 },
                                 onFavoriteClick = { /* Local songs: no favorite */ },
                                 onAddToQueueClick = {
-                                    playbackViewModel?.addToQueue(song)
+                                    playbackViewModel?.addToQueue(convertedSong)
                                     selectedSongForOptions = null
                                 },
                                 onNextClick = {
-                                    playbackViewModel?.insertNext(song)
+                                    playbackViewModel?.insertNext(convertedSong)
                                     selectedSongForOptions = null
                                 },
                                 onBindCloudClick = {
