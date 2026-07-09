@@ -558,6 +558,7 @@ fun AppMainContent(
                                 onCancelDownload = { downloadViewModel.cancelDownload(it) },
                                 onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) },
                                 onRefreshLocalMusic = { downloadViewModel.refreshLocalMusic() },
+                                isScanning = downloadViewModel.isScanning.collectAsState().value,
                                 
                                 // Cloud Data
                                 cloudSongs = userViewModel.cloudSongs,

@@ -45,6 +45,9 @@ class CPDownloadManager(private val application: Application) {
     private val _localSongs = MutableStateFlow<List<LocalSongMetadata>>(emptyList())
     val localSongs = _localSongs.asStateFlow()
 
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning = _isScanning.asStateFlow()
+
     private val downloadJobs = mutableMapOf<String, Job>()
     private val downloadMutex = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
@@ -54,74 +57,79 @@ class CPDownloadManager(private val application: Application) {
 
     fun scanLocalMusic() {
         scope.launch {
-            val localList = mutableListOf<LocalSongMetadata>()
-            val existingPaths = mutableSetOf<String>() // 用于去重
-
-            // 0. 触发 Android 媒体库扫描（确保新文件被索引）
-            triggerMediaScan()
-
-            // 1. 从 MediaStore 查询音频文件
-            val projection = arrayOf(
-                MediaStore.Audio.Media._ID,
-                MediaStore.Audio.Media.TITLE,
-                MediaStore.Audio.Media.ARTIST,
-                MediaStore.Audio.Media.ALBUM,
-                MediaStore.Audio.Media.DISPLAY_NAME,
-                MediaStore.Audio.Media.DATA
-            )
-            val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-            val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
+            _isScanning.value = true
             try {
-                application.contentResolver.query(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    null,
-                    sortOrder
-                )?.use { cursor ->
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                    val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                    val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                    val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                    val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                val localList = mutableListOf<LocalSongMetadata>()
+                val existingPaths = mutableSetOf<String>() // 用于去重
 
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(idColumn)
-                        val title = cursor.getString(titleColumn) ?: "Unknown"
-                        val artist = cursor.getString(artistColumn) ?: "Unknown"
-                        val album = cursor.getString(albumColumn) ?: "Unknown"
-                        val fileName = cursor.getString(nameColumn) ?: "Unknown"
-                        val path = cursor.getString(dataColumn) // DATA 列在 Android 10+ 已弃用，可能返回 null
+                // 0. 触发 Android 媒体库扫描（确保新文件被索引）
+                triggerMediaScan()
 
-                        val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
-                        val localId = "local_$id"
+                // 1. 从 MediaStore 查询音频文件
+                val projection = arrayOf(
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.ALBUM,
+                    MediaStore.Audio.Media.DISPLAY_NAME,
+                    MediaStore.Audio.Media.DATA
+                )
+                val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+                val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
-                        // 尝试从 LocalMusicManager 获取已绑定的云端歌曲 ID
-                        val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
+                try {
+                    application.contentResolver.query(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        projection,
+                        selection,
+                        null,
+                        sortOrder
+                    )?.use { cursor ->
+                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                        val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                        val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                        val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                        val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                        val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-                        localList.add(LocalSongMetadata(
-                            songId = localId,
-                            fileName = fileName,
-                            songName = title,
-                            artist = artist,
-                            album = album,
-                            albumArtUrl = uri.toString(), // 音频 content URI，用于播放和封面提取回退
-                            filePath = path, // 实际文件路径（可能为 null），用于封面提取
-                            cloudSongId = cloudSongId
-                        ))
-                        if (path != null) existingPaths.add(path)
+                        while (cursor.moveToNext()) {
+                            val id = cursor.getLong(idColumn)
+                            val title = cursor.getString(titleColumn) ?: "Unknown"
+                            val artist = cursor.getString(artistColumn) ?: "Unknown"
+                            val album = cursor.getString(albumColumn) ?: "Unknown"
+                            val fileName = cursor.getString(nameColumn) ?: "Unknown"
+                            val path = cursor.getString(dataColumn) // DATA 列在 Android 10+ 已弃用，可能返回 null
+
+                            val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                            val localId = "local_$id"
+
+                            // 尝试从 LocalMusicManager 获取已绑定的云端歌曲 ID
+                            val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
+
+                            localList.add(LocalSongMetadata(
+                                songId = localId,
+                                fileName = fileName,
+                                songName = title,
+                                artist = artist,
+                                album = album,
+                                albumArtUrl = uri.toString(), // 音频 content URI，用于播放和封面提取回退
+                                filePath = path, // 实际文件路径（可能为 null），用于封面提取
+                                cloudSongId = cloudSongId
+                            ))
+                            if (path != null) existingPaths.add(path)
+                        }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("CPDownloadManager", "Failed to scan local music from MediaStore", e)
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("CPDownloadManager", "Failed to scan local music from MediaStore", e)
+
+                // 2. 手动扫描 DSF/DFF 文件（MediaStore 可能不索引这些格式）
+                scanDsdFiles(localList, existingPaths)
+
+                _localSongs.value = localList
+            } finally {
+                _isScanning.value = false
             }
-
-            // 2. 手动扫描 DSF/DFF 文件（MediaStore 可能不索引这些格式）
-            scanDsdFiles(localList, existingPaths)
-
-            _localSongs.value = localList
         }
     }
 
@@ -141,7 +149,7 @@ class CPDownloadManager(private val application: Application) {
             val pathsToScan = mutableListOf<String>()
             for (dir in directories) {
                 if (dir.exists() && dir.isDirectory) {
-                    collectAudioFiles(dir, pathsToScan, depth = 0, maxDepth = 3)
+                    collectAudioFiles(dir, pathsToScan, depth = 0, maxDepth = 5)
                 }
             }
             if (pathsToScan.isNotEmpty()) {
@@ -188,19 +196,42 @@ class CPDownloadManager(private val application: Application) {
     /**
      * 手动扫描常见音乐目录中的 DSF/DFF 文件。
      * 使用 MediaStore 查询可能无法索引 DSD 格式文件。
+     * 扫描范围：外部存储根目录、Music、Music/CPPlayer、Downloads 以及用户自定义下载目录。
      */
     private suspend fun scanDsdFiles(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) = withContext(Dispatchers.IO) {
         try {
             val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
-            val directories = listOf(
+            val externalRoot = android.os.Environment.getExternalStorageDirectory()
+            val directories = mutableListOf(
                 musicDir,
                 File(musicDir, "CPPlayer"),
                 android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
             )
 
-            for (dir in directories) {
+            // 添加外部存储根目录（覆盖 SD 卡等场景）
+            if (externalRoot.exists() && externalRoot.isDirectory && !directories.contains(externalRoot)) {
+                directories.add(0, externalRoot)
+            }
+
+            // 添加用户自定义下载目录
+            val userDownloadDir = cp.player.util.UserPreferences.getDownloadDir(application)
+            if (userDownloadDir != null) {
+                try {
+                    val treeUri = android.net.Uri.parse(userDownloadDir)
+                    val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(application, treeUri)
+                    tree?.uri?.path?.let { path ->
+                        val dir = File(path)
+                        if (dir.exists() && dir.isDirectory && !directories.contains(dir)) {
+                            directories.add(dir)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 去重后扫描，增加深度到5层以覆盖更深层目录结构
+            for (dir in directories.distinctBy { it.absolutePath }) {
                 if (dir.exists() && dir.isDirectory) {
-                    scanDirectoryForDsd(dir, localList, existingPaths, depth = 0, maxDepth = 3)
+                    scanDirectoryForDsd(dir, localList, existingPaths, depth = 0, maxDepth = 5)
                 }
             }
         } catch (e: Exception) {

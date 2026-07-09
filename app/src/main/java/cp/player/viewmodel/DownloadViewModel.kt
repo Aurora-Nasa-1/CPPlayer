@@ -20,6 +20,7 @@ class DownloadViewModel(application: Application) : BaseViewModel(application) {
     val completedSongs: StateFlow<Set<String>> = downloadManager.completedSongs
     val downloadedSongs = DownloadRegistry.downloadedSongsFlow
     val localSongs: StateFlow<List<cp.player.model.LocalSongMetadata>> = downloadManager.localSongs
+    val isScanning: StateFlow<Boolean> = downloadManager.isScanning
 
     fun refreshLocalMusic() {
         downloadManager.scanLocalMusic()
