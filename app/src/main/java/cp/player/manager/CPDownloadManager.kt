@@ -196,15 +196,30 @@ class CPDownloadManager(private val application: Application) {
 
     /**
      * 手动扫描常见音乐目录中的 DSF/DFF 文件。
-     * MediaStore 通常不索引 DSD 格式文件，因此需要多层回退策略：
-     * 1. MediaStore 查询（不带 IS_MUSIC 过滤，可能捕获被索引但未标记为音乐的 DSD 文件）
-     * 2. 文件系统直接扫描（需要 MANAGE_EXTERNAL_STORAGE 权限）
+     *
+     * 策略：
+     * 1. 先检查 MediaStore 是否已索引 DSD 文件（支持 DSD 的设备上 MediaStore 会返回 content:// URI）
+     * 2. 如果 MediaStore 已找到 DSD 文件，跳过手动扫描（避免用 dsd_ 条目覆盖正常的 local_ 条目）
+     * 3. 如果 MediaStore 未找到 DSD 文件，进行文件系统扫描（需要 MANAGE_EXTERNAL_STORAGE 权限）
+     *
+     * 重要：在支持 DSD 的设备上，MediaStore 返回的 content:// URI 可以直接由 ExoPlayer + 系统解码器播放，
+     * 不应被手动扫描的 dsd_ 条目覆盖。
      */
     private suspend fun scanDsdFiles(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) = withContext(Dispatchers.IO) {
-        // 策略1：通过 MediaStore 查询 DSD 文件（不依赖 IS_MUSIC 标记）
-        scanDsdViaMediaStore(localList, existingPaths)
+        // 检查 MediaStore 是否已索引了 DSD 文件
+        val dsfInMediaStore = localList.any {
+            it.fileName.endsWith(".dsf", ignoreCase = true) || it.fileName.endsWith(".dff", ignoreCase = true)
+        }
 
-        // 策略2：文件系统直接扫描（需要 MANAGE_EXTERNAL_STORAGE 权限）
+        if (dsfInMediaStore) {
+            // MediaStore 已索引 DSD 文件 → 设备支持 DSD，使用 MediaStore 的 content:// URI 播放
+            // 不进行手动扫描，避免创建 dsd_ 条目覆盖正常的 local_ 条目
+            android.util.Log.d("CPDownloadManager", "DSD files found in MediaStore, skipping manual scan (device supports DSD)")
+            return@withContext
+        }
+
+        // MediaStore 未索引 DSD 文件 → 设备可能不支持 DSD，尝试文件系统扫描
+        android.util.Log.d("CPDownloadManager", "No DSD files in MediaStore, attempting filesystem scan")
         try {
             val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
             val directories = mutableListOf(
@@ -249,77 +264,6 @@ class CPDownloadManager(private val application: Application) {
         }
 
         android.util.Log.d("CPDownloadManager", "DSD scan complete: found ${localList.count { it.songId.startsWith("dsd_") }} DSD files, total ${localList.size} local songs")
-    }
-
-    /**
-     * 通过 MediaStore 查询 DSD 文件（不依赖 IS_MUSIC 标记）。
-     * 某些设备上 MediaStore 会索引 DSF/DFF 文件但不设置 IS_MUSIC 标志。
-     */
-    private fun scanDsdViaMediaStore(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) {
-        try {
-            val projection = arrayOf(
-                MediaStore.Audio.Media._ID,
-                MediaStore.Audio.Media.TITLE,
-                MediaStore.Audio.Media.ARTIST,
-                MediaStore.Audio.Media.ALBUM,
-                MediaStore.Audio.Media.DISPLAY_NAME,
-                MediaStore.Audio.Media.DATA,
-                MediaStore.Audio.Media.RELATIVE_PATH
-            )
-            // 不使用 IS_MUSIC 过滤，仅通过文件扩展名筛选
-            val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.dsf' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.dff' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.DSF' OR ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.DFF'"
-            val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
-            application.contentResolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                null,
-                sortOrder
-            )?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-
-                var dsdMediaStoreCount = 0
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    val title = cursor.getString(titleColumn) ?: "Unknown"
-                    val artist = cursor.getString(artistColumn) ?: "Unknown"
-                    val album = cursor.getString(albumColumn) ?: "Unknown"
-                    val fileName = cursor.getString(nameColumn) ?: "Unknown"
-                    val path = cursor.getString(dataColumn)
-
-                    // 去重
-                    if (path != null && existingPaths.contains(path)) continue
-
-                    val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
-                    val localId = "dsd_${path?.hashCode()?.toUInt() ?: id.toUInt()}"
-                    val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
-
-                    localList.add(LocalSongMetadata(
-                        songId = localId,
-                        fileName = fileName,
-                        songName = title,
-                        artist = artist,
-                        album = album,
-                        albumArtUrl = uri.toString(),
-                        filePath = path,
-                        cloudSongId = cloudSongId
-                    ))
-                    if (path != null) existingPaths.add(path)
-                    dsdMediaStoreCount++
-                }
-                if (dsdMediaStoreCount > 0) {
-                    android.util.Log.d("CPDownloadManager", "Found $dsdMediaStoreCount DSD files via MediaStore")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("CPDownloadManager", "Failed to scan DSD files via MediaStore", e)
-        }
     }
 
     /**
