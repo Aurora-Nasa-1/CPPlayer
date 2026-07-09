@@ -197,12 +197,17 @@ class CPDownloadManager(private val application: Application) {
     /**
      * 手动扫描常见音乐目录中的 DSF/DFF 文件。
      *
-     * MediaStore 不一定索引 DSD 格式文件，因此需要文件系统直接扫描。
-     * dedup 逻辑确保已通过 MediaStore 索引的 DSD 文件不会被重复添加。
+     * 策略：
+     * 1. MediaStore 无 IS_MUSIC 过滤查询（某些设备上 DSD 文件被索引但未标记为音乐）
+     * 2. 文件系统直接扫描（需要 MANAGE_EXTERNAL_STORAGE 权限）
      *
-     * 需要 MANAGE_EXTERNAL_STORAGE 权限（Android 11+）才能访问公共目录。
+     * dedup 逻辑确保已通过 MediaStore 索引的 DSD 文件不会被重复添加。
      */
     private suspend fun scanDsdFiles(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) = withContext(Dispatchers.IO) {
+        // 策略1：通过 MediaStore 查询 DSD 文件（不依赖 IS_MUSIC 标记）
+        scanDsdViaMediaStore(localList, existingPaths)
+
+        // 策略2：文件系统直接扫描
         try {
             val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
             val directories = mutableListOf(
@@ -247,6 +252,77 @@ class CPDownloadManager(private val application: Application) {
         }
 
         android.util.Log.d("CPDownloadManager", "DSD scan complete: found ${localList.count { it.songId.startsWith("dsd_") }} DSD files, total ${localList.size} local songs")
+    }
+
+    /**
+     * 通过 MediaStore 查询 DSD 文件（不依赖 IS_MUSIC 标记）。
+     * 某些设备（包括部分 AOSP）上 MediaStore 会索引 DSF/DFF 文件但不设置 IS_MUSIC 标志。
+     * 查询结果使用 local_ 前缀 ID，与主 MediaStore 查询一致。
+     */
+    private fun scanDsdViaMediaStore(localList: MutableList<LocalSongMetadata>, existingPaths: MutableSet<String>) {
+        try {
+            val projection = arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.DATA
+            )
+            // 不使用 IS_MUSIC 过滤，仅通过文件扩展名筛选
+            val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.dsf' OR " +
+                    "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.dff' OR " +
+                    "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.DSF' OR " +
+                    "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.DFF'"
+
+            application.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                null,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+
+                var count = 0
+                while (cursor.moveToNext()) {
+                    val path = cursor.getString(dataColumn)
+                    // 去重：如果主查询已收录此文件，跳过
+                    if (path != null && existingPaths.contains(path)) continue
+
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(titleColumn) ?: "Unknown"
+                    val artist = cursor.getString(artistColumn) ?: "Unknown"
+                    val album = cursor.getString(albumColumn) ?: "Unknown"
+                    val fileName = cursor.getString(nameColumn) ?: "Unknown"
+
+                    val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    val localId = "local_$id"
+                    val cloudSongId = LocalMusicManager.getBinding(localId)?.cloudSongId
+
+                    localList.add(LocalSongMetadata(
+                        songId = localId,
+                        fileName = fileName,
+                        songName = title,
+                        artist = artist,
+                        album = album,
+                        albumArtUrl = uri.toString(),
+                        filePath = path,
+                        cloudSongId = cloudSongId
+                    ))
+                    if (path != null) existingPaths.add(path)
+                    count++
+                }
+                if (count > 0) android.util.Log.d("CPDownloadManager", "Found $count DSD files via MediaStore (no IS_MUSIC filter)")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CPDownloadManager", "DSD MediaStore query failed", e)
+        }
     }
 
     /**
