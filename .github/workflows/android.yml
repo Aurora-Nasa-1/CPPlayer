@@ -24,7 +24,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: aarch64-linux-android
+        targets: aarch64-linux-android,armv7-linux-androideabi
 
     - name: Cache cargo registry & build
       uses: actions/cache@v4

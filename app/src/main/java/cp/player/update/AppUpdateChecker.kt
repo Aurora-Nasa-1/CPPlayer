@@ -3,6 +3,7 @@ package cp.player.update
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -121,12 +122,16 @@ object AppUpdateChecker {
                     }
                 }
 
-                // 从最新 release assets 中找 APK 下载链接
-                val apkAsset = latest.assets?.find { asset ->
+                // 从最新 release assets 中找 APK 下载链接（优先匹配设备 ABI）
+                val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+                val apkAssets = latest.assets?.filter { asset ->
                     asset.name.endsWith(".apk", ignoreCase = true) &&
                         (asset.contentType == "application/vnd.android.package-archive" ||
                          asset.contentType == null)
-                }
+                } ?: emptyList()
+                // 优先找包含设备 ABI 名称的 APK，找不到则回退到第一个 APK
+                val apkAsset = apkAssets.find { it.name.contains(primaryAbi, ignoreCase = true) }
+                    ?: apkAssets.firstOrNull()
                 val downloadUrl = apkAsset?.browserDownloadUrl ?: latest.htmlUrl
 
                 Log.i(TAG, "Update available: ${BuildConfig.VERSION_NAME} → $remoteVersionName")

@@ -13,7 +13,8 @@ fi
 
 # Android targets
 TARGETS=(
-    "aarch64-linux-android"  # ARM64
+    "aarch64-linux-android"    # ARM64
+    "armv7-linux-androideabi"  # ARM32
 )
 
 # Add targets if not already added
@@ -28,11 +29,13 @@ done
 echo "Building for Android targets..."
 cargo ndk \
     -t arm64-v8a \
+    -t armeabi-v7a \
     build --release
 
 echo "Build complete!"
 echo ""
 echo "Libraries location:"
 echo "  ARM64:   target/aarch64-linux-android/release/librust_lib_flick_player.so"
+echo "  ARM32:   target/armv7-linux-androideabi/release/librust_lib_flick_player.so"
 echo ""
 echo "Copy these to: android/app/src/main/jniLibs/<abi>/"

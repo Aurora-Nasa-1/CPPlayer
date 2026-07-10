@@ -105,10 +105,10 @@ All extend [BaseViewModel.kt](app/src/main/java/cp/player/viewmodel/BaseViewMode
 ## Conventions
 
 - Code comments and docs are primarily in Chinese
-- JVM target: Java 21. Target ABI: `arm64-v8a`. Locales: `en`, `zh`, `ja`
+- JVM target: Java 21. Target ABI: `arm64-v8a`, `armeabi-v7a`. Locales: `en`, `zh`, `ja`
 - State: `StateFlow`/`MutableStateFlow` in ViewModels, `collectAsState()` in Compose
 - Images: Coil3 + OkHttp backend, Palette for dynamic theming
 - Version catalog: `gradle/libs.versions.toml`
 
-任务完成后需要推送至手机测试./gradlew assemblefastRelease && adb install -r app/build/outputs/apk/fastRelease/app-fastRelease.apk && adb shell monkey -p cp.player -c android.intent.category.LAUNCHER 1
+任务完成后需要推送至手机测试./gradlew assembleFastRelease && adb install -r app/build/outputs/apk/fastRelease/app-arm64-v8a-fastRelease.apk && adb shell monkey -p cp.player -c android.intent.category.LAUNCHER 1
 最后提交git commit

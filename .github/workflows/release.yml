@@ -27,7 +27,7 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: aarch64-linux-android
+        targets: aarch64-linux-android,armv7-linux-androideabi
 
     - name: Cache cargo registry & build
       uses: actions/cache@v4
@@ -88,7 +88,10 @@ jobs:
         echo "$CHANGELOG" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
-        cp app/build/outputs/apk/release/*.apk ./CP-Player-v${TAG}.apk
+        for apk in app/build/outputs/apk/release/*.apk; do
+          abi=$(basename "$apk" | sed -E 's/.*-([^-]+)-release\.apk/\1/')
+          cp "$apk" "./CP-Player-v${TAG}-${abi}.apk"
+        done
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -104,9 +107,11 @@ jobs:
           ${{ steps.version.outputs.changelog }}
 
           ### 下载
-          - `CP-Player-v${{ steps.version.outputs.version }}.apk` — Release 签名，R8 优化
+          - `CP-Player-v${{ steps.version.outputs.version }}-arm64-v8a.apk` — ARM64，Release 签名，R8 优化
+          - `CP-Player-v${{ steps.version.outputs.version }}-armeabi-v7a.apk` — ARM32，Release 签名，R8 优化
         files: |
-          CP-Player-v${{ steps.version.outputs.version }}.apk
+          CP-Player-v${{ steps.version.outputs.version }}-arm64-v8a.apk
+          CP-Player-v${{ steps.version.outputs.version }}-armeabi-v7a.apk
         draft: false
         prerelease: false
       env:
