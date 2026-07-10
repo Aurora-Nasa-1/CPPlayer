@@ -1,7 +1,7 @@
 # CPPlayer Provider 开发指南
 
 > **面向：** 想要为 CPPlayer 开发音乐数据源（Provider）的第三方开发者
-> **版本：** 2.0.0 · **最后更新：** 2026-06-20
+> **版本：** 2.1.0 · **最后更新：** 2026-07-10
 
 ---
 
@@ -92,17 +92,13 @@ cd my-music-provider
         "cloudsearch": "search",
         "song/url/v1": "song/url",
         "song/url/v1/302": "song/url",
-        "song/download/url/v1": "song/url",
         "song/detail": "song/detail",
-        "lyric/new": "lyric",
-        "login/qr/key": "auth/qr/key",
-        "login/qr/create": "auth/qr/create",
-        "login/qr/check": "auth/qr/check",
-        "login/status": "auth/status",
-        "register/anonimous": "auth/anonymous"
+        "lyric/new": "lyric"
     }
 }
 ```
+
+> 💡 以上只包含最核心的 API。如果 `apiMap` 中没有列出某个方法，CPPlayer 会直接使用内部方法名作为端点路径（与 NeteaseCloudMusicApi 一致）。更多可选 API 见 [第 7 节](#7-可选-api-列表)。
 
 **第三步：打包**
 
@@ -177,6 +173,8 @@ Content-Type: application/json
 | 通信方式 | JNI 函数调用 |
 
 **必须导出的 JNI 函数：**
+
+> **注意：** JNI Provider 加载时会自动检查 `.so` 文件的 ELF 架构是否与当前设备匹配。如果架构不匹配（如在 ARM32 设备上加载 ARM64 的 .so），模块会被拒绝加载并显示错误信息。确保为每个 ABI 提供正确编译的 .so 文件。
 
 ```c
 /**
@@ -406,7 +404,7 @@ nativeCallApi(mappedMethod, paramsJson)
 | `user/playlist/create` | 用户创建的歌单 | `uid`, `cookie` |
 | `user/playlist/collect` | 用户收藏的歌单 | `uid`, `cookie` |
 | `user/detail` | 用户详情 | `uid` |
-| `user/cloud` | 云盘歌曲 | `limit`, `cookie` |
+| `user/cloud` | 云盘歌曲 | `limit`, `offset`, `cookie` |
 | `likelist` | 喜欢列表 | `uid`, `cookie` |
 | `like` | 喜欢/取消喜欢 | `id`, `like` ("true"/"false"), `cookie` |
 | `recommend/songs` | 每日推荐 | `cookie` |
@@ -424,6 +422,8 @@ nativeCallApi(mappedMethod, paramsJson)
 | `playlist/delete` | 删除歌单 | `id` |
 | `playlist/subscribe` | 收藏/取消收藏歌单 | `id`, `t` (1=收藏, 2=取消收藏) |
 
+> ⚠️ `playlist/subscribe` 用于收藏他人歌单或取消收藏。用户在歌单详情页点击"收藏"按钮时会调用此 API。
+
 ### 7.5 歌手
 
 | API 方法名 | 说明 | 参数 |
@@ -432,17 +432,33 @@ nativeCallApi(mappedMethod, paramsJson)
 | `artist/songs` | 歌手歌曲 | `id`, `limit` |
 | `artist/album` | 歌手专辑 | `id`, `limit` |
 
-### 7.6 播放增强
+### 7.6 专辑
+
+| API 方法名 | 说明 | 参数 |
+|-----------|------|------|
+| `album` | 专辑详情（含歌曲列表） | `id` |
+
+> ⚠️ 此 API 虽然未在"必选"列表中，但**强烈建议实现**。用户点击专辑详情页时需要调用此 API，否则专辑页面无法正常显示。
+
+### 7.7 播放增强
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
 | `song/url/v1/302` | 302 重定向播放 URL | `id`, `level`, `cookie?` |
 | `song/download/url/v1` | 下载 URL | `id`, `level`, `cookie?` |
+
+> **⚠️ 关于 302 回退机制：** CPPlayer 获取播放 URL 时会**先尝试 `song/url/v1/302`**，如果返回的 URL 无效（null 或非 http 开头），则自动回退到 `song/url/v1`。**建议即使不支持 302 重定向，也在 `apiMap` 中将 `song/url/v1/302` 映射到与 `song/url/v1` 相同的后端端点**，避免每次播放都先触发一次失败调用再回退，增加不必要的延迟。例如：
+> ```json
+> "apiMap": {
+>     "song/url/v1": "song/url",
+>     "song/url/v1/302": "song/url"
+> }
+> ```
 | `scrobble` | 听歌打卡（上报播放进度，影响推荐算法和听歌排行） | `id`, `sourceid`, `time` (秒), `cookie` |
 | `personal_fm` | 私人 FM | `timestamp`, `cookie` |
 | `playmode/intelligence/list` | 心动模式 | `id`, `pid`, `sid`, `count` |
 
-### 7.7 社交
+### 7.8 社交
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
@@ -462,7 +478,7 @@ nativeCallApi(mappedMethod, paramsJson)
 | `msg/private/mark/read` | 标记已读 | `uid`, `cookie` |
 | `send/text` | 发送消息 | `user_ids`, `msg`, `cookie` |
 
-### 7.8 排行榜 & 音乐发现
+### 7.9 排行榜 & 音乐发现
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
@@ -479,7 +495,7 @@ nativeCallApi(mappedMethod, paramsJson)
 | `history_recommend_songs` | 历史日推可用日期列表 | `cookie` |
 | `history_recommend_songs_detail` | 历史日推详情 | `date`, `cookie` |
 
-### 7.9 相似推荐
+### 7.10 相似推荐
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
@@ -487,13 +503,13 @@ nativeCallApi(mappedMethod, paramsJson)
 | `simi_artist` | 相似歌手 | `id` |
 | `simi_playlist` | 相似歌单 | `id` |
 
-### 7.10 签到
+### 7.11 签到
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
 | `daily/signin` | 每日签到 | `type` (0=安卓, 1=web), `cookie` |
 
-### 7.11 模块设置（自定义界面）
+### 7.12 模块设置（自定义界面）
 
 | API 方法名 | 说明 | 参数 |
 |-----------|------|------|
@@ -939,6 +955,8 @@ nativeCallApi(mappedMethod, paramsJson)
 > - `defaultValue`: (可选) 默认值。
 > - `options`: 仅 `select` 类型需要，提供可选的下拉选项列表。
 
+> **调用时机：** CPPlayer 在切换到此 Provider 时会自动调用 `settings/schema` 获取设置项列表，并在设置界面中展示。如果 Provider 不需要自定义设置，可以不实现此 API（返回 `code: -1` 或在 apiMap 中标记为 `"unsupported"`）。
+
 #### `settings/save` — 保存并同步用户设置到提供商
 
 **请求：**
@@ -947,12 +965,14 @@ nativeCallApi(mappedMethod, paramsJson)
     "settings": "{\"server_url\":\"https://myapi.com\",\"enable_hifi\":true,\"quality_limit\":\"hires\"}"
 }
 ```
-> `settings` 是一个包含了用户修改后的设置键值对的 JSON 字符串。
+> ⚠️ `settings` 是一个 **JSON 字符串**（不是 JSON 对象），包含了用户修改后的设置键值对。Provider 需要先 `JSON.parse(settings)` 再使用。
 
 **响应：**
 ```json
 { "code": 200 }
 ```
+
+> **调用时机：** 用户在 CPPlayer 设置界面修改并保存设置后，CPPlayer 会调用此 API 将设置同步到 Provider。Provider 应将这些设置持久化存储（建议保存在模块目录的 `user_data/` 子目录下，更新模块时会自动保留）。
 
 #### `user/playlist` — 用户全部歌单
 
@@ -1064,6 +1084,7 @@ nativeCallApi(mappedMethod, paramsJson)
 ```json
 {
     "limit": "100",
+    "offset": "0",
     "cookie": "MUSIC_U=xxx"
 }
 ```
@@ -1297,6 +1318,36 @@ nativeCallApi(mappedMethod, paramsJson)
 { "code": 200 }
 ```
 
+#### `playlist/subscribe` — 收藏/取消收藏歌单
+
+**请求（收藏）：**
+```json
+{
+    "id": "789",
+    "t": "1",
+    "cookie": "MUSIC_U=xxx"
+}
+```
+
+**请求（取消收藏）：**
+```json
+{
+    "id": "789",
+    "t": "2",
+    "cookie": "MUSIC_U=xxx"
+}
+```
+
+**响应：**
+```json
+{ "code": 200 }
+```
+
+| 参数 | 说明 |
+|------|------|
+| `id` | 歌单 ID |
+| `t` | `"1"` = 收藏，`"2"` = 取消收藏 |
+
 #### `artist/detail` — 歌手详情
 
 **请求：**
@@ -1373,6 +1424,41 @@ nativeCallApi(mappedMethod, paramsJson)
     ]
 }
 ```
+
+#### `album` — 专辑详情
+
+**请求：**
+```json
+{
+    "id": "222"
+}
+```
+
+**响应：**
+```json
+{
+    "code": 200,
+    "album": {
+        "id": 222,
+        "name": "专辑名",
+        "picUrl": "https://...",
+        "artist": { "id": 111, "name": "歌手名" },
+        "description": "专辑简介",
+        "publishTime": 1687000000000
+    },
+    "songs": [
+        {
+            "id": 123,
+            "name": "歌曲",
+            "ar": [{ "id": 111, "name": "歌手" }],
+            "al": { "id": 222, "name": "专辑", "picUrl": "https://..." },
+            "dt": 240000
+        }
+    ]
+}
+```
+
+> 此 API 返回专辑元信息和专辑内的歌曲列表。`songs` 数组的格式与 `song/detail` 一致。
 
 #### `song/url/v1/302` — 302 重定向播放 URL
 
@@ -1480,9 +1566,14 @@ nativeCallApi(mappedMethod, paramsJson)
     "id": "123456",
     "limit": "20",
     "offset": "0",
+    "sortType": "1",
     "cookie": "MUSIC_U=xxx"
 }
 ```
+
+| 参数 | 说明 |
+|------|------|
+| `sortType` | 排序方式：`0`=按推荐排序，`1`=按时间排序，`2`=按热度排序 |
 
 **响应：**
 ```json
@@ -1749,9 +1840,11 @@ nativeCallApi(mappedMethod, paramsJson)
 
 ```
 ✅ 必须: song/url/v1, lyric/new, song/detail
-⭐ 强烈推荐: cloudsearch, search/hot/detail, login/qr/*, user/*, playlist/*
+⭐ 强烈推荐: cloudsearch, album, search/hot/detail, login/qr/*, user/*, playlist/*
 💡 可选: comment/*, personal_fm, playmode/intelligence/list
 ```
+
+> **关于 `album` API：** 虽然不是"必须"，但用户点击专辑详情页时需要此 API。如果不实现，专辑页面将无法正常显示，体验会大打折扣。
 
 ---
 
@@ -1963,6 +2056,10 @@ my-provider.zip
 ```
 
 > **加载规则：** CPPlayer 按设备 `Build.SUPPORTED_ABIS` 顺序查找 `lib/{abi}/{entryPoint}`，使用第一个匹配的文件。找不到时回退到根目录 `{entryPoint}`（单架构兼容）。
+>
+> **示例：** 如果 zip 包含 `lib/arm64-v8a/libfoo.so` 但不包含 `lib/armeabi-v7a/libfoo.so`，在 ARM32 设备上会尝试加载根目录的 `libfoo.so`。如果根目录也没有，则模块加载失败。
+>
+> **建议：** 即使只支持单一架构，也推荐使用 `lib/{abi}/` 目录结构，以保持一致性并避免根目录文件被误加载。
 
 ### 13.2 打包命令
 
