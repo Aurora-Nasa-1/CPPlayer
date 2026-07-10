@@ -581,4 +581,9 @@
     <string name="new_songs_express">新歌速递</string>
     <string name="quality_playlists">精品歌单</string>
     <string name="view_more">查看更多</string>
+
+    <!-- DSP -->
+    <string name="dsp_equalizer">DSP &amp; 均衡器</string>
+    <string name="dsp_effects">DSP &amp; 音效</string>
+    <string name="dsp_equalizer_desc">配置均衡器和空间音效</string>
 </resources>

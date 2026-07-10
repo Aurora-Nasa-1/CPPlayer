@@ -598,4 +598,9 @@
     <string name="new_songs_express">新曲速報</string>
     <string name="quality_playlists">プレミアムプレイリスト</string>
     <string name="view_more">もっと見る</string>
+
+    <!-- DSP -->
+    <string name="dsp_equalizer">DSP &amp; イコライザー</string>
+    <string name="dsp_effects">DSP &amp; エフェクト</string>
+    <string name="dsp_equalizer_desc">イコライザーと空間エフェクトを設定</string>
 </resources>

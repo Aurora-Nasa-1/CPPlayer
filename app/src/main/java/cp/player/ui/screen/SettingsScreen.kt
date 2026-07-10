@@ -555,10 +555,10 @@ fun SettingsScreen(
                             }
                         }
 
-                        SettingsSection(title = "DSP & Effects") {
+                        SettingsSection(title = stringResource(R.string.dsp_effects)) {
                             ExpressiveClickItem(
-                                title = "DSP & Equalizer",
-                                subtitle = "Configure Equalizer and Spatial FX",
+                                title = stringResource(R.string.dsp_equalizer),
+                                subtitle = stringResource(R.string.dsp_equalizer_desc),
                                 icon = { MonetIcon(Icons.Default.Tune, Color(0xFFE8EAF6), Color(0xFF283593)) },
                                 onClick = { currentScreenId = SettingsPage.Dsp.id },
                                 shapes = ListItemDefaults.segmentedShapes(0, 1)

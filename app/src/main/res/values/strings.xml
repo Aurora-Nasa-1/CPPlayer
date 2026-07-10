@@ -577,6 +577,8 @@
 
 
     <string name="dsp_equalizer">DSP &amp; Equalizer</string>
+    <string name="dsp_effects">DSP &amp; 音效</string>
+    <string name="dsp_equalizer_desc">配置均衡器和空间音效</string>
     <string name="navigation_bar">导航栏</string>
     <string name="hide_navbar_on_scroll">底栏随页面滑动自动隐藏</string>
     <string name="hide_navbar_on_scroll_desc">向下滚动页面时自动隐藏底栏，向上滚动时恢复显示</string>

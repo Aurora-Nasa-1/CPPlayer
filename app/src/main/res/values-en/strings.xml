@@ -574,4 +574,27 @@
     <string name="remove_from_playlist">Remove from Playlist</string>
     <string name="song_count_simple">%1$d songs</string>
     <string name="share_playlist_text">Check out this playlist: %1$s\n%2$s</string>
+
+    <!-- DSP -->
+    <string name="dsp_equalizer">DSP &amp; Equalizer</string>
+    <string name="dsp_effects">DSP &amp; Effects</string>
+    <string name="dsp_equalizer_desc">Configure Equalizer and Spatial FX</string>
+
+    <!-- Navigation -->
+    <string name="navigation_bar">Navigation Bar</string>
+    <string name="hide_navbar_on_scroll">Auto-hide bottom bar on scroll</string>
+    <string name="hide_navbar_on_scroll_desc">Automatically hide the bottom bar when scrolling down, restore when scrolling up</string>
+
+    <!-- Player Style -->
+    <string name="player_style">Player Style</string>
+    <string name="wavy_progress">Wavy Progress Bar</string>
+    <string name="wavy_progress_desc">Use animated wavy progress bar; turn off for a flat bar</string>
+
+    <!-- Discovery -->
+    <string name="discover">Discover</string>
+    <string name="toplists">Rankings</string>
+    <string name="recommended_new_songs">Recommended New Songs</string>
+    <string name="new_songs_express">New Releases</string>
+    <string name="quality_playlists">Featured Playlists</string>
+    <string name="view_more">View More</string>
 </resources>
