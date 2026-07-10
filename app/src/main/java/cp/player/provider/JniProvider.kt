@@ -45,8 +45,10 @@ class JniProvider(
             return
         }
 
-        // 4. 检查 ELF 魔数（0x7F454C46 = "\x7FELF"）
-        validateElfHeader(soFile)
+        // 4. 检查 ELF 魔数和架构
+        if (!validateElfHeader(soFile)) {
+            return
+        }
 
         // 5. 尝试加载 .so
         try {
@@ -64,9 +66,9 @@ class JniProvider(
 
     /**
      * 校验 ELF 文件头，检查魔数和架构是否匹配当前设备。
-     * 校验失败不阻止加载（仅警告），因为某些特殊格式可能不标准。
+     * 架构不匹配时阻止加载（返回 false），因为加载错误架构的 .so 必然失败。
      */
-    private fun validateElfHeader(soFile: File) {
+    private fun validateElfHeader(soFile: File): Boolean {
         try {
             soFile.inputStream().use { fis ->
                 val magic = ByteArray(4)
@@ -77,18 +79,18 @@ class JniProvider(
                     magic[3] != 'F'.code.toByte()
                 ) {
                     Log.w(TAG, "SO 文件不是有效的 ELF 格式: $soPath")
-                    return
+                    return true // 非标准格式，允许尝试加载
                 }
 
                 // 检查 ELF 架构（e_machine 字段在偏移 0x12 处）
-                // 0xB4 = EM_AARCH64 (arm64), 0x28 = EM_ARM (arm32), 0x3E = EM_386 (x86)
-                if (fis.skip(0x0EL) != 0x0EL) return // 0x12 - 4 = 0x0E
+                // 0xB7 = EM_AARCH64 (arm64), 0x28 = EM_ARM (arm32), 0x3E = EM_X86_64, 0x03 = EM_386
+                if (fis.skip(0x0EL) != 0x0EL) return true
                 val eMachine = ByteArray(2)
-                if (fis.read(eMachine) != 2) return
+                if (fis.read(eMachine) != 2) return true
 
                 val machine = (eMachine[0].toInt() and 0xFF) or ((eMachine[1].toInt() and 0xFF) shl 8)
                 val currentArch = when (Build.SUPPORTED_ABIS.firstOrNull()) {
-                    "arm64-v8a" -> 0xB4
+                    "arm64-v8a" -> 0xB7
                     "armeabi-v7a" -> 0x28
                     "x86_64" -> 0x3E
                     "x86" -> 0x03
@@ -97,12 +99,14 @@ class JniProvider(
                 if (currentArch != 0 && machine != currentArch) {
                     loadError = "SO 架构不匹配: 文件=0x${machine.toString(16)}, 设备=0x${currentArch.toString(16)} (${Build.SUPPORTED_ABIS.firstOrNull()})"
                     Log.e(TAG, loadError!!)
+                    return false // 架构不匹配，阻止加载
                 }
             }
         } catch (e: Exception) {
             // ELF 检查失败不阻止加载（可能是特殊格式），仅警告
             Log.w(TAG, "ELF 格式校验跳过: ${e.message}")
         }
+        return true
     }
 
     /**

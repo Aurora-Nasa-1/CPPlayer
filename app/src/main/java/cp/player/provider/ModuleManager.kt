@@ -1,6 +1,7 @@
 package cp.player.provider
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,12 +122,14 @@ object ModuleManager {
         try {
             val manifestText = manifestFile.readText()
             val manifest = gson.fromJson(manifestText, ModuleManifest::class.java)
-            val entryPointFile = File(dir, manifest.entryPoint)
 
-            // 对 JNI 类型，预先检查 .so 文件是否存在
-            if (manifest.type == "jni" && !entryPointFile.exists()) {
-                lastLoadError = "JNI 库文件不存在: ${manifest.entryPoint}"
-                Log.e(TAG, "JNI 模块入口文件不存在: ${entryPointFile.absolutePath} (模块: ${manifest.id})")
+            // 解析入口文件路径：优先 per-ABI 目录，回退到根目录（向后兼容）
+            val entryPointFile = resolveEntryPoint(dir, manifest)
+
+            // 对 JNI/Binary 类型，预先检查入口文件是否存在
+            if ((manifest.type == "jni" || manifest.type == "binary") && !entryPointFile.exists()) {
+                lastLoadError = "${manifest.type.uppercase()} 入口文件不存在: ${manifest.entryPoint}"
+                Log.e(TAG, "模块入口文件不存在: ${entryPointFile.absolutePath} (模块: ${manifest.id})")
                 return false
             }
 
@@ -137,9 +140,13 @@ object ModuleManager {
                 else -> throw IllegalArgumentException("Unknown type: ${manifest.type}")
             }
 
-            // 检查 Provider 是否就绪（JNI 模块可能加载失败）
+            // 检查 Provider 是否就绪（JNI/Binary 模块可能加载失败）
             if (!provider.isReady()) {
-                val error = if (provider is JniProvider) provider.getLoadError() else "Provider not ready"
+                val error = when (provider) {
+                    is JniProvider -> provider.getLoadError()
+                    is BinaryProvider -> provider.getLoadError()
+                    else -> "Provider not ready"
+                } ?: "Provider not ready"
                 lastLoadError = error
                 Log.e(TAG, "模块加载失败，Provider 未就绪: ${manifest.id} ($error)")
                 return false
@@ -154,6 +161,29 @@ object ModuleManager {
             Log.e(TAG, "Failed to load module from ${dir.name}", e)
             return false
         }
+    }
+
+    /**
+     * 解析模块入口文件路径。
+     *
+     * 支持两种 zip 结构：
+     * 1. **多 ABI 格式**：`lib/{abi}/{entryPoint}`（如 `lib/arm64-v8a/libfoo.so`）
+     *    按设备 `Build.SUPPORTED_ABIS` 顺序查找，使用第一个匹配的。
+     * 2. **单 ABI 格式**：`{entryPoint}`（如 `libfoo.so`，向后兼容）
+     *
+     * 优先使用多 ABI 格式，找不到时回退到根目录。
+     */
+    private fun resolveEntryPoint(dir: File, manifest: ModuleManifest): File {
+        // 多 ABI 格式：按设备支持的 ABI 顺序查找
+        for (abi in Build.SUPPORTED_ABIS) {
+            val abiFile = File(dir, "lib/$abi/${manifest.entryPoint}")
+            if (abiFile.exists()) {
+                Log.i(TAG, "使用 ABI 专属入口: lib/$abi/${manifest.entryPoint}")
+                return abiFile
+            }
+        }
+        // 回退：根目录（单 ABI 格式，向后兼容）
+        return File(dir, manifest.entryPoint)
     }
 
     fun getAvailableProviders(): List<BackendProvider> = providers.values.toList()
