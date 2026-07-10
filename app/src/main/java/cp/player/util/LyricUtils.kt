@@ -61,11 +61,10 @@ object LyricUtils {
                     val words = mutableListOf<LyricLine.Word>()
 
                     // 自动检测时间戳类型：
-                    // - firstWordTime == 0 → 相对时间戳（绝对时间戳不会为 0）
+                    // - firstWordTime < lineBegin → 相对时间戳 (或者 lineBegin == 0 也可以正常处理)
                     // - firstWordTime >= lineBegin → 绝对时间戳（word time 就是全局时间）
-                    // - firstWordTime < lineBegin → 也视为绝对时间戳
                     val firstWordTime = markers.first().groupValues[1].toLong()
-                    val isAbsolute = firstWordTime != 0L
+                    val isAbsolute = if (lineBegin > 0) firstWordTime >= lineBegin else false
                     val baseTime = if (isAbsolute) 0L else lineBegin
 
                     markers.forEachIndexed { i, match ->
