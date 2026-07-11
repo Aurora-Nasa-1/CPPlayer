@@ -218,6 +218,14 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
             plObj.addProperty("trackCount", playlist.trackCount)
             plObj.addProperty("creatorName", playlist.creatorName)
             plObj.addProperty("description", playlist.description)
+            plObj.addProperty("creatorUserId", playlist.creatorUserId)
+            plObj.addProperty("subscribed", playlist.subscribed)
+            // 从歌曲列表中提取作曲家（去重的艺术家列表）
+            val composers = songs.map { it.artist }.distinct().joinToString(", ")
+            plObj.addProperty("composer", composers.ifEmpty { playlist.composer })
+            // 计算总时长
+            val totalDuration = if (songs.isNotEmpty()) songs.sumOf { it.durationMs } else playlist.totalDurationMs
+            plObj.addProperty("totalDurationMs", totalDuration)
             root.add("playlist", plObj)
         }
         val arr = JsonArray()
@@ -249,7 +257,11 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                 coverImgUrl = plObj.get("coverImgUrl")?.takeIf { !it.isJsonNull }?.asString,
                 trackCount = plObj.get("trackCount")?.asInt ?: 0,
                 creatorName = plObj.get("creatorName")?.takeIf { !it.isJsonNull }?.asString,
-                description = plObj.get("description")?.takeIf { !it.isJsonNull }?.asString
+                creatorUserId = plObj.get("creatorUserId")?.asLong ?: 0L,
+                subscribed = plObj.get("subscribed")?.asBoolean ?: false,
+                description = plObj.get("description")?.takeIf { !it.isJsonNull }?.asString,
+                composer = plObj.get("composer")?.takeIf { !it.isJsonNull }?.asString,
+                totalDurationMs = plObj.get("totalDurationMs")?.asLong ?: 0L
             )
         } catch (_: Exception) { null }
     }
@@ -376,13 +388,9 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     val detailDef = async(Dispatchers.IO) { api.getPlaylistDetail(playlistId) }
                     val detailBody = detailDef.await()
                     val plObj = detailBody.get("playlist")?.asJsonObject
+                    var newMetadata: Playlist? = null
                     if (plObj != null) {
-                        withContext(Dispatchers.Main) {
-                            // 仅在用户仍在此歌单时更新元数据
-                            if (fetchingPlaylistId == playlistId || fetchingPlaylistId == null) {
-                                currentPlaylistMetadata = JsonUtils.parsePlaylist(plObj)
-                            }
-                        }
+                        newMetadata = JsonUtils.parsePlaylist(plObj)
                     }
 
                     val allSongs = mutableListOf<Song>()
@@ -398,19 +406,44 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     }
 
                     if (allSongs.isNotEmpty()) {
+                        // 计算作曲家和总时长
+                        val composers = allSongs.map { it.artist }.distinct().joinToString(", ")
+                        val totalDuration = allSongs.sumOf { it.durationMs }
+                        // 将计算结果附加到元数据
+                        if (newMetadata != null) {
+                            newMetadata = newMetadata.copy(composer = composers, totalDurationMs = totalDuration)
+                        }
+
                         withContext(Dispatchers.Main) {
                             // 仅在用户仍在此歌单时更新歌曲列表
                             if (fetchingPlaylistId == playlistId || fetchingPlaylistId == null) {
                                 playlistSongs = allSongs
                                 playlistSongsOffset = allSongs.size
                                 hasMorePlaylistSongs = false
+
+                                // 比较简单信息：如果基本信息未变则不更新元数据，避免封面重新加载
+                                val current = currentPlaylistMetadata
+                                val shouldUpdateMetadata = newMetadata != null && (
+                                    current == null ||
+                                    current.name != newMetadata.name ||
+                                    current.coverImgUrl != newMetadata.coverImgUrl ||
+                                    current.trackCount != newMetadata.trackCount ||
+                                    current.creatorName != newMetadata.creatorName ||
+                                    current.description != newMetadata.description ||
+                                    current.composer != newMetadata.composer ||
+                                    current.totalDurationMs != newMetadata.totalDurationMs
+                                )
+                                if (shouldUpdateMetadata) {
+                                    currentPlaylistMetadata = newMetadata
+                                }
                             }
                         }
+                        // 始终更新缓存（包含作曲家和总时长）
                         CacheManager.save(
                             getApplication(),
                             CacheManager.CacheType.PLAYLIST_DETAIL,
                             playlistId.toString(),
-                            playlistCacheToJson(currentPlaylistMetadata, allSongs)
+                            playlistCacheToJson(newMetadata ?: currentPlaylistMetadata, allSongs)
                         )
                     }
                 }

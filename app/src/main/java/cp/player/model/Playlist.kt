@@ -8,5 +8,7 @@ data class Playlist(
     val creatorName: String? = null,
     val creatorUserId: Long = 0L,
     val subscribed: Boolean = false,
-    val description: String? = null
+    val description: String? = null,
+    val composer: String? = null,
+    val totalDurationMs: Long = 0L
 )
