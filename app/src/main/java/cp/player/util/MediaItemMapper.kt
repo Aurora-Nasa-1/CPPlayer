@@ -61,7 +61,8 @@ import java.io.File
             artist = this.mediaMetadata.artist?.toString() ?: "Unknown",
             album = this.mediaMetadata.albumTitle?.toString() ?: "Unknown",
             albumArtUrl = this.mediaMetadata.artworkUri?.toString(),
-            artistId = this.mediaMetadata.extras?.getString("artistId")
+            artistId = this.mediaMetadata.extras?.getString("artistId"),
+            durationMs = this.mediaMetadata.extras?.getLong("duration") ?: 0L
         )
     }
 

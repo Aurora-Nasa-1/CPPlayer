@@ -73,7 +73,8 @@ class CPDownloadManager(private val application: Application) {
                     MediaStore.Audio.Media.ARTIST,
                     MediaStore.Audio.Media.ALBUM,
                     MediaStore.Audio.Media.DISPLAY_NAME,
-                    MediaStore.Audio.Media.DATA
+                    MediaStore.Audio.Media.DATA,
+                    MediaStore.Audio.Media.DURATION
                 )
                 val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
                 val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
@@ -92,6 +93,7 @@ class CPDownloadManager(private val application: Application) {
                         val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                         val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                         val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                        val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
 
                         while (cursor.moveToNext()) {
                             val id = cursor.getLong(idColumn)
@@ -100,6 +102,7 @@ class CPDownloadManager(private val application: Application) {
                             val album = cursor.getString(albumColumn) ?: "Unknown"
                             val fileName = cursor.getString(nameColumn) ?: "Unknown"
                             val path = cursor.getString(dataColumn) // DATA 列在 Android 10+ 已弃用，可能返回 null
+                            val durationMs = cursor.getLong(durationColumn)
 
                             val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                             val localId = "local_$id"
@@ -115,7 +118,8 @@ class CPDownloadManager(private val application: Application) {
                                 album = album,
                                 albumArtUrl = uri.toString(), // 音频 content URI，用于播放和封面提取回退
                                 filePath = path, // 实际文件路径（可能为 null），用于封面提取
-                                cloudSongId = cloudSongId
+                                cloudSongId = cloudSongId,
+                                durationMs = durationMs
                             ))
                             if (path != null) existingPaths.add(path)
                         }
@@ -267,7 +271,8 @@ class CPDownloadManager(private val application: Application) {
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.ALBUM,
                 MediaStore.Audio.Media.DISPLAY_NAME,
-                MediaStore.Audio.Media.DATA
+                MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.DURATION
             )
             // 不使用 IS_MUSIC 过滤，仅通过文件扩展名筛选
             val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE '%.dsf' OR " +
@@ -288,6 +293,7 @@ class CPDownloadManager(private val application: Application) {
                 val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
 
                 var count = 0
                 while (cursor.moveToNext()) {
@@ -300,6 +306,7 @@ class CPDownloadManager(private val application: Application) {
                     val artist = cursor.getString(artistColumn) ?: "Unknown"
                     val album = cursor.getString(albumColumn) ?: "Unknown"
                     val fileName = cursor.getString(nameColumn) ?: "Unknown"
+                    val durationMs = cursor.getLong(durationColumn)
 
                     val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                     val localId = "local_$id"
@@ -313,7 +320,8 @@ class CPDownloadManager(private val application: Application) {
                         album = album,
                         albumArtUrl = uri.toString(),
                         filePath = path,
-                        cloudSongId = cloudSongId
+                        cloudSongId = cloudSongId,
+                        durationMs = durationMs
                     ))
                     if (path != null) existingPaths.add(path)
                     count++
@@ -359,6 +367,15 @@ class CPDownloadManager(private val application: Application) {
                 val artist = metadata?.artist ?: "Unknown"
                 val album = metadata?.album ?: "DSD"
 
+                // 提取时长（通过 MediaMetadataRetriever）
+                val durationMs = try {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    retriever.setDataSource(path)
+                    val d = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    retriever.release()
+                    d?.toLongOrNull() ?: 0L
+                } catch (_: Exception) { 0L }
+
                 // 生成唯一 ID（基于文件路径哈希）
                 val localId = "dsd_${path.hashCode().toUInt()}"
 
@@ -373,7 +390,8 @@ class CPDownloadManager(private val application: Application) {
                     album = album,
                     albumArtUrl = "file://$path", // DSD 文件路径
                     filePath = path,
-                    cloudSongId = cloudSongId
+                    cloudSongId = cloudSongId,
+                    durationMs = durationMs
                 ))
                 existingPaths.add(path)
             }

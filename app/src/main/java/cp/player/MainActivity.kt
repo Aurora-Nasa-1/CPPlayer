@@ -537,7 +537,8 @@ fun AppMainContent(
                                                     name = it.songName,
                                                     artist = it.artist,
                                                     album = it.album,
-                                                    albumArtUrl = it.albumArtUrl
+                                                    albumArtUrl = it.albumArtUrl,
+                                                    durationMs = it.durationMs
                                                 )
                                             }
                                         } else {

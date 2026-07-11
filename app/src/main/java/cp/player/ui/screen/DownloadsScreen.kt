@@ -177,7 +177,8 @@ fun DownloadsContent(
                             id = localSong.songId,
                             name = localSong.songName,
                             artist = localSong.artist,
-                            album = localSong.album
+                            album = localSong.album,
+                            durationMs = localSong.durationMs
                         )
                         playbackViewModel?.addToQueue(song)
                     }
@@ -514,7 +515,7 @@ private fun DownloadsMainContent(
                                         else -> localSongs
                                     }
                                     val songs = sortedSongs.map {
-                                        Song(id = it.songId, name = it.songName, artist = it.artist, album = it.album)
+                                        Song(id = it.songId, name = it.songName, artist = it.artist, album = it.album, durationMs = it.durationMs)
                                     }
                                     if (songs.isNotEmpty()) {
                                         playbackViewModel?.playSong(songs.first(), songs)
@@ -612,7 +613,8 @@ private fun DownloadsMainContent(
                             name = localSong.songName,
                             artist = localSong.artist,
                             album = localSong.album,
-                            albumArtUrl = if (localSong.songId.startsWith("dsd_")) localSong.albumArtUrl else coverArtUrl
+                            albumArtUrl = if (localSong.songId.startsWith("dsd_")) localSong.albumArtUrl else coverArtUrl,
+                            durationMs = localSong.durationMs
                         )
 
                         val isSelected = selectedLocalSongs.contains(localSong.songId)

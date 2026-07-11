@@ -91,12 +91,18 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             DownloadRegistry.downloadedSongsFlow.collectLatest { list ->
                 localSongs = list.mapNotNull { metadata ->
                     val song = metadata.song
+                    // 如果歌曲没有封面 URL，尝试使用本地提取的封面路径
+                    val resolvedSong = if (song.albumArtUrl.isNullOrBlank() && !metadata.localCoverPath.isNullOrBlank()) {
+                        song.copy(albumArtUrl = "file://${metadata.localCoverPath}")
+                    } else {
+                        song
+                    }
                     val uri = if (metadata.filePath?.startsWith("content://") == true) {
                         android.net.Uri.parse(metadata.filePath)
                     } else {
                         android.net.Uri.fromFile(java.io.File(metadata.filePath ?: ""))
                     }
-                    song to uri
+                    resolvedSong to uri
                 }
             }
         }
