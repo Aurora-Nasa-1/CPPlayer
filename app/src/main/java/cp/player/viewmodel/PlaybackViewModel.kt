@@ -133,7 +133,8 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             if (songs.isEmpty()) return
             val index = UserPreferences.getLastQueueIndex(context).coerceIn(0, songs.size - 1)
             val position = UserPreferences.getLastQueuePosition(context)
-            DebugLog.i("PlaybackVM: Restoring last queue: ${songs.size} songs, index=$index, pos=$position")
+            val wasPlaying = UserPreferences.getLastQueueWasPlaying(context)
+            DebugLog.i("PlaybackVM: Restoring last queue: ${songs.size} songs, index=$index, pos=$position, wasPlaying=$wasPlaying")
 
             runWithController { controller ->
                 controller.stop()
@@ -142,7 +143,9 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 if (items.isNotEmpty()) {
                     controller.setMediaItems(items, index.coerceAtMost(items.size - 1), position)
                     controller.prepare()
-                    // 恢复后不自动播放，等待用户点击
+                    if (wasPlaying) {
+                        controller.play()
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -163,8 +166,8 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             val json = Gson().toJson(queue)
             val index = mediaController?.currentMediaItemIndex ?: 0
             val position = currentPosition
-            UserPreferences.saveLastQueue(context, json, index, position)
-            DebugLog.i("PlaybackVM: Saved queue: ${queue.size} songs, index=$index, pos=$position")
+            UserPreferences.saveLastQueue(context, json, index, position, isPlaying)
+            DebugLog.i("PlaybackVM: Saved queue: ${queue.size} songs, index=$index, pos=$position, playing=$isPlaying")
         } catch (e: Exception) {
             DebugLog.e("PlaybackVM: Failed to save queue: ${e.message}")
         }
@@ -241,6 +244,11 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                     var lastSaveTime = System.currentTimeMillis()
                     while (isActive) {
                         currentPosition = controller.currentPosition
+                        // 安全网：同步 isBuffering，防止回调丢失导致转圈不停
+                        val actualState = controller.playbackState
+                        if (actualState != Player.STATE_BUFFERING && isBuffering) {
+                            isBuffering = false
+                        }
                         // 轮询检测歌曲切换（MediaController 的 onMediaItemTransition 可能不触发）
                         val currentItem = controller.currentMediaItem
                         val currentMediaId = currentItem?.mediaId
@@ -271,6 +279,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     fun syncState(controller: MediaController) {
         isPlaying = controller.isPlaying
+        isBuffering = controller.playbackState == Player.STATE_BUFFERING
         currentPosition = controller.currentPosition
         duration = controller.duration.coerceAtLeast(0L)
         repeatMode = controller.repeatMode

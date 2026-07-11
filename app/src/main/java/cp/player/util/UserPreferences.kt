@@ -43,6 +43,7 @@ object UserPreferences {
     private const val KEY_LAST_QUEUE = "last_queue"
     private const val KEY_LAST_QUEUE_INDEX = "last_queue_index"
     private const val KEY_LAST_QUEUE_POSITION = "last_queue_position"
+    private const val KEY_LAST_QUEUE_WAS_PLAYING = "last_queue_was_playing"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -454,11 +455,12 @@ object UserPreferences {
      * @param index 当前播放索引
      * @param position 当前播放位置（毫秒）
      */
-    fun saveLastQueue(context: Context, songs: String, index: Int, position: Long) {
+    fun saveLastQueue(context: Context, songs: String, index: Int, position: Long, wasPlaying: Boolean = false) {
         getPrefs(context).edit()
             .putString(KEY_LAST_QUEUE, songs)
             .putInt(KEY_LAST_QUEUE_INDEX, index)
             .putLong(KEY_LAST_QUEUE_POSITION, position)
+            .putBoolean(KEY_LAST_QUEUE_WAS_PLAYING, wasPlaying)
             .apply()
     }
 
@@ -477,6 +479,10 @@ object UserPreferences {
         return getPrefs(context).getLong(KEY_LAST_QUEUE_POSITION, 0L)
     }
 
+    fun getLastQueueWasPlaying(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_LAST_QUEUE_WAS_PLAYING, false)
+    }
+
     /**
      * 清除保存的播放队列。
      */
@@ -485,6 +491,7 @@ object UserPreferences {
             .remove(KEY_LAST_QUEUE)
             .remove(KEY_LAST_QUEUE_INDEX)
             .remove(KEY_LAST_QUEUE_POSITION)
+            .remove(KEY_LAST_QUEUE_WAS_PLAYING)
             .apply()
     }
 }
