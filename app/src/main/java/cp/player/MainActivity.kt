@@ -537,7 +537,7 @@ fun AppMainContent(
                                                     name = it.songName,
                                                     artist = it.artist,
                                                     album = it.album,
-                                                    albumArtUrl = it.albumArtUrl,
+                                                    albumArtUrl = it.coverArtUrl, // 使用提取的封面 URL
                                                     durationMs = it.durationMs
                                                 )
                                             }

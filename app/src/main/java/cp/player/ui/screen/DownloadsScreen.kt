@@ -178,6 +178,7 @@ fun DownloadsContent(
                             name = localSong.songName,
                             artist = localSong.artist,
                             album = localSong.album,
+                            albumArtUrl = localSong.coverArtUrl,
                             durationMs = localSong.durationMs
                         )
                         playbackViewModel?.addToQueue(song)
@@ -515,7 +516,7 @@ private fun DownloadsMainContent(
                                         else -> localSongs
                                     }
                                     val songs = sortedSongs.map {
-                                        Song(id = it.songId, name = it.songName, artist = it.artist, album = it.album, durationMs = it.durationMs)
+                                        Song(id = it.songId, name = it.songName, artist = it.artist, album = it.album, albumArtUrl = it.coverArtUrl, durationMs = it.durationMs)
                                     }
                                     if (songs.isNotEmpty()) {
                                         playbackViewModel?.playSong(songs.first(), songs)
@@ -593,10 +594,11 @@ private fun DownloadsMainContent(
                     itemsIndexed(sortedLocalSongs, key = { _, it -> it.songId }) { index, localSong ->
                         val uri = android.net.Uri.parse(localSong.albumArtUrl)
 
-                        // 获取封面：云端绑定封面 > 内嵌封面 > null
+                        // 获取封面：云端绑定封面 > 预提取封面 > 内嵌封面 > null
                         val binding = bindings[localSong.songId]
-                        val coverArtUrl by produceState<String?>(initialValue = binding?.cloudCoverUrl) {
+                        val coverArtUrl by produceState<String?>(initialValue = binding?.cloudCoverUrl ?: localSong.coverArtUrl) {
                             if (binding?.cloudCoverUrl != null) return@produceState
+                            if (localSong.coverArtUrl != null) return@produceState // 已有预提取封面
                             value = withContext(Dispatchers.IO) {
                                 cp.player.util.CoverArtExtractor.getOrExtract(
                                     context, localSong.songId, localSong.filePath,

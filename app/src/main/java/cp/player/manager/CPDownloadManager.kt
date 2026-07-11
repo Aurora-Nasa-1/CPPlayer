@@ -132,6 +132,23 @@ class CPDownloadManager(private val application: Application) {
                 scanDsdFiles(localList, existingPaths)
 
                 _localSongs.value = localList
+
+                // 3. 后台批量提取封面（不阻塞扫描结果的展示）
+                scope.launch {
+                    for ((index, meta) in localList.withIndex()) {
+                        if (meta.coverArtUrl != null) continue // 已有封面（如云端绑定）
+                        val coverUrl = cp.player.util.CoverArtExtractor.getOrExtract(
+                            application, meta.songId, meta.filePath,
+                            contentUri = if (meta.albumArtUrl?.startsWith("content://") == true) meta.albumArtUrl else null
+                        )
+                        if (coverUrl != null) {
+                            localList[index] = meta.copy(coverArtUrl = coverUrl)
+                            // 每提取 10 张封面更新一次 UI，减少重组开销
+                            if (index % 10 == 0) _localSongs.value = localList.toList()
+                        }
+                    }
+                    _localSongs.value = localList.toList()
+                }
             } finally {
                 _isScanning.value = false
             }
