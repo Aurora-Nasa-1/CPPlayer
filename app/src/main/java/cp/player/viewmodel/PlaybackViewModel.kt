@@ -242,12 +242,20 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 viewModelScope.launch {
                     var lastMediaId: String? = null
                     var lastSaveTime = System.currentTimeMillis()
+                    var bufferingSince = 0L  // 持续 buffering 的起始时间，0 表示非 buffering
                     while (isActive) {
                         currentPosition = controller.currentPosition
                         // 安全网：同步 isBuffering，防止回调丢失导致转圈不停
                         val actualState = controller.playbackState
-                        if (actualState != Player.STATE_BUFFERING && isBuffering) {
-                            isBuffering = false
+                        if (actualState == Player.STATE_BUFFERING) {
+                            if (bufferingSince == 0L) bufferingSince = System.currentTimeMillis()
+                            // 如果未播放且持续 buffering 超过 3 秒，清除转圈（URL 可能已过期）
+                            if (!isPlaying && System.currentTimeMillis() - bufferingSince > 3000) {
+                                isBuffering = false
+                            }
+                        } else {
+                            bufferingSince = 0L
+                            if (isBuffering) isBuffering = false
                         }
                         // 轮询检测歌曲切换（MediaController 的 onMediaItemTransition 可能不触发）
                         val currentItem = controller.currentMediaItem
