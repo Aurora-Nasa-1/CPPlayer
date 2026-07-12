@@ -163,12 +163,14 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         subscribedPlaylists = userPlaylists.filter { it.subscribed }.map { it.id }.toSet()
 
                         // 缓存歌单数据
-                        CacheManager.save(
-                            getApplication(),
-                            CacheManager.CacheType.USER_PLAYLISTS,
-                            "",
-                            Gson().toJson(userPlaylists)
-                        )
+                        withContext(Dispatchers.IO) {
+                            CacheManager.save(
+                                getApplication(),
+                                CacheManager.CacheType.USER_PLAYLISTS,
+                                "",
+                                Gson().toJson(userPlaylists)
+                            )
+                        }
 
                         val favBody = withContext(Dispatchers.IO) { api.getLikeList(resolvedUid) }
                         favoriteSongs = favBody.get("ids")?.takeIf { it.isJsonArray }?.asJsonArray?.map { it.asString } ?: emptyList()
@@ -356,12 +358,14 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
 
                     // 缓存歌单元数据和歌曲（仅首次加载且有数据时）
                     if (!isLoadMore && playlistSongs.isNotEmpty()) {
-                        CacheManager.save(
-                            getApplication(),
-                            CacheManager.CacheType.PLAYLIST_DETAIL,
-                            playlistId.toString(),
-                            playlistCacheToJson(currentPlaylistMetadata, playlistSongs)
-                        )
+                        withContext(Dispatchers.IO) {
+                            CacheManager.save(
+                                getApplication(),
+                                CacheManager.CacheType.PLAYLIST_DETAIL,
+                                playlistId.toString(),
+                                playlistCacheToJson(currentPlaylistMetadata, playlistSongs)
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -439,12 +443,14 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                             }
                         }
                         // 始终更新缓存（包含作曲家和总时长）
-                        CacheManager.save(
-                            getApplication(),
-                            CacheManager.CacheType.PLAYLIST_DETAIL,
-                            playlistId.toString(),
-                            playlistCacheToJson(newMetadata ?: currentPlaylistMetadata, allSongs)
-                        )
+                        withContext(Dispatchers.IO) {
+                            CacheManager.save(
+                                getApplication(),
+                                CacheManager.CacheType.PLAYLIST_DETAIL,
+                                playlistId.toString(),
+                                playlistCacheToJson(newMetadata ?: currentPlaylistMetadata, allSongs)
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {

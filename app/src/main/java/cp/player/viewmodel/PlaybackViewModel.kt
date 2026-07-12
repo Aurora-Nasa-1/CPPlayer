@@ -162,14 +162,20 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         if (!UserPreferences.getRestoreLastQueue(context)) return
         val queue = currentQueue
         if (queue.isEmpty()) return
-        try {
-            val json = Gson().toJson(queue)
-            val index = mediaController?.currentMediaItemIndex ?: 0
-            val position = currentPosition
-            UserPreferences.saveLastQueue(context, json, index, position, isPlaying)
-            DebugLog.i("PlaybackVM: Saved queue: ${queue.size} songs, index=$index, pos=$position, playing=$isPlaying")
-        } catch (e: Exception) {
-            DebugLog.e("PlaybackVM: Failed to save queue: ${e.message}")
+
+        val queueSnapshot = queue.toList()
+        val index = mediaController?.currentMediaItemIndex ?: 0
+        val position = currentPosition
+        val playing = isPlaying
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = Gson().toJson(queueSnapshot)
+                UserPreferences.saveLastQueue(context, json, index, position, playing)
+                DebugLog.i("PlaybackVM: Saved queue: ${queueSnapshot.size} songs, index=$index, pos=$position, playing=$playing")
+            } catch (e: Exception) {
+                DebugLog.e("PlaybackVM: Failed to save queue: ${e.message}")
+            }
         }
     }
 
