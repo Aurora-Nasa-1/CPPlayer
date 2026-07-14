@@ -18,27 +18,29 @@ object LocalAudioAnalyzer {
         var data = FloatArray(initialCapacity)
         var size = 0
 
-        fun add(element: Float) {
-            if (size == data.size) {
-                data = data.copyOf(data.size * 2)
-            }
-            data[size++] = element
-        }
-
-        fun addAll(elements: FloatArray) {
-            if (size + elements.size > data.size) {
+        private fun ensureCapacity(minCapacity: Int) {
+            if (minCapacity > data.size) {
                 var newCapacity = data.size * 2
-                while (newCapacity < size + elements.size) {
+                while (newCapacity < minCapacity) {
                     newCapacity *= 2
                 }
                 data = data.copyOf(newCapacity)
             }
-            System.arraycopy(elements, 0, data, size, elements.size)
+        }
+
+        fun add(element: Float) {
+            ensureCapacity(size + 1)
+            data[size++] = element
+        }
+
+        fun addAll(elements: FloatArray) {
+            ensureCapacity(size + elements.size)
+            elements.copyInto(data, destinationOffset = size)
             size += elements.size
         }
 
         fun toFloatArray(): FloatArray {
-            return data.copyOf(size)
+            return data.copyOfRange(0, size)
         }
 
         fun get(index: Int): Float {
@@ -304,75 +306,5 @@ object LocalAudioAnalyzer {
         val bpm = (60f * envRate) / bestLag
         if (bpm.isNaN() || bpm.isInfinite()) return 0.0
         return max(55.0, min(210.0, bpm.toDouble()))
-    }
-}
-
-/**
- * A simple primitive array list to avoid Float boxing overhead when collecting audio samples.
- */
-private class FloatArrayList(initialCapacity: Int = 1024) {
-    private var data = FloatArray(initialCapacity)
-    var size = 0
-        private set
-
-    fun add(element: Float) {
-        if (size == data.size) {
-            val newData = FloatArray(data.size * 2)
-            System.arraycopy(data, 0, newData, 0, size)
-            data = newData
-        }
-        data[size++] = element
-    }
-
-    fun addAll(elements: FloatArray) {
-        if (size + elements.size > data.size) {
-            var newCap = data.size * 2
-            while (newCap < size + elements.size) {
-                newCap *= 2
-            }
-            val newData = FloatArray(newCap)
-            System.arraycopy(data, 0, newData, 0, size)
-            data = newData
-        }
-        System.arraycopy(elements, 0, data, size, elements.size)
-        size += elements.size
-    }
-
-    fun addAll(elements: FloatArrayList) {
-        if (size + elements.size > data.size) {
-            var newCap = data.size * 2
-            while (newCap < size + elements.size) {
-                newCap *= 2
-            }
-            val newData = FloatArray(newCap)
-            System.arraycopy(data, 0, newData, 0, size)
-            data = newData
-        }
-        System.arraycopy(elements.data, 0, data, size, elements.size)
-        size += elements.size
-    }
-
-    fun get(index: Int): Float {
-        if (index < 0 || index >= size) throw IndexOutOfBoundsException()
-        return data[index]
-    }
-
-    fun set(index: Int, element: Float) {
-        if (index < 0 || index >= size) throw IndexOutOfBoundsException()
-        data[index] = element
-    }
-
-    fun sum(): Float {
-        var s = 0f
-        for (i in 0 until size) {
-            s += data[i]
-        }
-        return s
-    }
-
-    fun toFloatArray(): FloatArray {
-        val result = FloatArray(size)
-        System.arraycopy(data, 0, result, 0, size)
-        return result
     }
 }
