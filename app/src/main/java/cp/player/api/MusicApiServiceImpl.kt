@@ -665,7 +665,7 @@ class MusicApiServiceImpl(
         if (element.isJsonObject) {
             val obj = element.asJsonObject
             // 优先检查常见字段名
-            listOf("url", "picUrl", "coverImgUrl", "avatarUrl").firstNotNullOfOrNull { key ->
+            URL_PRIORITY_KEYS.firstNotNullOfOrNull { key ->
                 obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf {
                     it.startsWith("http") && it.length > 12 && !it.contains("null")
                 }
@@ -677,5 +677,9 @@ class MusicApiServiceImpl(
             return element.asJsonArray.firstNotNullOfOrNull { findUrlRecursive(it) }
         }
         return null
+    }
+
+    companion object {
+        private val URL_PRIORITY_KEYS = listOf("url", "picUrl", "coverImgUrl", "avatarUrl")
     }
 }
