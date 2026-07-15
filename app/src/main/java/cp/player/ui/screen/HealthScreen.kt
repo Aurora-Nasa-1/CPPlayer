@@ -653,7 +653,7 @@ private fun CallRecordRow(record: HealthMonitor.ApiCallRecord, compact: Boolean)
                                     Column {
                                         Text(formatWarning(w), style = MaterialTheme.typography.bodySmall, color = Color(0xFFFF9800))
                                         if (w == HealthMonitor.ResponseWarning.MISSING_DATA_FIELD && record.expectedField != null) {
-                                            Text("  " + stringResource(R.string.expected_field, record.expectedField ?: ""), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFF9800).copy(alpha = 0.7f))
+                                            Text("  " + stringResource(R.string.expected_field, record.expectedField), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFF9800).copy(alpha = 0.7f))
                                         }
                                     }
                                 }
