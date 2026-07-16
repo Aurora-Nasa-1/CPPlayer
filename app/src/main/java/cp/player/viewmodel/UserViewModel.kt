@@ -163,12 +163,14 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         subscribedPlaylists = userPlaylists.filter { it.subscribed }.map { it.id }.toSet()
 
                         // 缓存歌单数据
-                        CacheManager.save(
-                            getApplication(),
-                            CacheManager.CacheType.USER_PLAYLISTS,
-                            "",
-                            Gson().toJson(userPlaylists)
-                        )
+                        withContext(Dispatchers.IO) {
+                            CacheManager.save(
+                                getApplication(),
+                                CacheManager.CacheType.USER_PLAYLISTS,
+                                "",
+                                Gson().toJson(userPlaylists)
+                            )
+                        }
 
                         val favBody = withContext(Dispatchers.IO) { api.getLikeList(resolvedUid) }
                         favoriteSongs = favBody.get("ids")?.takeIf { it.isJsonArray }?.asJsonArray?.map { it.asString } ?: emptyList()

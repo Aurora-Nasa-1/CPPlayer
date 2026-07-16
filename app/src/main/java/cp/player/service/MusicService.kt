@@ -963,11 +963,18 @@ class MusicService : MediaSessionService() {
                     albumArtUrl = meta.artworkUri?.toString()
                 )
             }
-            val json = com.google.gson.Gson().toJson(songs)
             val index = player.currentMediaItemIndex
             val position = player.currentPosition
-            UserPreferences.saveLastQueue(this, json, index, position)
-            DebugLog.i("MusicService: Saved queue on exit: ${songs.size} songs, index=$index, pos=$position")
+
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val json = com.google.gson.Gson().toJson(songs)
+                    UserPreferences.saveLastQueue(this@MusicService, json, index, position)
+                    DebugLog.i("MusicService: Saved queue on exit: ${songs.size} songs, index=$index, pos=$position")
+                } catch (e: Exception) {
+                    DebugLog.e("MusicService: Failed to serialize and save queue on exit: ${e.message}")
+                }
+            }
         } catch (e: Exception) {
             DebugLog.e("MusicService: Failed to save queue on exit: ${e.message}")
         }
