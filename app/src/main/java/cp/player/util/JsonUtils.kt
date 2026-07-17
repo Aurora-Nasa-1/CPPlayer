@@ -10,12 +10,12 @@ import cp.player.model.Message
 import cp.player.model.Comment
 import cp.player.model.Playlist
 
-private val JsonElement?.obj: JsonObject? get() = if (this?.isJsonObject == true) this.asJsonObject else null
-private val JsonElement?.arr: JsonArray? get() = if (this?.isJsonArray == true) this.asJsonArray else null
-private val JsonElement?.str: String? get() = if (this?.isJsonPrimitive == true) this.asString else null
-private val JsonElement?.long: Long? get() = try { if (this?.isJsonPrimitive == true) this.asLong else null } catch (e: Exception) { null }
-private val JsonElement?.int: Int? get() = try { if (this?.isJsonPrimitive == true) this.asInt else null } catch (e: Exception) { null }
-private val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive == true) this.asBoolean else null } catch (e: Exception) { null }
+internal val JsonElement?.obj: JsonObject? get() = if (this?.isJsonObject == true) this.asJsonObject else null
+internal val JsonElement?.arr: JsonArray? get() = if (this?.isJsonArray == true) this.asJsonArray else null
+internal val JsonElement?.str: String? get() = if (this?.isJsonPrimitive == true) this.asString else null
+internal val JsonElement?.long: Long? get() = try { if (this?.isJsonPrimitive == true) this.asLong else null } catch (e: Exception) { null }
+internal val JsonElement?.int: Int? get() = try { if (this?.isJsonPrimitive == true) this.asInt else null } catch (e: Exception) { null }
+internal val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive == true) this.asBoolean else null } catch (e: Exception) { null }
 
 object JsonUtils {
     private val PRIORITY_KEYS = listOf("al", "album", "data", "result", "songs", "urlInfo")
