@@ -597,4 +597,5 @@
     <string name="new_songs_express">New Releases</string>
     <string name="quality_playlists">Featured Playlists</string>
     <string name="view_more">View More</string>
+    <string name="no_file_manager_found">No file manager found to open directory picker</string>
 </resources>
