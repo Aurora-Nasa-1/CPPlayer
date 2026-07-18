@@ -586,4 +586,5 @@
     <string name="dsp_equalizer">DSP &amp; 均衡器</string>
     <string name="dsp_effects">DSP &amp; 音效</string>
     <string name="dsp_equalizer_desc">配置均衡器和空间音效</string>
+    <string name="no_file_manager_found">未找到文件管理器，无法打开目录选择器</string>
 </resources>
