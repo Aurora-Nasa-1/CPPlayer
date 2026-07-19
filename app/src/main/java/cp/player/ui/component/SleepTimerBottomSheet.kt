@@ -11,6 +11,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.text.DecimalFormatSymbols
+
+private val SLEEP_TIMER_OPTIONS = listOf(
+    "Off" to 0,
+    "10 Minutes" to 10,
+    "20 Minutes" to 20,
+    "30 Minutes" to 30,
+    "45 Minutes" to 45,
+    "60 Minutes" to 60,
+    "90 Minutes" to 90
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,16 +30,6 @@ fun SleepTimerBottomSheet(
     onSetTimer: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf(
-        "Off" to 0,
-        "10 Minutes" to 10,
-        "20 Minutes" to 20,
-        "30 Minutes" to 30,
-        "45 Minutes" to 45,
-        "60 Minutes" to 60,
-        "90 Minutes" to 90
-    )
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState()
@@ -48,15 +49,24 @@ fun SleepTimerBottomSheet(
             if (remainingTime > 0) {
                 val minutes = (remainingTime / 1000) / 60
                 val seconds = (remainingTime / 1000) % 60
+                val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+                val zeroDigit = DecimalFormatSymbols.getInstance(locale).zeroDigit
+                val timeString = if (zeroDigit == '0') {
+                    val minutesStr = if (minutes < 10) "0$minutes" else minutes.toString()
+                    val secondsStr = if (seconds < 10) "0$seconds" else seconds.toString()
+                    "$minutesStr:$secondsStr"
+                } else {
+                    String.format(locale, "%02d:%02d", minutes, seconds)
+                }
                 Text(
-                    text = "Remaining: ${String.format(androidx.compose.ui.platform.LocalConfiguration.current.locales[0], "%02d:%02d", minutes, seconds)}",
+                    text = "Remaining: $timeString",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
-            options.forEach { (label, minutes) ->
+            SLEEP_TIMER_OPTIONS.forEach { (label, minutes) ->
                 cp.player.ui.component.UnifiedListItem(
     onClick = { onSetTimer(minutes)
                             onDismiss() },
