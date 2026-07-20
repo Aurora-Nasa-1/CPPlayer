@@ -17,6 +17,11 @@ import java.io.File
 object EmbeddedLyricsExtractor {
     private const val TAG = "EmbeddedLyricsExtractor"
     private val LRC_REGEX = Regex("\\[\\d{2}:\\d{2}[.:]\\d{2,3}]")
+    private val LYRICS_FIELDS = listOf(
+        MediaMetadataRetriever.METADATA_KEY_WRITER,       // 词作者（某些实现包含歌词文本）
+        MediaMetadataRetriever.METADATA_KEY_COMPOSER,     // 曲作者
+    )
+    private val EXTRA_KEYS = listOf(100, 101)
 
     /**
      * 从本地音频文件提取内嵌歌词。
@@ -85,33 +90,24 @@ object EmbeddedLyricsExtractor {
             // 尝试多个可能包含歌词的元数据字段
             // Android 的 MediaMetadataRetriever 对歌词支持有限，
             // 不同设备/格式可能将歌词放在不同字段中
-            val lyricsFields = listOf(
-                MediaMetadataRetriever.METADATA_KEY_WRITER,       // 词作者（某些实现包含歌词文本）
-                MediaMetadataRetriever.METADATA_KEY_COMPOSER,     // 曲作者
-            )
-
-            for (field in lyricsFields) {
-                val value = retriever.extractMetadata(field)
-                if (!value.isNullOrBlank() && looksLikeLyrics(value)) {
-                    DebugLog.i("$TAG: found lyrics in field $field (${value.length} chars)")
-                    return value
+            val fieldResult = LYRICS_FIELDS.firstNotNullOfOrNull { field ->
+                retriever.extractMetadata(field)?.takeIf { it.isNotBlank() && looksLikeLyrics(it) }?.also {
+                    DebugLog.i("$TAG: found lyrics in field $field (${it.length} chars)")
                 }
             }
+            if (fieldResult != null) return fieldResult
 
             // 尝试非标准 key（某些 Android 实现/设备厂商扩展）
             // key 100 = METADATA_KEY_lyrics (部分三星/小米等设备支持)
-            val extraKeys = listOf(100, 101)
-            for (key in extraKeys) {
+            return EXTRA_KEYS.firstNotNullOfOrNull { key ->
                 try {
-                    val value = retriever.extractMetadata(key)
-                    if (!value.isNullOrBlank() && looksLikeLyrics(value)) {
-                        DebugLog.i("$TAG: found lyrics in extended key $key (${value.length} chars)")
-                        return value
+                    retriever.extractMetadata(key)?.takeIf { it.isNotBlank() && looksLikeLyrics(it) }?.also {
+                        DebugLog.i("$TAG: found lyrics in extended key $key (${it.length} chars)")
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                    null
+                }
             }
-
-            return null
         } catch (e: Exception) {
             DebugLog.w("$TAG: MediaMetadataRetriever error: ${e.message}")
             return null
