@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import cp.player.R
 
 private data class EqNode(val freq: Float, val gain: Float, val q: Float = 0f)
 
@@ -165,7 +166,7 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
                     )
                     Spacer(Modifier.weight(1f))
                     // 导入 AutoEQ
-                    IconButton(onClick = { launcher.launch("text/plain") }, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = { try { launcher.launch("text/plain") } catch (e: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, context.getString(R.string.no_file_manager), android.widget.Toast.LENGTH_SHORT).show() } }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Outlined.FolderOpen, "导入", modifier = Modifier.size(20.dp))
                     }
                     // 重置
