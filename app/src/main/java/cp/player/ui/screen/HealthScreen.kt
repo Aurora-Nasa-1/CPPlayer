@@ -101,14 +101,22 @@ fun HealthScreenInline() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HealthTabRow(currentTab: Int, compact: Boolean = false, onSelect: (Int) -> Unit) {
-    val tabs = listOf(
-        stringResource(R.string.tab_overview) to Icons.Default.Dashboard,
-        stringResource(R.string.tab_methods) to Icons.Default.Analytics,
-        stringResource(R.string.tab_logs) to Icons.AutoMirrored.Filled.List,
-        stringResource(R.string.tab_test) to Icons.AutoMirrored.Filled.Send,
-        "apiMap" to Icons.Default.Map,
-        stringResource(R.string.tab_status) to Icons.Default.Info
-    )
+    val overviewStr = stringResource(R.string.tab_overview)
+    val methodsStr = stringResource(R.string.tab_methods)
+    val logsStr = stringResource(R.string.tab_logs)
+    val testStr = stringResource(R.string.tab_test)
+    val statusStr = stringResource(R.string.tab_status)
+
+    val tabs = remember(overviewStr, methodsStr, logsStr, testStr, statusStr) {
+        listOf(
+            overviewStr to Icons.Default.Dashboard,
+            methodsStr to Icons.Default.Analytics,
+            logsStr to Icons.AutoMirrored.Filled.List,
+            testStr to Icons.AutoMirrored.Filled.Send,
+            "apiMap" to Icons.Default.Map,
+            statusStr to Icons.Default.Info
+        )
+    }
     val chipSize = if (compact) 32.dp else 36.dp
     val iconSize = if (compact) 16.dp else 18.dp
 
