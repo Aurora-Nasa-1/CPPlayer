@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,9 +90,11 @@ fun ContactItem(
     onClick: () -> Unit,
     onAvatarClick: () -> Unit
 ) {
-    val timeStr = contact.lastMessageTime?.let {
-        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
-    } ?: ""
+    val timeStr = remember(contact.lastMessageTime) {
+        contact.lastMessageTime?.let {
+            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
+        } ?: ""
+    }
 
     cp.player.ui.component.UnifiedListItem(
         onClick = { onClick() },

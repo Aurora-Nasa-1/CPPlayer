@@ -202,16 +202,18 @@ fun SettingsScreen(
                         .padding(start = 16.dp, end = 8.dp, top = innerPadding.calculateTopPadding(), bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    val navCategories = listOf(
-                        R.string.appearance to SettingsPage.Appearance,
-                        R.string.playback_quality_cat to SettingsPage.Audio,
-                        R.string.settings_ui_logic to SettingsPage.UiLogic,
-                        R.string.storage_cache to SettingsPage.StorageDownload,
-                        R.string.debug to SettingsPage.Debug,
-                        R.string.provider_management to SettingsPage.Provider,
-                        R.string.about to SettingsPage.About,
-                        R.string.sponsor to SettingsPage.Sponsor
-                    )
+                    val navCategories = remember {
+                        listOf(
+                            R.string.appearance to SettingsPage.Appearance,
+                            R.string.playback_quality_cat to SettingsPage.Audio,
+                            R.string.settings_ui_logic to SettingsPage.UiLogic,
+                            R.string.storage_cache to SettingsPage.StorageDownload,
+                            R.string.debug to SettingsPage.Debug,
+                            R.string.provider_management to SettingsPage.Provider,
+                            R.string.about to SettingsPage.About,
+                            R.string.sponsor to SettingsPage.Sponsor
+                        )
+                    }
                     navCategories.forEachIndexed { index, (titleRes, page) ->
                         ListItem(
                             headlineContent = { Text(stringResource(titleRes)) },
