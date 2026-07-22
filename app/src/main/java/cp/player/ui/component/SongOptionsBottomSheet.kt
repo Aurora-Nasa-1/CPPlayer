@@ -39,6 +39,11 @@ import cp.player.api.MusicApiServiceFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val SONG_PUBLISH_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault())
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -303,8 +308,7 @@ fun SongOptionsBottomSheet(
                                                 // 发行时间
                                                 val publishTime = obj.get("publishTime")?.asLong ?: 0L
                                                 if (publishTime > 0) {
-                                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                                    map[context.getString(R.string.detail_publish_time)] = sdf.format(java.util.Date(publishTime))
+                                                    map[context.getString(R.string.detail_publish_time)] = SONG_PUBLISH_TIME_FORMATTER.format(Instant.ofEpochMilli(publishTime))
                                                 }
                                                 // 评论数
                                                 val commentCount = obj.get("commentCount")?.asLong ?: 0L
