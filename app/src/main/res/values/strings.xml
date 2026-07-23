@@ -600,4 +600,5 @@
     <string name="quality_playlists">精品歌单</string>
     <string name="view_more">查看更多</string>
 
+    <string name="no_suitable_app_found">未找到支持该操作的应用</string>
 </resources>

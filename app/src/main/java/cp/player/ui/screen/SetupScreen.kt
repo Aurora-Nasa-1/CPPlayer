@@ -209,7 +209,13 @@ fun SetupScreen(
                         Icon(Icons.Filled.ArrowForward, contentDescription = null)
                     }
                     OutlinedButton(
-                        onClick = { launcher.launch("application/zip") },
+                        onClick = {
+                            try {
+                                launcher.launch("application/zip")
+                            } catch (e: android.content.ActivityNotFoundException) {
+                                android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = MaterialTheme.shapes.extraLarge
                     ) {
@@ -220,7 +226,13 @@ fun SetupScreen(
                     }
                 } else {
                     Button(
-                        onClick = { launcher.launch("application/zip") },
+                        onClick = {
+                            try {
+                                launcher.launch("application/zip")
+                            } catch (e: android.content.ActivityNotFoundException) {
+                                android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
                         shape = MaterialTheme.shapes.extraLarge
                     ) {
