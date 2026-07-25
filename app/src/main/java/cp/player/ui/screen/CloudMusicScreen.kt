@@ -54,7 +54,7 @@ fun CloudMusicContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                itemsIndexed(songs, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),

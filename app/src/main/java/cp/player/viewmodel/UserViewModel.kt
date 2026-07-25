@@ -394,14 +394,21 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     }
 
                     val allSongs = mutableListOf<Song>()
+                    val seenIds = mutableSetOf<String>()
                     var offset = 0
                     val limit = 100
                     while (true) {
                         val tracksBody = withContext(Dispatchers.IO) { api.getPlaylistTracks(playlistId, limit = limit, offset = offset) }
                         val songs = tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
                         if (songs.isEmpty()) break
-                        allSongs.addAll(songs)
-                        if (songs.size < limit) break
+                        var addedNew = false
+                        for (song in songs) {
+                            if (seenIds.add(song.id)) {
+                                allSongs.add(song)
+                                addedNew = true
+                            }
+                        }
+                        if (!addedNew || songs.size < limit) break
                         offset += songs.size
                     }
 

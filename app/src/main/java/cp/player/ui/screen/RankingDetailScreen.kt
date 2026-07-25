@@ -103,7 +103,7 @@ fun RankingDetailScreen(
                     }
                 }
             } else {
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(songs, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     SongItem(
                         song = song,
                         index = index + 1,

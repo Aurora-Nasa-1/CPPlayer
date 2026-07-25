@@ -118,7 +118,7 @@ fun CommentPage(
         ) {
             if (currentSort == 1) {
                 // 最热排序：显示热门评论
-                itemsIndexed(hotComments, key = { _, c -> "hot_${c.id}" }) { _, comment ->
+                itemsIndexed(hotComments, key = { index, c -> "hot_${c.id}_$index" }) { _, comment ->
                     CommentItem(
                         comment = comment,
                         onLikeClick = { onLikeClick(comment) },
@@ -129,7 +129,7 @@ fun CommentPage(
                 }
             } else {
                 // 最新排序：显示最新评论
-                itemsIndexed(newestComments, key = { _, c -> "new_${c.id}" }) { _, comment ->
+                itemsIndexed(newestComments, key = { index, c -> "new_${c.id}_$index" }) { _, comment ->
                     CommentItem(
                         comment = comment,
                         onLikeClick = { onLikeClick(comment) },

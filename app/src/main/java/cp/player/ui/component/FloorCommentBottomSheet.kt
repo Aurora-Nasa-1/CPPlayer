@@ -115,7 +115,7 @@ fun FloorCommentBottomSheet(
                         }
 
                         // 回复列表
-                        itemsIndexed(replies, key = { _, it -> it.id }) { _, comment ->
+                        itemsIndexed(replies, key = { index, it -> "${it.id}_$index" }) { _, comment ->
                             CommentItem(
                                 comment = comment,
                                 onLikeClick = { onLikeClick(comment) },

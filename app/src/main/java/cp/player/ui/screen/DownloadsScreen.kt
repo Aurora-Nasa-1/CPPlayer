@@ -384,7 +384,7 @@ private fun DownloadsMainContent(
                 val downloadingTasks = tasks.values.filter { it.status != DownloadStatus.COMPLETED }.toList()
                 if (downloadingTasks.isNotEmpty()) {
                     item { Text(stringResource(R.string.downloading), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 16.dp)) }
-                    itemsIndexed(downloadingTasks, key = { _, task -> task.song.id }) { index, task ->
+                    itemsIndexed(downloadingTasks, key = { index, task -> "${task.song.id}_$index" }) { index, task ->
                         SongItem(
                             song = task.song,
                             isFavorite = false,
@@ -427,7 +427,7 @@ private fun DownloadsMainContent(
                 val validDownloadedSongs = downloadedSongs.distinctBy { it.song.id }
                 if (validDownloadedSongs.isNotEmpty()) {
                     item { Text(stringResource(R.string.downloaded), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
-                    itemsIndexed(validDownloadedSongs, key = { _, metadata -> metadata.song.id }) { index, metadata ->
+                    itemsIndexed(validDownloadedSongs, key = { index, metadata -> "${metadata.song.id}_$index" }) { index, metadata ->
                         val uri = if (metadata.filePath?.startsWith("content://") == true) {
                             android.net.Uri.parse(metadata.filePath)
                         } else {
@@ -591,7 +591,7 @@ private fun DownloadsMainContent(
                         }
                     }
 
-                    itemsIndexed(sortedLocalSongs, key = { _, it -> it.songId }) { index, localSong ->
+                    itemsIndexed(sortedLocalSongs, key = { index, it -> "${it.songId}_$index" }) { index, localSong ->
                         val uri = android.net.Uri.parse(localSong.albumArtUrl)
 
                         // 获取封面：云端绑定封面 > 预提取封面 > 内嵌封面 > null

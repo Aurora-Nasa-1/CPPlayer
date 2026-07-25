@@ -104,7 +104,7 @@ fun DiscoveryScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     SectionHeader(title = stringResource(R.string.recommended_new_songs))
                 }
-                itemsIndexed(personalizedNewSongs) { index, song ->
+                itemsIndexed(personalizedNewSongs, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     SongItem(
                         song = song,
                         index = index,
@@ -125,7 +125,7 @@ fun DiscoveryScreen(
                         onAction = onViewAllTopSongs
                     )
                 }
-                itemsIndexed(topSongs.take(10)) { index, song ->
+                itemsIndexed(topSongs.take(10), key = { index, song -> "${song.id}_$index" }) { index, song ->
                     SongItem(
                         song = song,
                         index = index,
