@@ -92,7 +92,7 @@ fun SourceSongsSelectionBottomSheet(
                     contentPadding = PaddingValues(bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    itemsIndexed(songs!!, key = { _, s -> s.id }) { index, s ->
+                    itemsIndexed(songs!!, key = { index, s -> "${s.id}_$index" }) { index, s ->
                         val isSelected = selectedSongs.contains(s.id)
                         SongItem(
                             song = s,

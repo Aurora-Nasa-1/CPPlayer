@@ -571,7 +571,7 @@ private fun PlaylistDetailContent(
                 }
             }
 
-            itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
+            itemsIndexed(items = songs, key = { index, song -> "${song.id}_$index" }) { index, song ->
                 if (index >= songs.size - 5 && hasMoreSongs && !isFetchingMore) {
                     LaunchedEffect(index) {
                         onLoadMore()

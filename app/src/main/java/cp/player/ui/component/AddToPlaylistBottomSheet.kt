@@ -40,7 +40,7 @@ fun AddToPlaylistBottomSheet(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                itemsIndexed(ownedPlaylists, key = { _, p -> p.id }) { index, p ->
+                itemsIndexed(ownedPlaylists, key = { index, p -> "${p.id}_$index" }) { index, p ->
                     PlaylistItem(
                         playlist = p,
                         onClick = { onPlaylistSelected(p) },
