@@ -23,8 +23,11 @@ import cp.player.R
 import cp.player.ui.component.AppScaffold
 import cp.player.model.Contact
 import cp.player.util.resized
-import java.text.SimpleDateFormat
-import java.util.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val dateFormat = DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(ZoneId.systemDefault())
 
 @Composable
 fun ContactListScreen(
@@ -90,7 +93,7 @@ fun ContactItem(
     onAvatarClick: () -> Unit
 ) {
     val timeStr = contact.lastMessageTime?.let {
-        SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(it))
+        dateFormat.format(Instant.ofEpochMilli(it))
     } ?: ""
 
     cp.player.ui.component.UnifiedListItem(
