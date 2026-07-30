@@ -138,62 +138,102 @@ object ExoAudioFxManager {
     fun setEqualizerEnabled(enabled: Boolean) {
         eqEnabled = enabled
         activeSessions.values.forEach { fx ->
-            fx.equalizer?.enabled = enabled
+            try {
+                fx.equalizer?.enabled = enabled
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
     fun getEqualizerEnabled(): Boolean = eqEnabled
 
     fun getNumberOfBands(): Short {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfBands ?: 0
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfBands ?: 0
+        } catch (e: Exception) {
+            0
+        }
     }
 
     fun getCenterFreq(band: Short): Int {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getCenterFreq(band) ?: 0
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getCenterFreq(band) ?: 0
+        } catch (e: Exception) {
+            0
+        }
     }
 
     fun getBandLevelRange(): ShortArray {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.bandLevelRange ?: shortArrayOf(0, 0)
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.bandLevelRange ?: shortArrayOf(0, 0)
+        } catch (e: Exception) {
+            shortArrayOf(0, 0)
+        }
     }
 
     fun setBandLevel(band: Short, level: Short) {
         currentPreset = -1 // User customized
         eqGains[band] = level
         activeSessions.values.forEach { fx ->
-            if (fx.equalizer != null && band < fx.equalizer.numberOfBands) {
-                fx.equalizer.setBandLevel(band, level)
+            try {
+                if (fx.equalizer != null && band < fx.equalizer.numberOfBands) {
+                    fx.equalizer.setBandLevel(band, level)
+                }
+            } catch (e: Exception) {
+                // ignore
             }
         }
     }
 
     fun getBandLevel(band: Short): Short {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getBandLevel(band) ?: eqGains[band] ?: 0
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getBandLevel(band) ?: eqGains[band] ?: 0
+        } catch (e: Exception) {
+            eqGains[band] ?: 0
+        }
     }
 
     fun setVirtualizerEnabled(enabled: Boolean) {
         internalVirtualizerEnabled = enabled
         activeSessions.values.forEach { fx ->
-            fx.virtualizer?.enabled = enabled
+            try {
+                fx.virtualizer?.enabled = enabled
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
     fun getNumberOfPresets(): Short {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfPresets ?: 0
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.numberOfPresets ?: 0
+        } catch (e: Exception) {
+            0
+        }
     }
 
     fun getPresetName(preset: Short): String {
-        return activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getPresetName(preset) ?: ""
+        return try {
+            activeSessions.values.firstNotNullOfOrNull { it.equalizer }?.getPresetName(preset) ?: ""
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     fun usePreset(preset: Short) {
         currentPreset = preset
         activeSessions.values.forEach { fx ->
-            fx.equalizer?.usePreset(preset)
-            // Need to sync eqGains
-            if (fx.equalizer != null) {
-                for (band in 0 until fx.equalizer.numberOfBands) {
-                    eqGains[band.toShort()] = fx.equalizer.getBandLevel(band.toShort())
+            try {
+                fx.equalizer?.usePreset(preset)
+                // Need to sync eqGains
+                if (fx.equalizer != null) {
+                    for (band in 0 until fx.equalizer.numberOfBands) {
+                        eqGains[band.toShort()] = fx.equalizer.getBandLevel(band.toShort())
+                    }
                 }
+            } catch (e: Exception) {
+                // ignore
             }
         }
     }
@@ -203,7 +243,11 @@ object ExoAudioFxManager {
     fun setVirtualizerStrength(strength: Short) {
         internalVirtualizerStrength = strength
         activeSessions.values.forEach { fx ->
-            fx.virtualizer?.setStrength(strength)
+            try {
+                fx.virtualizer?.setStrength(strength)
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
@@ -212,7 +256,11 @@ object ExoAudioFxManager {
     fun setBassBoostEnabled(enabled: Boolean) {
         internalBassBoostEnabled = enabled
         activeSessions.values.forEach { fx ->
-            fx.bassBoost?.enabled = enabled
+            try {
+                fx.bassBoost?.enabled = enabled
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
@@ -221,8 +269,12 @@ object ExoAudioFxManager {
     fun setBassBoostStrength(strength: Short) {
         internalBassBoostStrength = strength
         activeSessions.values.forEach { fx ->
-            if (fx.bassBoost?.strengthSupported == true) {
-                fx.bassBoost.setStrength(strength)
+            try {
+                if (fx.bassBoost?.strengthSupported == true) {
+                    fx.bassBoost.setStrength(strength)
+                }
+            } catch (e: Exception) {
+                // ignore
             }
         }
     }
@@ -232,7 +284,11 @@ object ExoAudioFxManager {
     fun setLoudnessEnabled(enabled: Boolean) {
         internalLoudnessEnabled = enabled
         activeSessions.values.forEach { fx ->
-            fx.loudnessEnhancer?.enabled = enabled
+            try {
+                fx.loudnessEnhancer?.enabled = enabled
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
@@ -241,7 +297,11 @@ object ExoAudioFxManager {
     fun setLoudnessGain(gain: Int) {
         internalLoudnessGain = gain
         activeSessions.values.forEach { fx ->
-            fx.loudnessEnhancer?.setTargetGain(gain)
+            try {
+                fx.loudnessEnhancer?.setTargetGain(gain)
+            } catch (e: Exception) {
+                // ignore
+            }
         }
     }
 
