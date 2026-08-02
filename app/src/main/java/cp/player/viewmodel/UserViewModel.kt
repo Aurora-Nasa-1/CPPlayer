@@ -202,7 +202,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         isPlaylistLoading = false
 
         currentPlaylistMetadata = playlist
-        playlistSongs = songs
+        playlistSongs = songs.distinctBy { it.id }
     }
 
     /**
@@ -346,7 +346,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         playlistSongsOffset += songs.size
                         // 防止用户已切换歌单时覆盖新歌单数据
                         if (fetchingPlaylistId == playlistId) {
-                            playlistSongs = if (isLoadMore) playlistSongs + songs else songs
+                            playlistSongs = (if (isLoadMore) playlistSongs + songs else songs).distinctBy { it.id }
                         }
                     } else if (!isLoadMore) {
                         if (fetchingPlaylistId == playlistId) {
@@ -417,7 +417,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         withContext(Dispatchers.Main) {
                             // 仅在用户仍在此歌单时更新歌曲列表
                             if (fetchingPlaylistId == playlistId || fetchingPlaylistId == null) {
-                                playlistSongs = allSongs
+                                playlistSongs = allSongs.distinctBy { it.id }
                                 playlistSongsOffset = allSongs.size
                                 hasMorePlaylistSongs = false
 
@@ -582,7 +582,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     }
                 }
 
-                cloudSongs = allSongs
+                cloudSongs = allSongs.distinctBy { it.id }
 
                 // Extract simpleSong.id and bind it
                 withContext(Dispatchers.IO) {
