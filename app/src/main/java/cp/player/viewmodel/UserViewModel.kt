@@ -39,6 +39,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     var isCloudLoading by mutableStateOf(false)
     private var playlistSongsOffset = 0
     private var fetchingPlaylistId: Long? = null
+    private val playlistPageLimit = 100
 
     var likedSongsPlaylistId by mutableLongStateOf(0L)
     var subscribedPlaylists by mutableStateOf<Set<Long>>(emptySet())
@@ -279,6 +280,44 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         } catch (_: Exception) { emptyList() }
     }
 
+    private fun extractPlaylistSongsArray(body: JsonObject): JsonArray? {
+        body.get("songs")?.takeIf { it.isJsonArray }?.asJsonArray?.let { return it }
+        body.get("tracks")?.takeIf { it.isJsonArray }?.asJsonArray?.let { return it }
+
+        val data = body.get("data")
+        if (data?.isJsonArray == true) return data.asJsonArray
+        if (data?.isJsonObject == true) {
+            val dataObj = data.asJsonObject
+            dataObj.get("songs")?.takeIf { it.isJsonArray }?.asJsonArray?.let { return it }
+            dataObj.get("tracks")?.takeIf { it.isJsonArray }?.asJsonArray?.let { return it }
+        }
+
+        return JsonUtils.findJsonArray(body, "songs") ?: JsonUtils.findJsonArray(body, "tracks")
+    }
+
+    private fun parsePlaylistSongs(body: JsonObject): List<Song> =
+        extractPlaylistSongsArray(body)?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+
+    private fun JsonObject.optionalInt(vararg keys: String): Int? {
+        for (key in keys) {
+            try {
+                val value = get(key)
+                if (value?.isJsonPrimitive == true) return value.asInt
+            } catch (_: Exception) {}
+        }
+        return null
+    }
+
+    private fun JsonObject.optionalBoolean(vararg keys: String): Boolean? {
+        for (key in keys) {
+            try {
+                val value = get(key)
+                if (value?.isJsonPrimitive == true) return value.asBoolean
+            } catch (_: Exception) {}
+        }
+        return null
+    }
+
     /**
      * 获取歌单歌曲。使用类型安全 API。
      * 非 loadMore 模式下优先使用缓存，后台刷新后更新缓存。
@@ -323,9 +362,11 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
             try {
                 coroutineScope {
                     // 并行发起详情和歌曲请求，不串行等待
-                    val limit = 100
                     val detailDef = if (!isLoadMore) async(Dispatchers.IO) { api.getPlaylistDetail(playlistId) } else null
-                    val tracksDef = async(Dispatchers.IO) { api.getPlaylistTracks(playlistId, limit = limit, offset = playlistSongsOffset) }
+                    val requestedOffset = playlistSongsOffset
+                    val tracksDef = async(Dispatchers.IO) {
+                        api.getPlaylistTracks(playlistId, limit = playlistPageLimit, offset = requestedOffset)
+                    }
 
                     // 处理详情（与歌曲请求并行进行）
                     if (!isLoadMore && detailDef != null) {
@@ -337,19 +378,34 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     }
 
                     val tracksBody = tracksDef.await()
-                    val songs = tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                    val songs = parsePlaylistSongs(tracksBody)
+                    val total = tracksBody.optionalInt("total", "trackCount", "count")
+                        ?: currentPlaylistMetadata?.trackCount?.takeIf { it > 0 }
+                    val providerHasMore = tracksBody.optionalBoolean("hasMore", "more")
+                    val shouldApply = fetchingPlaylistId == playlistId ||
+                        (isLoadMore && fetchingPlaylistId == null && currentPlaylistMetadata?.id == playlistId)
 
-                    if (songs.size < limit && fetchingPlaylistId == playlistId) {
-                        hasMorePlaylistSongs = false
+                    if (shouldApply) {
+                        hasMorePlaylistSongs = when {
+                            songs.isEmpty() -> false
+                            providerHasMore != null -> providerHasMore
+                            total != null -> requestedOffset + songs.size < total
+                            else -> songs.size >= playlistPageLimit
+                        }
+                        playlistSongsOffset = requestedOffset + songs.size
                     }
                     if (songs.isNotEmpty()) {
-                        playlistSongsOffset += songs.size
                         // 防止用户已切换歌单时覆盖新歌单数据
-                        if (fetchingPlaylistId == playlistId) {
-                            playlistSongs = if (isLoadMore) playlistSongs + songs else songs
+                        if (shouldApply) {
+                            playlistSongs = if (isLoadMore) {
+                                val seen = playlistSongs.mapTo(mutableSetOf()) { it.id }
+                                playlistSongs + songs.filter { seen.add(it.id) }
+                            } else {
+                                songs.distinctBy { it.id }
+                            }
                         }
                     } else if (!isLoadMore) {
-                        if (fetchingPlaylistId == playlistId) {
+                        if (shouldApply) {
                             playlistSongs = emptyList()
                         }
                     }
@@ -395,14 +451,25 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
 
                     val allSongs = mutableListOf<Song>()
                     var offset = 0
-                    val limit = 100
                     while (true) {
-                        val tracksBody = withContext(Dispatchers.IO) { api.getPlaylistTracks(playlistId, limit = limit, offset = offset) }
-                        val songs = tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                        val tracksBody = withContext(Dispatchers.IO) {
+                            api.getPlaylistTracks(playlistId, limit = playlistPageLimit, offset = offset)
+                        }
+                        val songs = parsePlaylistSongs(tracksBody)
                         if (songs.isEmpty()) break
+
                         allSongs.addAll(songs)
-                        if (songs.size < limit) break
+                        val total = tracksBody.optionalInt("total", "trackCount", "count")
+                            ?: newMetadata?.trackCount?.takeIf { it > 0 }
+                        val hasMore = tracksBody.optionalBoolean("hasMore", "more")
                         offset += songs.size
+
+                        val shouldContinue = when {
+                            hasMore != null -> hasMore
+                            total != null -> offset < total
+                            else -> songs.size >= playlistPageLimit
+                        }
+                        if (!shouldContinue) break
                     }
 
                     if (allSongs.isNotEmpty()) {
@@ -495,7 +562,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         return withContext(Dispatchers.IO) {
             try {
                 val tracksBody = api.getPlaylistTracks(playlistId)
-                tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                parsePlaylistSongs(tracksBody)
             } catch (e: Exception) {
                 emptyList()
             }
