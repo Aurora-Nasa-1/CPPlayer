@@ -7,6 +7,8 @@
 
 ---
 
+# [支持Windows新版]（https://github.com/Aurora-Nasa-1/CPPlayer-KMP）
+
 ## 简介
 
 CPPlayer 是一款功能丰富的 Android 音乐播放器，采用**插件化 Provider 架构**，支持接入多种音乐数据源。内置 ExoPlayer 和 FlickPlayer（基于 Rust 原生引擎）双播放引擎，提供高品质音频播放体验。
