@@ -7,7 +7,7 @@
 
 ---
 
-# [支持Windows新版(https://github.com/Aurora-Nasa-1/CPPlayer-KMP)
+# [支持Windows新版](https://github.com/Aurora-Nasa-1/CPPlayer-KMP)
 
 ## 简介
 
