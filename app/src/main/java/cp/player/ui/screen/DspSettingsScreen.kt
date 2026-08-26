@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cp.player.R
 import cp.player.engine.ExoAudioFxManager
 import cp.player.engine.RustEngine
 import cp.player.util.AutoEqParser
@@ -165,7 +166,13 @@ fun DspSettingsScreen(onNavigateBack: () -> Unit) {
                     )
                     Spacer(Modifier.weight(1f))
                     // 导入 AutoEQ
-                    IconButton(onClick = { launcher.launch("text/plain") }, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = {
+                        try {
+                            launcher.launch("text/plain")
+                        } catch (e: android.content.ActivityNotFoundException) {
+                            android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Outlined.FolderOpen, "导入", modifier = Modifier.size(20.dp))
                     }
                     // 重置

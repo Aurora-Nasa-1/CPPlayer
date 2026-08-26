@@ -133,7 +133,11 @@ fun DownloadsContent(
                     manageStorageLauncher.launch(intent)
                 } catch (_: Exception) {
                     val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    manageStorageLauncher.launch(intent)
+                    try {
+                        manageStorageLauncher.launch(intent)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         } else {

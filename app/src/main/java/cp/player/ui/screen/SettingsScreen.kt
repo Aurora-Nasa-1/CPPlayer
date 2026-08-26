@@ -730,7 +730,13 @@ fun SettingsScreen(
                             ExpressiveClickItem(
                                 title = stringResource(R.string.download_dir),
                                 subtitle = downloadDir?.substringAfterLast("%2F") ?: stringResource(R.string.system_music_folder),
-                                onClick = { dirPicker.launch(null) },
+                                onClick = {
+                                    try {
+                                        dirPicker.launch(null)
+                                    } catch (e: android.content.ActivityNotFoundException) {
+                                        android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 shapes = ListItemDefaults.segmentedShapes(4, 6)
                             )
                             
@@ -929,7 +935,13 @@ fun SettingsScreen(
 
                             ExpressiveButtonItem(
                                 text = stringResource(R.string.import_new_module),
-                                onClick = { importLauncher.launch("application/zip") },
+                                onClick = {
+                                    try {
+                                        importLauncher.launch("application/zip")
+                                    } catch (e: android.content.ActivityNotFoundException) {
+                                        android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                 shapes = ListItemDefaults.segmentedShapes(currentProviders.size, currentProviders.size + 1)
@@ -950,7 +962,11 @@ fun SettingsScreen(
                                     },
                                     onUpdateZipSelected = {
                                         updatingProviderId = provider.id
-                                        updateLauncher.launch("application/zip")
+                                        try {
+                                            updateLauncher.launch("application/zip")
+                                        } catch (e: android.content.ActivityNotFoundException) {
+                                            android.widget.Toast.makeText(context, context.getString(R.string.no_suitable_app_found), android.widget.Toast.LENGTH_SHORT).show()
+                                        }
                                     },
                                     onSettingsSelected = {
                                         currentProviderSettingsId = provider.id
