@@ -332,7 +332,9 @@ class MusicService : MediaSessionService() {
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
                     if (!isPlaying && superLyricReady) {
-                        SuperLyricHelper.sendStop(SuperLyricData())
+                        if (SuperLyricHelper.isAvailable()) {
+                            SuperLyricHelper.sendStop(SuperLyricData())
+                        }
                     }
                 }
 
@@ -559,7 +561,9 @@ class MusicService : MediaSessionService() {
                     updateWidget()
                     lyriconProvider?.player?.setPlaybackState(isPlaying)
                     if (!isPlaying && superLyricReady) {
-                        SuperLyricHelper.sendStop(SuperLyricData())
+                        if (SuperLyricHelper.isAvailable()) {
+                            SuperLyricHelper.sendStop(SuperLyricData())
+                        }
                     }
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -644,10 +648,12 @@ class MusicService : MediaSessionService() {
     @androidx.annotation.Keep
     private fun initSuperLyric() {
         try {
-            SuperLyricHelper.registerPublisher()
-            SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
-            superLyricReady = true
-            DebugLog.i("MusicService: SuperLyricHelper initialized")
+            if (SuperLyricHelper.isAvailable()) {
+                SuperLyricHelper.registerPublisher()
+                SuperLyricHelper.setSystemPlayStateListenerEnabled(false)
+                superLyricReady = true
+                DebugLog.i("MusicService: SuperLyricHelper initialized")
+            }
         } catch (e: Throwable) {
             DebugLog.w("MusicService: SuperLyricHelper init failed: ${e.message}")
         }
@@ -754,7 +760,9 @@ class MusicService : MediaSessionService() {
                 data.translation = SuperLyricLine(richLine.translation!!, richLine.begin, richLine.end)
             }
 
-            SuperLyricHelper.sendLyric(data)
+            if (SuperLyricHelper.isAvailable()) {
+                SuperLyricHelper.sendLyric(data)
+            }
         }
     }
 
@@ -977,7 +985,9 @@ class MusicService : MediaSessionService() {
         // 保存当前播放队列以便下次恢复
         saveQueueOnExit()
         try {
-            SuperLyricHelper.unregisterPublisher()
+            if (SuperLyricHelper.isAvailable()) {
+                SuperLyricHelper.unregisterPublisher()
+            }
         } catch (_: Exception) {}
         serviceScope.cancel()
         UserPreferences.getPrefs(this).unregisterOnSharedPreferenceChangeListener(enginePrefListener)
