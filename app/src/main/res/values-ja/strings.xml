@@ -603,4 +603,5 @@
     <string name="dsp_equalizer">DSP &amp; イコライザー</string>
     <string name="dsp_effects">DSP &amp; エフェクト</string>
     <string name="dsp_equalizer_desc">イコライザーと空間エフェクトを設定</string>
+    <string name="no_file_manager_found">ファイルマネージャーが見つかりません</string>
 </resources>

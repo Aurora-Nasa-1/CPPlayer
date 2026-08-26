@@ -730,7 +730,13 @@ fun SettingsScreen(
                             ExpressiveClickItem(
                                 title = stringResource(R.string.download_dir),
                                 subtitle = downloadDir?.substringAfterLast("%2F") ?: stringResource(R.string.system_music_folder),
-                                onClick = { dirPicker.launch(null) },
+                                onClick = {
+                                    try {
+                                        dirPicker.launch(null)
+                                    } catch (e: android.content.ActivityNotFoundException) {
+                                        android.widget.Toast.makeText(context, context.getString(R.string.no_file_manager_found), android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 shapes = ListItemDefaults.segmentedShapes(4, 6)
                             )
                             
