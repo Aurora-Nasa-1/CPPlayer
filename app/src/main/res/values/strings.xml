@@ -173,6 +173,7 @@
     <string name="module_import_failed">模块导入失败</string>
     <string name="module_import_failed_detail">模块导入失败：%s</string>
     <string name="module_import_error">导入模块时出错</string>
+    <string name="no_file_manager">未找到文件管理器应用，请安装一个文件管理器。</string>
     <string name="provider_active">（当前活跃）</string>
     <string name="provider_info">类型: %1$s | 版本: %2$s</string>
     <string name="provider_switched">已切换到 %1$s</string>
