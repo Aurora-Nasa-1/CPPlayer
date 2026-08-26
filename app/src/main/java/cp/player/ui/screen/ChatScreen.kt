@@ -28,8 +28,11 @@ import cp.player.R
 import cp.player.model.Message
 import cp.player.util.resized
 import cp.player.ui.component.AppScaffold
-import java.text.SimpleDateFormat
-import java.util.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val CHAT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -154,7 +157,7 @@ fun MessageBubble(
         RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
     }
     val timeStr = remember(message.time) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.time))
+        CHAT_TIME_FORMATTER.format(Instant.ofEpochMilli(message.time))
     }
 
     Column(

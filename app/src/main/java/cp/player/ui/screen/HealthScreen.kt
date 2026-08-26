@@ -43,6 +43,11 @@ import cp.player.ui.component.StyledModalBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val HEALTH_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
 
 /**
  * 统一的健康状态与调试界面。
@@ -604,7 +609,7 @@ private fun CallRecordRow(record: HealthMonitor.ApiCallRecord, compact: Boolean)
     }
 
     val timeStr = remember(record.timestamp) {
-        java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(record.timestamp))
+        HEALTH_TIME_FORMATTER.format(Instant.ofEpochMilli(record.timestamp))
     }
 
     Surface(

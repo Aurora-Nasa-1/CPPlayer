@@ -4,14 +4,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.text.SimpleDateFormat
-import java.util.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 object LogManager {
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
-    private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
+    private val dateFormat = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault())
 
     data class LogEntry(
         val time: String,
@@ -27,7 +28,7 @@ object LogManager {
 
     fun log(level: String, message: String, throwable: Throwable? = null) {
         val entry = LogEntry(
-            time = dateFormat.format(Date()),
+            time = dateFormat.format(Instant.now()),
             level = level,
             message = message,
             throwable = throwable?.let { android.util.Log.getStackTraceString(it) }
