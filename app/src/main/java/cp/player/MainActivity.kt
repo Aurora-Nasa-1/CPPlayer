@@ -228,10 +228,12 @@ fun AppNavigation(
                             label = { Text(label) },
                             selected = isSelected,
                             onClick = {
-                                navController.navigate(route) {
-                                    popUpTo("main") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                if (!isSelected) {
+                                    navController.navigate(route) {
+                                        popUpTo("main") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -994,10 +996,12 @@ fun AppMainContent(
                     navItems = navItems,
                     currentRoute = currentDestination?.route,
                     onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo("main") { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                        if (route != currentDestination?.route) {
+                            navController.navigate(route) {
+                                popUpTo("main") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     },
                     modifier = Modifier
