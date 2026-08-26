@@ -8,6 +8,8 @@ import cp.player.model.LyricLine
 import cp.player.model.Song
 import cp.player.service.LyricService
 import cp.player.util.JsonUtils
+import cp.player.util.arr
+import cp.player.util.obj
 
 /**
  * 播放数据仓库。
@@ -47,7 +49,7 @@ class PlaybackRepository(
      */
     suspend fun getPersonalFm(cookie: String?): List<Song> {
         val body = api.callApi(MusicApiMethod.PERSONAL_FM, mapOf("timestamp" to System.currentTimeMillis().toString()), cookie)
-        return (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
+        return (body.get("data").arr ?: body.get("result").arr)
             ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
     }
 
@@ -70,13 +72,10 @@ class PlaybackRepository(
             ),
             cookie
         )
-        val songsJson = when {
-            body.get("data")?.isJsonArray == true -> body.get("data").asJsonArray
-            body.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") ->
-                body.get("data").asJsonObject.get("data").asJsonArray
-            body.has("list") && body.get("list").isJsonArray -> body.get("list").asJsonArray
-            else -> null
-        }
+        val songsJson = body.get("data").arr
+            ?: body.get("data").obj?.get("data").arr
+            ?: body.get("list").arr
+
         return songsJson?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
     }
 }

@@ -3,6 +3,8 @@ package cp.player.service
 import com.google.gson.JsonObject
 import cp.player.model.LyricLine
 import cp.player.util.LyricUtils
+import cp.player.util.obj
+import cp.player.util.str
 
 /**
  * 统一的歌词获取和解析服务。
@@ -21,9 +23,9 @@ object LyricService {
      * @return 已合并翻译的歌词行列表
      */
     fun parseFromJson(body: JsonObject, duration: Long): List<LyricLine> {
-        val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-        val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-        val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+        val lrc = body.get("lrc").obj?.get("lyric").str ?: ""
+        val yrc = body.get("yrc").obj?.get("lyric").str ?: ""
+        val tlyric = body.get("tlyric").obj?.get("lyric").str ?: ""
         return parseLyrics(lrc, yrc, tlyric, duration)
     }
 
