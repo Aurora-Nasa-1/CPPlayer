@@ -128,7 +128,7 @@ fun ChatScreen(
         ) {
             items(
                 items = messages,
-                key = { it.hashCode() }
+                key = { it.id }
             ) { message ->
                 MessageBubble(
                     message = message,
