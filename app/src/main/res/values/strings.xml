@@ -501,6 +501,7 @@
     <string name="add_songs_count">添加 %1$d 首歌曲</string>
 
     <!-- 登录 -->
+    <string name="no_file_manager_found">未找到文件管理器</string>
     <string name="add_new_account">添加新账号</string>
     <string name="other_provider_accounts">其他提供商账号</string>
 
