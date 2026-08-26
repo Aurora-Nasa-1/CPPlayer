@@ -47,7 +47,7 @@ class PlaybackRepository(
      */
     suspend fun getPersonalFm(cookie: String?): List<Song> {
         val body = api.callApi(MusicApiMethod.PERSONAL_FM, mapOf("timestamp" to System.currentTimeMillis().toString()), cookie)
-        return (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
+        return (cp.player.util.JsonUtils.findJsonArray(body, "data") ?: cp.player.util.JsonUtils.findJsonArray(body, "result"))
             ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
     }
 
@@ -70,13 +70,7 @@ class PlaybackRepository(
             ),
             cookie
         )
-        val songsJson = when {
-            body.get("data")?.isJsonArray == true -> body.get("data").asJsonArray
-            body.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") ->
-                body.get("data").asJsonObject.get("data").asJsonArray
-            body.has("list") && body.get("list").isJsonArray -> body.get("list").asJsonArray
-            else -> null
-        }
+        val songsJson = cp.player.util.JsonUtils.findJsonArray(body, "data") ?: cp.player.util.JsonUtils.findJsonArray(body, "list")
         return songsJson?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
     }
 }
