@@ -90,28 +90,27 @@ object EmbeddedLyricsExtractor {
                 MediaMetadataRetriever.METADATA_KEY_COMPOSER,     // 曲作者
             )
 
-            for (field in lyricsFields) {
+            val standardLyrics = lyricsFields.firstNotNullOfOrNull { field ->
                 val value = retriever.extractMetadata(field)
                 if (!value.isNullOrBlank() && looksLikeLyrics(value)) {
                     DebugLog.i("$TAG: found lyrics in field $field (${value.length} chars)")
-                    return value
-                }
+                    value
+                } else null
             }
+            if (standardLyrics != null) return standardLyrics
 
             // 尝试非标准 key（某些 Android 实现/设备厂商扩展）
             // key 100 = METADATA_KEY_lyrics (部分三星/小米等设备支持)
             val extraKeys = listOf(100, 101)
-            for (key in extraKeys) {
+            return extraKeys.firstNotNullOfOrNull { key ->
                 try {
                     val value = retriever.extractMetadata(key)
                     if (!value.isNullOrBlank() && looksLikeLyrics(value)) {
                         DebugLog.i("$TAG: found lyrics in extended key $key (${value.length} chars)")
-                        return value
-                    }
-                } catch (_: Exception) {}
+                        value
+                    } else null
+                } catch (_: Exception) { null }
             }
-
-            return null
         } catch (e: Exception) {
             DebugLog.w("$TAG: MediaMetadataRetriever error: ${e.message}")
             return null
