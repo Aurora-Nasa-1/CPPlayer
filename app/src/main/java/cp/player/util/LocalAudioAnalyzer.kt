@@ -14,49 +14,6 @@ import kotlin.math.sqrt
 
 object LocalAudioAnalyzer {
 
-    private class FloatArrayList(initialCapacity: Int = 1024) {
-        var data = FloatArray(initialCapacity)
-        var size = 0
-
-        fun add(element: Float) {
-            if (size == data.size) {
-                data = data.copyOf(data.size * 2)
-            }
-            data[size++] = element
-        }
-
-        fun addAll(elements: FloatArray) {
-            if (size + elements.size > data.size) {
-                var newCapacity = data.size * 2
-                while (newCapacity < size + elements.size) {
-                    newCapacity *= 2
-                }
-                data = data.copyOf(newCapacity)
-            }
-            System.arraycopy(elements, 0, data, size, elements.size)
-            size += elements.size
-        }
-
-        fun toFloatArray(): FloatArray {
-            return data.copyOf(size)
-        }
-
-        fun get(index: Int): Float {
-            return data[index]
-        }
-
-        fun set(index: Int, element: Float) {
-            data[index] = element
-        }
-
-        fun sum(): Float {
-            var s = 0f
-            for(i in 0 until size) {
-                s += data[i]
-            }
-            return s
-        }
-    }
 
     fun analyze(context: Context, uri: Uri): AudioFeatures {
         return try {
@@ -311,14 +268,14 @@ object LocalAudioAnalyzer {
  * A simple primitive array list to avoid Float boxing overhead when collecting audio samples.
  */
 private class FloatArrayList(initialCapacity: Int = 1024) {
-    private var data = FloatArray(initialCapacity)
+    var data = FloatArray(initialCapacity)
     var size = 0
         private set
 
     fun add(element: Float) {
         if (size == data.size) {
             val newData = FloatArray(data.size * 2)
-            System.arraycopy(data, 0, newData, 0, size)
+            data.copyInto(newData, 0, 0, size)
             data = newData
         }
         data[size++] = element
@@ -331,10 +288,10 @@ private class FloatArrayList(initialCapacity: Int = 1024) {
                 newCap *= 2
             }
             val newData = FloatArray(newCap)
-            System.arraycopy(data, 0, newData, 0, size)
+            data.copyInto(newData, 0, 0, size)
             data = newData
         }
-        System.arraycopy(elements, 0, data, size, elements.size)
+        elements.copyInto(data, size, 0, elements.size)
         size += elements.size
     }
 
@@ -345,10 +302,10 @@ private class FloatArrayList(initialCapacity: Int = 1024) {
                 newCap *= 2
             }
             val newData = FloatArray(newCap)
-            System.arraycopy(data, 0, newData, 0, size)
+            data.copyInto(newData, 0, 0, size)
             data = newData
         }
-        System.arraycopy(elements.data, 0, data, size, elements.size)
+        elements.data.copyInto(data, size, 0, elements.size)
         size += elements.size
     }
 
@@ -372,7 +329,7 @@ private class FloatArrayList(initialCapacity: Int = 1024) {
 
     fun toFloatArray(): FloatArray {
         val result = FloatArray(size)
-        System.arraycopy(data, 0, result, 0, size)
+        data.copyInto(result, 0, 0, size)
         return result
     }
 }
