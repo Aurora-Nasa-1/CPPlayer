@@ -33,11 +33,12 @@ class MediaMetadataUseCase(private val application: Application) {
             val loader = SingletonImageLoader.get(application)
             val request = ImageRequest.Builder(application)
                 .data(resizedUrl)
+                .size(128)
                 .allowHardware(false)
                 .build()
             val result = loader.execute(request)
             if (result is SuccessResult) {
-                val bitmap = result.image.toBitmap()
+                val bitmap = result.image.toBitmap(128, 128)
 
                 // Fallback using Palette in case MCU fails
                 var fallbackColor = 0
