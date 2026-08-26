@@ -19,6 +19,7 @@ private val JsonElement?.bool: Boolean? get() = try { if (this?.isJsonPrimitive 
 
 object JsonUtils {
     private val PRIORITY_KEYS = listOf("al", "album", "data", "result", "songs", "urlInfo")
+    private val CONTACT_USER_KEYS = listOf("fromUser", "from", "user", "author", "profile")
 
     fun parseSong(it: JsonElement): Song? {
         val item = it.obj ?: return null
@@ -126,7 +127,7 @@ object JsonUtils {
         val obj = it.obj ?: return null
 
         // Handle different variations of where user info might be stored
-        val fromUser = obj.get("fromUser")?.obj ?: obj.get("from")?.obj ?: obj.get("user")?.obj ?: obj.get("author")?.obj ?: obj.get("profile")?.obj
+        val fromUser = CONTACT_USER_KEYS.firstNotNullOfOrNull { obj.get(it)?.obj }
 
         val lastMsgStr = obj.get("lastMsg")?.str ?: obj.get("msg")?.str ?: ""
 
@@ -148,10 +149,8 @@ object JsonUtils {
 
     fun parsePlaylist(element: JsonElement): Playlist? {
         val obj = element?.obj ?: return null
-        val idEl = obj.get("id")
-        val id = idEl?.long
-        if (idEl != null && id == null) return null
-        if (id == null || id <= 0) return null
+        val id = obj.get("id")?.long
+        if (id == null || id <= 0L) return null
 
         val creatorObj = obj.get("creator")?.obj
         val creatorUserId = creatorObj?.get("userId")?.long ?: 0L
