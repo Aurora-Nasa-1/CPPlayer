@@ -155,10 +155,14 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            )
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+            }
             onDownloadDirChange(it.toString())
         }
     }
@@ -730,7 +734,13 @@ fun SettingsScreen(
                             ExpressiveClickItem(
                                 title = stringResource(R.string.download_dir),
                                 subtitle = downloadDir?.substringAfterLast("%2F") ?: stringResource(R.string.system_music_folder),
-                                onClick = { dirPicker.launch(null) },
+                                onClick = {
+                                    try {
+                                        dirPicker.launch(null)
+                                    } catch (e: android.content.ActivityNotFoundException) {
+                                        e.printStackTrace()
+                                    }
+                                },
                                 shapes = ListItemDefaults.segmentedShapes(4, 6)
                             )
                             
