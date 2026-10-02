@@ -15,7 +15,11 @@ class HttpProvider(
     override val updateUrl: String? = null
 ) : BackendProvider {
     override val type = ProviderType.HTTP
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder().apply {
+        // Remove Sentry auto-instrumentation interceptors to prevent spamming Sentry with user-backend 502s
+        interceptors().removeAll { it.javaClass.name.contains("sentry", ignoreCase = true) }
+        networkInterceptors().removeAll { it.javaClass.name.contains("sentry", ignoreCase = true) }
+    }.build()
     private val gson = com.google.gson.Gson()
 
     override fun startServer(context: Context, port: Int) {}
@@ -30,9 +34,13 @@ class HttpProvider(
             .build()
         return try {
             client.newCall(req).execute().use { response ->
-                response.body.string()
+                if (response.isSuccessful) {
+                    response.body?.string() ?: """{"code": 200, "msg": "Empty response"}"""
+                } else {
+                    """{"code": ${response.code}, "msg": "HTTP Error ${response.code}"}"""
+                }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             """{"code": 500, "msg": "HTTP call failed: ${e.message}"}"""
         }
     }
