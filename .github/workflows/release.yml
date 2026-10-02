@@ -42,11 +42,11 @@ jobs:
     - name: Install cargo-ndk
       run: cargo install cargo-ndk
 
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Accept Licenses
+      run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
     - name: Install NDK
-      run: sdkmanager "ndk;28.0.13004108"
+      run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.0.13004108"
 
     - name: Set ANDROID_NDK_HOME
       run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> $GITHUB_ENV
