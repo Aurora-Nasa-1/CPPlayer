@@ -653,29 +653,6 @@ class MusicApiServiceImpl(
         // 优先从 redirectUrl 字段获取
         body.get("redirectUrl")?.asString?.let { if (it.startsWith("http")) return it }
         // 递归查找 URL
-        return findUrlRecursive(body)
-    }
-
-    private fun findUrlRecursive(element: com.google.gson.JsonElement?): String? {
-        if (element == null || element.isJsonNull) return null
-        if (element.isJsonPrimitive && element.asJsonPrimitive.isString) {
-            val s = element.asString
-            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) return s
-        }
-        if (element.isJsonObject) {
-            val obj = element.asJsonObject
-            // 优先检查常见字段名
-            listOf("url", "picUrl", "coverImgUrl", "avatarUrl").firstNotNullOfOrNull { key ->
-                obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf {
-                    it.startsWith("http") && it.length > 12 && !it.contains("null")
-                }
-            }?.let { return it }
-
-            return obj.entrySet().firstNotNullOfOrNull { findUrlRecursive(it.value) }
-        }
-        if (element.isJsonArray) {
-            return element.asJsonArray.firstNotNullOfOrNull { findUrlRecursive(it) }
-        }
-        return null
+        return cp.player.util.JsonUtils.findUrl(body)
     }
 }
