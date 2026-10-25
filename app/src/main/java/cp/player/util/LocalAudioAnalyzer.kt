@@ -14,50 +14,6 @@ import kotlin.math.sqrt
 
 object LocalAudioAnalyzer {
 
-    private class FloatArrayList(initialCapacity: Int = 1024) {
-        var data = FloatArray(initialCapacity)
-        var size = 0
-
-        fun add(element: Float) {
-            if (size == data.size) {
-                data = data.copyOf(data.size * 2)
-            }
-            data[size++] = element
-        }
-
-        fun addAll(elements: FloatArray) {
-            if (size + elements.size > data.size) {
-                var newCapacity = data.size * 2
-                while (newCapacity < size + elements.size) {
-                    newCapacity *= 2
-                }
-                data = data.copyOf(newCapacity)
-            }
-            System.arraycopy(elements, 0, data, size, elements.size)
-            size += elements.size
-        }
-
-        fun toFloatArray(): FloatArray {
-            return data.copyOf(size)
-        }
-
-        fun get(index: Int): Float {
-            return data[index]
-        }
-
-        fun set(index: Int, element: Float) {
-            data[index] = element
-        }
-
-        fun sum(): Float {
-            var s = 0f
-            for(i in 0 until size) {
-                s += data[i]
-            }
-            return s
-        }
-    }
-
     fun analyze(context: Context, uri: Uri): AudioFeatures {
         return try {
             val samples = decodeAudio(context, uri, maxDurationSec = 40)
@@ -273,12 +229,12 @@ object LocalAudioAnalyzer {
         if (env.size < 32) return 0.0
 
         var sumAcc = 0f
-        for (i in 0 until env.size) sumAcc += env.data[i]
+        for (i in 0 until env.size) sumAcc += env.get(i)
         val mean = sumAcc / env.size
         var varianceAcc = 0f
         for (i in 0 until env.size) {
-            val e = max(0f, env.data[i] - mean)
-            env.data[i] = e
+            val e = max(0f, env.get(i) - mean)
+            env.set(i, e)
             varianceAcc += e * e
         }
         val variance = varianceAcc / max(1, env.size)
@@ -293,7 +249,7 @@ object LocalAudioAnalyzer {
         for (lag in max(1, minLag)..max(minLag + 1, maxLag)) {
             var score = 0f
             for (i in 0 until env.size - lag) {
-                score += env.data[i] * env.data[i + lag]
+                score += env.get(i) * env.get(i + lag)
             }
             if (score > bestScore) {
                 bestScore = score
