@@ -8,6 +8,9 @@ import java.util.Locale
  */
 
 
+    private var cachedLocale: Locale? = null
+    private var cachedZeroDigit: Char = '0'
+
     /**
      * 将毫秒格式化为 "m:ss" 的时间字符串。
      * 针对使用 '0' 的常见 Locale 进行了快速路径优化。
@@ -20,7 +23,15 @@ import java.util.Locale
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
 
-        val zeroDigit = DecimalFormatSymbols.getInstance(locale).zeroDigit
+        val zeroDigit = if (locale == cachedLocale) {
+            cachedZeroDigit
+        } else {
+            val digit = DecimalFormatSymbols.getInstance(locale).zeroDigit
+            cachedLocale = locale
+            cachedZeroDigit = digit
+            digit
+        }
+
         if (zeroDigit == '0') {
             val secondsStr = if (seconds < 10) "0$seconds" else seconds.toString()
             return "$minutes:$secondsStr"
